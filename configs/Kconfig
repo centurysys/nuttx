@@ -1269,6 +1269,15 @@ config ARCH_BOARD_STM32VL_DISCOVERY
 	---help---
 		STMicro STM32VL-Discovery board based on the STMicro STM32F100RB MCU.
 
+config ARCH_BOARD_SA1XX
+	bool "Century Systems SA-1xx board"
+	depends on ARCH_CHIP_STM32F407IG
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		Century Systems SA-1xx board based on the STMicro STM32F407 MCU.
+
 config ARCH_BOARD_MIKROE_STM32F4
 	bool "MikroElektronika Mikromedia for STM32F4 board"
 	depends on ARCH_CHIP_STM32F407VG
@@ -1681,6 +1690,7 @@ config ARCH_BOARD
 	default "stm32f746g-disco"         if ARCH_BOARD_STM32F746G_DISCO
 	default "stm32f769i-disco"         if ARCH_BOARD_STM32F769I_DISCO
 	default "stm32f746-ws"             if ARCH_BOARD_STM32F746_WS
+	default "sa-1xx"                   if ARCH_BOARD_SA1XX
 	default "b-l475e-iot01a"           if ARCH_BOARD_B_L475E_IOT01A
 	default "stm32l476vg-disco"        if ARCH_BOARD_STM32L476VG_DISCO
 	default "stm32l476-mdk"            if ARCH_BOARD_STM32L476_MDK

@@ -1,0 +1,40 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if ARCH_BOARD_SA1XX
+
+if BOARD_INITIALIZE
+
+config SA1XX_BOARDINIT_PRIO
+	int "Board initialization thread priority"
+	default 196
+	---help---
+		If BOARD_INITIALIZE initialize is defined, then the function
+		board_initialize() will be called to perform board-specific
+		initialization. board_initialize() runs on the IDLE thread.
+		Depending on the features that are enabled, this  board
+		initialization logic may need to start a kernel thread that has
+		more capability than the IDLE thread.  This setting then provides
+		the priority of the board initialization thread.
+
+		NOTE:  SA1XX_BOARDINIT_PRIO should have a relatively high
+		priority to assure that board level initialization completes
+		before the application requires the initialized board services.
+		Default: 196
+
+config SA1XX_BOARDINIT_STACK
+	int "Board initialization thread Size"
+	default 2048
+	---help---
+		If BOARD_INITIALIZE initialize is defined, then the function
+		board_initialize() will be called to perform board-specific
+		initialization. board_initialize() runs on the IDLE thread.
+		Depending on the features that are enabled, this  board
+		initialization logic may need to start a kernel thread that has
+		more capability than the IDLE thread.  This setting then provides
+		the size of the stack to use with the initialization kernel thread.
+
+endif # BOARD_INITIALIZE
+endif # ARCH_BOARD_SA1XX
