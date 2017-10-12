@@ -41,8 +41,10 @@
 
 #include <debug.h>
 
+#include <arch/board/board.h>
 #include <nuttx/board.h>
 
+#include "stm32.h"
 #include "sa-1xx.h"
 
 /************************************************************************************
@@ -190,6 +192,13 @@ void stm32_boardinitialize(void)
   /* Configure on-board LEDs if LED support has been selected. */
 
   stm32_led_initialize();
+#endif
+
+#ifdef CONFIG_STM32_USART3
+  /* Power-up RS-232C transceiver */
+
+  stm32_configgpio(GPIO_USART3_FORCEOFF_N);
+  stm32_gpiowrite(GPIO_USART3_FORCEOFF_N, 1);
 #endif
 }
 
