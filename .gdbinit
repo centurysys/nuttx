@@ -9,14 +9,16 @@ end
 define nuttx_update
   reset_halt
   flashwrite nuttx
+  reset_halt
 end
 
 define reset_halt
   monitor reset halt
+  symbol-file ./nuttx
 end
 
 define reset_run
-  monitor reset halt
+  reset_halt
   continue
 end
 
