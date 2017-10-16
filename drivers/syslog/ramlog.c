@@ -59,6 +59,8 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/syslog/ramlog.h>
 
+#include "syslog.h"
+
 #include <nuttx/irq.h>
 
 #ifdef CONFIG_RAMLOG
