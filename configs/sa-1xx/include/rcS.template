@@ -1,0 +1,4 @@
+# Mount the procfs file system at /proc
+
+mount -t procfs /proc
+echo "rcS: Mounted /proc"
