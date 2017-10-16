@@ -200,6 +200,15 @@ void stm32_boardinitialize(void)
   stm32_configgpio(GPIO_USART3_FORCEOFF_N);
   stm32_gpiowrite(GPIO_USART3_FORCEOFF_N, 1);
 #endif
+
+#ifdef CONFIG_STM32_ETHMAC
+  stm32_configgpio(GPIO_ETH_PHY_RESET_N);
+  stm32_configgpio(GPIO_ETH_PHY_INTRP_N);
+  stm32_configgpio(GPIO_ETH_PHY_OSCENB);
+
+  stm32_gpiowrite(GPIO_ETH_PHY_OSCENB, 1);
+  stm32_gpiowrite(GPIO_ETH_PHY_RESET_N, 1);
+#endif
 }
 
 /****************************************************************************
