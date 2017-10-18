@@ -41,11 +41,13 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "up_arch.h"
 
 #include "chip/bcm2708_aux.h"
 #include "bcm_config.h"
+#include "bcm_aux.h"
 #include "bcm_lowputc.h"
 
 #include "up_internal.h"
@@ -57,13 +59,11 @@
 
 #ifdef BCM_HAVE_UART_CONSOLE
 #  if defined(CONFIG_BCM2708_MINI_UART_SERIAL_CONSOLE)
-#    define BCM_CONSOLE_VBASE    BCM_AUX_OFFSET
 #    define BCM_CONSOLE_BAUD     CONFIG_BCM2708_MINI_UART_BAUD
 #    define BCM_CONSOLE_BITS     CONFIG_BCM2708_MINI_UART_BITS
 #    define BCM_CONSOLE_PARITY   CONFIG_BCM2708_MINI_UART_PARITY
 #    define BCM_CONSOLE_2STOP    CONFIG_BCM2708_MINI_UART_2STOP
 #  elif defined(CONFIG_BCM2708_PL011_UART_SERIAL_CONSOLE)
-#    define BCM_CONSOLE_VBASE    BCM_PL011_VBASE
 #    define BCM_CONSOLE_BAUD     CONFIG_BCM2708_PL011_UART_BAUD
 #    define BCM_CONSOLE_BITS     CONFIG_BCM2708_PL011_UART_BITS
 #    define BCM_CONSOLE_PARITY   CONFIG_BCM2708_PL011_UART_PARITY
@@ -82,6 +82,12 @@ static const struct uart_config_s g_console_config =
   .parity    = BCM_CONSOLE_PARITY,  /* 0=none, 1=odd, 2=even */
   .bits      = BCM_CONSOLE_BITS,    /* Number of bits (5-9) */
   .stopbits2 = BCM_CONSOLE_2STOP,   /* true: Configure with 2 stop bits instead of 1 */
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  .iflow     = false;               /* true: Input flow control enabled */
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
+  .oflow     = false;               /* true: Output flow control enabled. */
+#endif
 };
 #endif
 
@@ -123,42 +129,120 @@ void bcm_lowsetup(void)
 # warning Missing logic
 #endif
 
-#ifdef BCM_HAVE_UART_CONSOLE
-  /* Configure the serial console for initial, non-interrupt driver mode */
+#if defined(CONFIG_BCM2708_MINI_UART_SERIAL_CONSOLE)
+  /* Configure the mini-uart serial console for initial, non-interrupt
+   * driven mode.
+   */
 
-  (void)bcm_uart_configure(BCM_CONSOLE_VBASE, &g_console_config);
+  (void)bcm_miniuart_configure(&g_console_config);
+#elif defined(CONFIG_BCM2708_PL011_UART_SERIAL_CONSOLE)
+  /* Configure the pl011-uart serial console for initial, non-interrupt
+   * driven mode.
+   */
+
+  (void)bcm_pl011uart_configure(&g_console_config);
 #endif
 #endif /* CONFIG_SUPPRESS_UART_CONFIG */
 }
 
-/************************************************************************************
- * Name: bcm_uart_configure
+/****************************************************************************
+ * Name: bcm_[mini|pl011]uart_configure
  *
  * Description:
- *   Configure a UART for non-interrupt driven operation
+ *   Configure the Mini- or PL011 UART for non-interrupt driven operation
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-#ifdef BCM_HAVE_UART
-int bcm_uart_configure(uint32_t base, FAR const struct uart_config_s *config)
+#ifdef CONFIG_BCM2708_MINI_UART
+int bcm_miniuart_configure(FAR const struct uart_config_s *config)
 {
+  DEBUGASSERT(config != NULL);
+
+  /* Enable the Mini-UART */
+
+  bcm_aux_enable(BCM_AUX_MINI_UART, NULL);
+
 #ifndef CONFIG_SUPPRESS_UART_CONFIG
-#  warning Missing logic
+  /* Set up BAUD Divisor */
+#warning Missing logic
+
+  /* Setup parity -- Mini-UART does not support parity. */
+
+  if (config->parity != 0)
+    {
+      return -EINVAL;
+    }
+
+  /* Setup number of bits */
+
+  if (config->bits == 7)
+    {
+      putreg8(0, BCM_AUX_MU_LCR);
+    }
+  else if (config->bits == 8)
+    {
+      putreg8(BCM_AUX_MU_LCR_DATA8BIT, BCM_AUX_MU_LCR);
+    }
+  else
+    {
+      return -EINVAL;
+    }
+
+  /* Configure Stop bits:  Only 1 STOP bit supported */
+
+  if (config->stopbits2)
+    {
+      return -EINVAL;
+    }
+
+  /* Configure flow control */
+#warning Missing logic
 #endif
+
+  /* Configure FIFOS:  Always enabled */
+
+  /* Enable receiver and tranmsmitter */
+
+  putreg8(BCM_AUX_MU_CNTL_RXEN | BCM_AUX_MU_CNTL_TXEN, BCM_AUX_MU_CNTL);
+  return OK;
+}
+#endif
+
+#ifdef CONFIG_BCM2708_PL011_UART
+int bcm_pl011uart_configure(FAR const struct uart_config_s *config)
+{
+  DEBUGASSERT(config != NULL);
+
+#ifndef CONFIG_SUPPRESS_UART_CONFIG
+  /* Set up BAUD Divisor */
+#warning Missing logic
+
+  /* Setup parity */
+
+  /* Setup number of bits */
+
+  /* Configure Stop bits */
+
+  /* Configure flow control */
+#endif
+
+  /* Configure FIFOS */
+
+  /* Enable receiver and tranmsmitter */
 
   return OK;
 }
-#endif /* BCM_HAVE_UART */
+#endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: bcm_lowputc
  *
  * Description:
- *   Output a byte with as few system dependencies as possible.  This will even work
- *   BEFORE the console is initialized if we are booting from U-Boot (and the same
- *   UART is used for the console, of course.)
+ *   Output a byte with as few system dependencies as possible.  This will
+ *   even work BEFORE the console is initialized if we are booting from
+ *   U-Boot (and the same UART is used for the console, of course.)
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #if defined(BCM_HAVE_UART) && defined(CONFIG_DEBUG_FEATURES)
 void bcm_lowputc(int ch)
