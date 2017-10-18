@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/bcm2708/bcm_config.h
+ * arch/arm/src/bcm2708/bcm_gpioint.c
  *
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -33,47 +33,71 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_BCM2708_BCM_CONFIG_H
-#define __ARCH_ARM_SRC_BCM2708_BCM_CONFIG_H 1
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
+#include "bcm_config.h"
+#include "bcm_gpio.h"
+
+#ifdef CONFIG_BCM2708_GPIO_IRQ
+
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Functions
  ****************************************************************************/
 
-/* Configuration ************************************************************/
+/************************************************************************************
+ * Name: bcm_gpio_irqinitialize
+ *
+ * Description:
+ *   Initialize logic to support a second level of interrupt decoding for GPIO pins.
+ *
+ ************************************************************************************/
 
-/* Is there a UART enabled?  The BCM2835 device has two UARTS. On mini UART
- * and and PL011 UART.
- */
+void bcm_gpio_irqinitialize(void)
+{
+#warning Missing Logic
+}
 
-#if defined(CONFIG_BCM2708_MINI_UART) || defined(CONFIG_BCM2708_PL011_UART)
-#  define BCM_HAVE_UART
-#endif
+/************************************************************************************
+ * Name: bcm_gpio_irqconfig
+ *
+ * Description:
+ *   Configure an interrupt for the specified GPIO pin.
+ *
+ ************************************************************************************/
 
-#undef SUPPRESS_CONSOLE_CONFIG
-#ifdef CONFIG_SUPPRESS_UART_CONFIG
-#  define SUPPRESS_CONSOLE_CONFIG 1
-#endif
+void bcm_gpio_irqconfig(gpio_pinset_t pinset)
+{
+#warning Missing Logic
+}
 
-/* Is there a serial console?  It could be on UART1-5 */
+/************************************************************************************
+ * Name: bcm_gpio_irqenable
+ *
+ * Description:
+ *   Enable the interrupt for specified GPIO IRQ
+ *
+ ************************************************************************************/
 
-#if defined(CONFIG_BCM2708_MINI_UART_SERIAL_CONSOLE) && defined(CONFIG_BCM2708_MINI_UART)
-#  undef  CONFIG_BCM2708_PL011_UART_SERIAL_CONSOLE
-#  define BCM_HAVE_UART_CONSOLE 1
-#elif defined(CONFIG_BCM2708_PL011_UART_SERIAL_CONSOLE) && defined(CONFIG_BCM2708_PL011_UART)
-#  undef  CONFIG_BCM2708_MINI_UART_SERIAL_CONSOLE
-#  define BCM_HAVE_UART_CONSOLE 1
-#else
-#  warning "No valid serial console Setting"
-#  undef  CONFIG_BCM2708_MINI_UART_SERIAL_CONSOLE
-#  undef  CONFIG_BCM2708_PL011_UART_SERIAL_CONSOLE
-#  undef  BCM_HAVE_UART_CONSOLE
-#endif
+void bcm_gpio_irqenable(int irq)
+{
+#warning Missing Logic
+}
 
-#endif /* __ARCH_ARM_SRC_BCM2708_BCM_CONFIG_H */
+/************************************************************************************
+ * Name: bcm_gpio_irqdisable
+ *
+ * Description:
+ *   Disable the interrupt for specified GPIO IRQ
+ *
+ ************************************************************************************/
+
+void bcm_gpio_irqdisable(int irq)
+{
+#warning Missing Logic
+}
+
+#endif /* CONFIG_BCM2708_GPIO_IRQ */

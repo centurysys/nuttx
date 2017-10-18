@@ -52,6 +52,8 @@
 #include "up_internal.h"
 #include "group/group.h"
 
+#include "bcm_aux.h"
+#include "bcm_gpio.h"
 #include "chip/bcm2708_irq.h"
 
 /****************************************************************************
@@ -91,6 +93,16 @@ void up_irqinitialize(void)
   /* currents_regs is non-NULL only while processing an interrupt */
 
   CURRENT_REGS = NULL;
+
+  /* Intitialize AUX interrupts */
+
+  bcm_aux_irqinitialize();
+
+#ifdef CONFIG_BCM2708_GPIO_IRQ
+  /* Initialize GPIO interrrupts */
+
+  bcm_gpio_irqinitialize();
+#endif
 
 #ifndef CONFIG_SUPPRESS_INTERRUPTS
   /* And finally, enable interrupts */
@@ -159,7 +171,7 @@ void up_decodeirq(uint32_t *regs)
 
   /* Check for pending interrupts in IPR1 */
 
-  if ((bpr & BCM_BIT_PENDING_1) != 0)
+  if ((bpr & BCM_IRQ_PENDING1) != 0)
     {
       /* Read the pending 1 register */
 
@@ -190,7 +202,7 @@ void up_decodeirq(uint32_t *regs)
 
   /* Check for pending interrupts in IPR2 */
 
-  if ((bpr & BCM_BIT_PENDING_2) != 0)
+  if ((bpr & BCM_IRQ_PENDING2) != 0)
     {
       /* Read the pending 2 register */
 

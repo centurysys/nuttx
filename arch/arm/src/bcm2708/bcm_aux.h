@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/bcm2780/bcm_lowputc.h
+ * arch/arm/src/bcm2708/bcm_aux.h
  *
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -33,82 +33,82 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_BCM2708_BCM_LOWPUTC_H
-#define __ARCH_ARM_SRC_BCM2708_BCM_LOWPUTC_H
+#ifndef __ARCH_ARM_SRC_BCM2708_BCM_AUX_H
+#define __ARCH_ARM_SRC_BCM2708_BCM_AUX_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/compiler.h>
-
-#include <sys/types.h>
-#include <stdint.h>
-#include <stdbool.h>
-
-#include "up_internal.h"
-#include "chip.h"
 
 /****************************************************************************
  * Public Types
  ****************************************************************************/
 
-#ifdef BCM_HAVE_UART
-/* This structure describes the configuration of an UART */
-
-struct uart_config_s
+enum bcm_aux_peripheral_e
 {
-  uint32_t baud;          /* Configured baud */
-  uint8_t  parity;        /* 0=none, 1=odd, 2=even */
-  uint8_t  bits;          /* Number of bits (5-9) */
-  bool     stopbits2;     /* true: Configure with 2 stop bits instead of 1 */
+  BCM_AUX_MINI_UART = 0,  /* Mini UART peripheral */
+  BCM_AUX_MINI_SPI1,      /* SPI1 peripheral */
+  BCM_AUX_MINI_SPI2,      /* SPI2 peripheral */
 };
-#endif
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name: bcm_lowsetup
+ * Name: bcm_aux_irqinitialize
  *
  * Description:
- *   Called at the very beginning of _start.  Performs low level
- *   initialization including setup of the console UART.  This UART done
- *   early so that the serial console is available for debugging very early
- *   in the boot sequence.
+ *   Called during IRQ initialize to initialize the shard AUX interrupt
+ *   logic.
  *
  ****************************************************************************/
 
-void bcm_lowsetup(void);
+void bcm_aux_irqinitialize(void);
 
 /****************************************************************************
- * Name: bcm_uart_configure
+ * Name: bcm_aux_enable
  *
  * Description:
- *   Configure a UART for non-interrupt driven operation
+ *   Enable the specified AUX interrupt (also enables access to peripheral
+ *   registers).
  *
  ****************************************************************************/
 
-#ifdef BCM_HAVE_UART
-int bcm_uart_configure(uint32_t base, FAR const struct uart_config_s *config);
-#endif
+void bcm_aux_enable(enum bcm_aux_peripheral_e periph, FAR void *arg);
 
-/************************************************************************************
- * Name: bcm_lowputc
+/****************************************************************************
+ * Name: bcm_aux_disable
  *
  * Description:
- *   Output a byte with as few system dependencies as possible.  This will even work
- *   BEFORE the console is initialized if we are booting from U-Boot (and the same
- *   UART is used for the console, of course.)
+ *   Disable the specified AUX interrupt (also disables access to peripheral
+ *   registers).
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-#if defined(BCM_HAVE_UART) && defined(CONFIG_DEBUG_FEATURES)
-void bcm_lowputc(int ch);
-#else
-#  define bcm_lowputc(ch)
+void bcm_aux_disable(enum bcm_aux_peripheral_e periph);
+
+/****************************************************************************
+ * Name: bcm_[mu|spi1|spi2]_interupt
+ *
+ * Description:
+ *   These callbacks must be provided by Mini-UART, SPI1, and SPI2 logic
+ *   when those peripherals are configured.  These callbacks will be invoked
+ *   from interrupt level processing when an interrupt for one of those
+ *   peripherals is received (with interrupts disabled)
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_BCM2708_MINI_UART
+int bcm_mu_interrupt(int irq, FAR void *context, FAR void *arg);
+#endif
+#ifdef CONFIG_BCM2708_SPI1
+int bcm_spi1_interrupt(int irq, FAR void *context, FAR void *arg);
+#endif
+#ifdef CONFIG_BCM2708_SPI2
+int bcm_spi2_interrupt(int irq, FAR void *context, FAR void *arg);
 #endif
 
-#endif /* __ARCH_ARM_SRC_BCM2708_BCM_LOWPUTC_H */
+#endif /* __ARCH_ARM_SRC_BCM2708_BCM_AUX_H */

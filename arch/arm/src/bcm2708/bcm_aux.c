@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/bcm2708/bcm_serial.h
+ * arch/arm/src/bcm2708/bcm_aux.c
  *
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -33,94 +33,188 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_BCM2708_BCM_SERIAL_H
-#define __ARCH_ARM_SRC_BCM2708_BCM_SERIAL_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include "up_internal.h"
+#include <sys/types.h>
+
+#include <nuttx/arch.h>
+#include <arch/irq.h>
+
+#include "up_arch.h"
 #include "bcm_config.h"
+#include "chip/bcm2708_aux.h"
+#include "bcm_aux.h"
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Public Types
+ * Name: bcm_aux_interrupt
+ *
+ * Description:
+ *   AUX interrupt handler
+ *
+ * Input Parameters:
+ *   Standard interrupt input parameters
+ *
+ * Returned Value:
+ *   Always returns OK
+ *
+ * Assumptions:
+ *   Interrupts ar disabled
+ *
  ****************************************************************************/
 
-/****************************************************************************
- * Inline Functions
- ****************************************************************************/
-
-#ifndef __ASSEMBLY__
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C"
+static int bcm_aux_interrupt(int irq, FAR void *context, FAR void *arg)
 {
-#else
-#define EXTERN extern
+  uint32_t auxirq;
+
+  /* Read the pending AUX interrupts */
+
+  auxirq = getreg32(BCM_AUX_IRQ);
+
+#ifdef CONFIG_BCM2708_MINI_UART
+  if ((auxirq & BCM_AUX_IRQ_MU) != 0)
+    {
+      (void)bcm_mu_interrupt(irq, context, arg);
+    }
 #endif
 
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-/****************************************************************************
- * Name: bcm_earlyserialinit
- *
- * Description:
- *   Performs the low level UART initialization early in debug so that the
- *   serial console will be available during bootup.  This must be called
- *   before up_serialinit.
- *
- ****************************************************************************/
-
-#ifdef USE_EARLYSERIALINIT
-void bcm_earlyserialinit(void);
+#ifdef CONFIG_BCM2708_SPI1
+  if ((auxirq & BCM_AUX_IRQ_SPI1) != 0)
+    {
+      (void)bcm_spi1_interrupt(irq, context, arg);
+    }
 #endif
 
-/****************************************************************************
- * Name: uart_earlyserialinit
- *
- * Description:
- *   Performs the low level UART initialization early in debug so that the
- *   serial console will be available during bootup.  This must be called
- *   before up_serialinit.
- *
- ****************************************************************************/
-
-#if defined(USE_EARLYSERIALINIT) && defined(BCM6_HAVE_UART)
-void uart_earlyserialinit(void);
+#ifdef CONFIG_BCM2708_SPI2
+  if ((auxirq & BCM_AUX_IRQ_SPI2) != 0)
+    {
+      (void)bcm_spi2_interrupt(irq, context, arg);
+    }
 #endif
 
-/****************************************************************************
- * Name: uart_serialinit
- *
- * Description:
- *   Register the UART serial console and serial ports.  This assumes that
- *   uart_earlyserialinit was called previously.
- *
- ****************************************************************************/
-
-#ifdef BCM6_HAVE_UART
-void uart_serialinit(void);
-#endif
-
-#undef EXTERN
-#if defined(__cplusplus)
+  return OK;
 }
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: bcm_aux_irqinitialize
+ *
+ * Description:
+ *   Called during IRQ initialize to initialize the shard AUX interrupt
+ *   logic.
+ *
+ ****************************************************************************/
+
+void bcm_aux_irqinitialize(void)
+{
+  /* Disable all AUX interrupt sources (Also disables all peripheral
+   * register accesses).
+   */
+
+  putreg32(0, BCM_AUX_ENB);
+
+  /* Attach and enable the AUX interrupt */
+
+  (void)irq_attach(BCM_IRQ_AUX, bcm_aux_interrupt, NULL);
+  up_enable_irq(BCM_IRQ_AUX);
+}
+
+/****************************************************************************
+ * Name: bcm_aux_enable
+ *
+ * Description:
+ *   Enable the specified AUX interrupt (also enables access to peripheral
+ *   registers).
+ *
+ ****************************************************************************/
+
+void bcm_aux_enable(enum bcm_aux_peripheral_e periph, FAR void *arg)
+{
+  uint32_t setbits;
+
+  /* Read the AUX perpheral enable */
+
+#ifdef CONFIG_BCM2708_MINI_UART
+  if (periph == BCM_AUX_MINI_UART)
+    {
+      setbits = BCM_AUX_ENB_MU;
+    }
+  else
 #endif
 
-#endif /* __ASSEMBLY__ */
-#endif /* __ARCH_ARM_SRC_BCM2708_BCM_SERIAL_H */
+#ifdef CONFIG_BCM2708_SPI1
+  if (periph == BCM_AUX_MINI_UART)
+    {
+      setbits = BCM_AUX_ENB_SPI1;
+    }
+  else
+#endif
+
+#ifdef CONFIG_BCM2708_SPI2
+  if (periph == BCM_AUX_MINI_UART)
+    {
+      setbits = BCM_AUX_ENB_SPI1;
+    }
+  else
+#endif
+    {
+      return;
+    }
+
+  modifyreg32(BCM_AUX_ENB, 0, setbits);
+}
+
+/****************************************************************************
+ * Name: bcm_aux_disable
+ *
+ * Description:
+ *   Disable the specified AUX interrupt (also disables access to peripheral
+ *   registers).
+ *
+ ****************************************************************************/
+
+void bcm_aux_disable(enum bcm_aux_peripheral_e periph)
+{
+  uint32_t clrbits;
+
+  /* Read the AUX perpheral enable */
+
+#ifdef CONFIG_BCM2708_MINI_UART
+  if (periph == BCM_AUX_MINI_UART)
+    {
+      clrbits = BCM_AUX_ENB_MU;
+    }
+  else
+#endif
+
+#ifdef CONFIG_BCM2708_SPI1
+  if (periph == BCM_AUX_MINI_UART)
+    {
+      clrbits = BCM_AUX_ENB_SPI1;
+    }
+  else
+#endif
+
+#ifdef CONFIG_BCM2708_SPI2
+  if (periph == BCM_AUX_MINI_UART)
+    {
+      clrbits = BCM_AUX_ENB_SPI1;
+    }
+  else
+#endif
+    {
+      return;
+    }
+
+  modifyreg32(BCM_AUX_ENB, clrbits, 0);
+}
