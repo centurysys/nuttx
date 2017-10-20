@@ -396,11 +396,23 @@ static uint16_t tcpsend_eventhandler(FAR struct net_driver_s *dev,
 
   else if ((flags & TCP_DISCONN_EVENTS) != 0)
     {
+      FAR struct socket *psock = pstate->snd_sock;
+
       ninfo("Lost connection\n");
 
-      /* Report not connected */
+      /* We could get here recursively through the callback actions of
+       * tcp_lost_connection().  So don't repeat that action if we have
+       * already been disconnected.
+       */
 
-      tcp_lost_connection(pstate->snd_sock, pstate->snd_cb, flags);
+      DEBUGASSERT(psock != NULL);
+      if (_SS_ISCONNECTED(psock->s_flags))
+         {
+           /* Report not connected */
+
+           tcp_lost_connection(psock, pstate->snd_cb, flags);
+         }
+
       pstate->snd_sent = -ENOTCONN;
       goto end_wait;
     }
