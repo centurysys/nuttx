@@ -96,6 +96,10 @@ ifeq ($(CONFIG_STM32F0_USB),y)
 CHIP_CSRCS += stm32f0_usbdev.c
 endif
 
+ifeq ($(CONFIG_STM32F0_PWR),y)
+CHIP_CSRCS += stm32f0_exti_pwr.c
+endif
+
 ifeq ($(CONFIG_RTC),y)
 CHIP_CSRCS += stm32f0_exti_rtc.c
 ifeq ($(CONFIG_RTC_DRIVER),y)
