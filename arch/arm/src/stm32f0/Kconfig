@@ -1139,6 +1139,33 @@ config STM32F0_WWDG
 
 endmenu
 
+config STM32F0_HAVE_RTC_SUBSECONDS
+	bool
+	select ARCH_HAVE_RTC_SUBSECONDS
+	default y
+
+choice
+	prompt "RTC clock source"
+	default STM32F0_RTC_LSECLOCK
+	depends on RTC
+
+config STM32F0_RTC_LSECLOCK
+	bool "LSE clock"
+	---help---
+		Drive the RTC with the LSE clock
+
+config STM32F0_RTC_LSICLOCK
+	bool "LSI clock"
+	---help---
+		Drive the RTC with the LSI clock
+
+config STM32F0_RTC_HSECLOCK
+	bool "HSE clock"
+	---help---
+		Drive the RTC with the HSE clock, divided down to 1MHz.
+
+endchoice
+
 config STM32F0_ADC
 	bool
 
