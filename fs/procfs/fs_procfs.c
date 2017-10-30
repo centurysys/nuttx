@@ -132,9 +132,17 @@ static const struct procfs_entry_s g_procfs_entries[] =
   { "modules",       &module_operations,          PROCFS_FILE_TYPE   },
 #endif
 
+#ifndef CONFIG_FS_PROCFS_EXCLUDE_BLOCKS
   { "fs/blocks",     &mount_procfsoperations,     PROCFS_FILE_TYPE },
+#endif
+
+#ifndef CONFIG_FS_PROCFS_EXCLUDE_MOUNT
   { "fs/mount",      &mount_procfsoperations,     PROCFS_FILE_TYPE },
+#endif
+
+#ifndef CONFIG_FS_PROCFS_EXCLUDE_USAGE
   { "fs/usage",      &mount_procfsoperations,     PROCFS_FILE_TYPE },
+#endif
 
 #if defined(CONFIG_FS_SMARTFS) && !defined(CONFIG_FS_PROCFS_EXCLUDE_SMARTFS)
   { "fs/smartfs**",  &smartfs_procfsoperations,   PROCFS_UNKOWN_TYPE },
