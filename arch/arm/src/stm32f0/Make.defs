@@ -65,7 +65,7 @@ CMN_CSRCS += up_dumpnvic.c
 endif
 
 CHIP_ASRCS  =
-CHIP_CSRCS  = stm32f0_clockconfig.c stm32f0_gpio.c stm32f0_idle.c
+CHIP_CSRCS  = stm32f0_clockconfig.c stm32f0_exti_gpio.c stm32f0_gpio.c stm32f0_idle.c
 CHIP_CSRCS += stm32f0_irq.c stm32f0_lowputc.c stm32f0_serial.c
 CHIP_CSRCS += stm32f0_pwr.c stm32f0_tim.c
 CHIP_CSRCS += stm32f0_start.c
