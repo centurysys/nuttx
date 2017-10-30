@@ -237,7 +237,7 @@ struct stm32f0_serial_s
 #endif
 
   const uint8_t     irq;       /* IRQ associated with this USART */
-  const uint32_t    apbclock;  /* PCLK 1 or 2 frequency */
+  const uint32_t    apbclock;  /* PCLK frequency */
   const uint32_t    usartbase; /* Base address of USART registers */
   const uint32_t    tx_gpio;   /* U[S]ART TX GPIO pin configuration */
   const uint32_t    rx_gpio;   /* U[S]ART RX GPIO pin configuration */
@@ -435,7 +435,7 @@ static struct stm32f0_serial_s g_usart1priv =
   .bits          = CONFIG_USART1_BITS,
   .stopbits2     = CONFIG_USART1_2STOP,
   .baud          = CONFIG_USART1_BAUD,
-  .apbclock      = STM32F0_PCLK2_FREQUENCY,
+  .apbclock      = STM32F0_PCLK_FREQUENCY,
   .usartbase     = STM32F0_USART1_BASE,
   .tx_gpio       = GPIO_USART1_TX,
   .rx_gpio       = GPIO_USART1_RX,
@@ -496,7 +496,7 @@ static struct stm32f0_serial_s g_usart2priv =
   .bits          = CONFIG_USART2_BITS,
   .stopbits2     = CONFIG_USART2_2STOP,
   .baud          = CONFIG_USART2_BAUD,
-  .apbclock      = STM32F0_PCLK1_FREQUENCY,
+  .apbclock      = STM32F0_PCLK_FREQUENCY,
   .usartbase     = STM32F0_USART2_BASE,
   .tx_gpio       = GPIO_USART2_TX,
   .rx_gpio       = GPIO_USART2_RX,
@@ -557,7 +557,7 @@ static struct stm32f0_serial_s g_usart3priv =
   .bits          = CONFIG_USART3_BITS,
   .stopbits2     = CONFIG_USART3_2STOP,
   .baud          = CONFIG_USART3_BAUD,
-  .apbclock      = STM32F0_PCLK1_FREQUENCY,
+  .apbclock      = STM32F0_PCLK_FREQUENCY,
   .usartbase     = STM32F0_USART3_BASE,
   .tx_gpio       = GPIO_USART3_TX,
   .rx_gpio       = GPIO_USART3_RX,
@@ -624,7 +624,7 @@ static struct stm32f0_serial_s g_usart4priv =
   .oflow         = false,
 #endif
   .baud          = CONFIG_USART4_BAUD,
-  .apbclock      = STM32F0_PCLK1_FREQUENCY,
+  .apbclock      = STM32F0_PCLK_FREQUENCY,
   .usartbase     = STM32F0_USART4_BASE,
   .tx_gpio       = GPIO_USART4_TX,
   .rx_gpio       = GPIO_USART4_RX,
@@ -689,7 +689,7 @@ static struct stm32f0_serial_s g_usart5priv =
   .oflow         = false,
 #endif
   .baud           = CONFIG_USART5_BAUD,
-  .apbclock       = STM32F0_PCLK1_FREQUENCY,
+  .apbclock       = STM32F0_PCLK_FREQUENCY,
   .usartbase      = STM32F0_USART5_BASE,
   .tx_gpio        = GPIO_USART5_TX,
   .rx_gpio        = GPIO_USART5_RX,

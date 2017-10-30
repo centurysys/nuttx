@@ -1037,7 +1037,7 @@ static void stm32f0_i2c_setclock(FAR struct stm32f0_i2c_priv_s *priv, uint32_t f
       /* Update timing and control registers */
 
       /* TODO: speed/timing calcs, taking into consideration
-       * STM32F0_PCLK1_FREQUENCY, or SYSCLK, or HSI16
+       * STM32F0_PCLK_FREQUENCY, or SYSCLK, or HSI16
        * clock source, RCC_CCIPR, I2CxSEL, 0 = PCKL, 1 = SCLK, 2 = HSI16, 3 = reserved
 #warning "check set filters before timing, see RM0351 35.4.4 p 1112"
        * analog filter; suppress spikes up to 50 ns in fast-mode and fast-mode plus
@@ -1904,11 +1904,11 @@ FAR struct i2c_master_s *stm32f0_i2cbus_initialize(int port)
   irqstate_t flags;
   int ret;
 
-#if STM32F0_PCLK1_FREQUENCY < 4000000
+#if STM32F0_PCLK_FREQUENCY < 4000000
 #   warning STM32F0_I2C_INIT: Peripheral clock must be at least 4 MHz to support 400 kHz operation.
 #endif
 
-#if STM32F0_PCLK1_FREQUENCY < 2000000
+#if STM32F0_PCLK_FREQUENCY < 2000000
 #   warning STM32F0_I2C_INIT: Peripheral clock must be at least 2 MHz to support 100 kHz operation.
   return NULL;
 #endif

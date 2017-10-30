@@ -129,10 +129,10 @@
 #define WWDG_CFR_W_MASK          (0x7f << WWDG_CFR_W_SHIFT)
 #define WWDG_CFR_WDGTB_SHIFT     (7)       /* Bits 8:7 [1:0]: Timer Base */
 #define WWDG_CFR_WDGTB_MASK      (3 << WWDG_CFR_WDGTB_SHIFT)
-#  define WWDG_CFR_PCLK1         (0 << WWDG_CFR_WDGTB_SHIFT) /* 00: CK Counter Clock (PCLK1 div 4096) div 1 */
-#  define WWDG_CFR_PCLK1d2       (1 << WWDG_CFR_WDGTB_SHIFT) /* 01: CK Counter Clock (PCLK1 div 4096) div 2 */
-#  define WWDG_CFR_PCLK1d4       (2 << WWDG_CFR_WDGTB_SHIFT) /* 10: CK Counter Clock (PCLK1 div 4096) div 4 */
-#  define WWDG_CFR_PCLK1d8       (3 << WWDG_CFR_WDGTB_SHIFT) /* 11: CK Counter Clock (PCLK1 div 4096) div 8 */
+#  define WWDG_CFR_PCLK          (0 << WWDG_CFR_WDGTB_SHIFT) /* 00: CK Counter Clock (PCLK div 4096) div 1 */
+#  define WWDG_CFR_PCLKd2        (1 << WWDG_CFR_WDGTB_SHIFT) /* 01: CK Counter Clock (PCLK div 4096) div 2 */
+#  define WWDG_CFR_PCLKd4        (2 << WWDG_CFR_WDGTB_SHIFT) /* 10: CK Counter Clock (PCLK div 4096) div 4 */
+#  define WWDG_CFR_PCLKd8        (3 << WWDG_CFR_WDGTB_SHIFT) /* 11: CK Counter Clock (PCLK div 4096) div 8 */
 #define WWDG_CFR_EWI             (1 << 9)  /* Bit 9: Early Wakeup Interrupt */
 
 /* Status register (32-bit) */
