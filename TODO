@@ -1977,7 +1977,15 @@ o File system / Generic drivers (fs/, drivers/)
                This can be seen with the NSH mount command which locks the
                inode tree while traversing all of the mountpoints and also
                with a simple directory listing with the 'ls' command which
-               locks the inode tree while the directory entries are enumerate.
+               locks the inode tree while the directory entries are enumerated.
+
+               The simplest solution would be change the IPC so that it does
+               not interact with the inode tree.  The simplest IPC change
+               would be to swith the underlying IPC from Unix domain local
+               sockets to LocalHost loopback sockets.  This would add
+               overhead of supporting a UDP stack in all configurations.
+               Another option would be to use shared memory or, perhaps
+               better, shared memory with a message queue.
 
                Support UserFS is currently marked EXPERIMENTAL to prevent
                accidentlly enabling the feature.
