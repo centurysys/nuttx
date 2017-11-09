@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/lc823450-xgevk/src/lc823450_bringup.c
+ * configs/lc823450-xgevk/scripts/ld-ipl2.script
  *
  *   Copyright (C) 2017 Sony Corporation. All rights reserved.
  *   Author: Masayuki Ishikawa <Masayuki.Ishikawa@jp.sony.com>
@@ -33,67 +33,88 @@
  *
  ****************************************************************************/
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#include <sys/types.h>
-#include <sys/mount.h>
-
-#include <stdbool.h>
-#include <syslog.h>
-
-#ifdef CONFIG_WATCHDOG
-#  include "lc823450_wdt.h"
-#endif
-
-#include "lc823450-xgevk.h"
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: lc823450_bringup
- *
- * Description:
- *   Bring up board features
- *
- ****************************************************************************/
-
-int lc823450_bringup(void)
+MEMORY
 {
-  int ret;
+    progmem (rx) : ORIGIN = 0x02000e00, LENGTH = 124K
+    sram   (rwx) : ORIGIN = 0x02100000, LENGTH = 256K
+    ramlog (rwx) : ORIGIN = 0x020fe000, LENGTH = 8K
+}
 
-#ifdef CONFIG_WATCHDOG
-  lc823450_wdt_initialize();
-#endif
+OUTPUT_ARCH(arm)
+ENTRY(_stext)
+SECTIONS
+{
 
-#ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
+	.text : {
+		_stext = ABSOLUTE(.);
+		KEEP(*(.vectors))
+		*(.vectors)
+		*(.text .text.*)
+		*(.fixup)
+		*(.gnu.warning)
+		*(.rodata .rodata.*)
+		*(.gnu.linkonce.t.*)
+		*(.glue_7)
+		*(.glue_7t)
+		*(.got)
+		*(.gcc_except_table)
+		*(.gnu.linkonce.r.*)
+		_etext = ABSOLUTE(.);
+	} > progmem
 
-  ret = mount(NULL, "/proc", "procfs", 0, NULL);
-  if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: Failed to mount procfs at /proc: %d\n", ret);
-    }
-#endif
+	.init_section : {
+		_sinit = ABSOLUTE(.);
+		KEEP(*(.init_array .init_array.*))
+		_einit = ABSOLUTE(.);
+	} > progmem
 
-#ifdef CONFIG_BMA250
-  lc823450_bma250initialize("/dev/accel");
-#endif
+	.ARM.extab : {
+		*(.ARM.extab*)
+	} > progmem
 
-#ifdef CONFIG_AUDIO_WM8776
-  lc823450_wm8776initialize(0);
-#endif
+	__exidx_start = ABSOLUTE(.);
+	.ARM.exidx : {
+		*(.ARM.exidx*)
+	} > progmem
+	__exidx_end = ABSOLUTE(.);
 
-  /* If we got here then perhaps not all initialization was successful, but
-   * at least enough succeeded to bring-up NSH with perhaps reduced
-   * capabilities.
-   */
+	_eronly = ABSOLUTE(LOADADDR(.data));
 
-  UNUSED(ret);
-  return OK;
+
+	.data : {
+		_sdata = ABSOLUTE(.);
+		*(.data .data.*)
+		*(.gnu.linkonce.d.*)
+		CONSTRUCTORS
+		. = ALIGN(4);
+		_edata = ABSOLUTE(.);
+	} > sram AT > progmem
+
+	.bss : {
+		_sbss = ABSOLUTE(.);
+		*(.bss .bss.*)
+		*(.gnu.linkonce.b.*)
+		*(COMMON)
+		. = ALIGN(4);
+		_ebss = ABSOLUTE(.);
+	} > sram
+
+	.ramlog : {
+		*(.ramlog)
+	} > ramlog
+
+	/* Stabs debugging sections. */
+	.stab 0 : { *(.stab) }
+	.stabstr 0 : { *(.stabstr) }
+	.stab.excl 0 : { *(.stab.excl) }
+	.stab.exclstr 0 : { *(.stab.exclstr) }
+	.stab.index 0 : { *(.stab.index) }
+	.stab.indexstr 0 : { *(.stab.indexstr) }
+	.comment 0 : { *(.comment) }
+	.debug_abbrev 0 : { *(.debug_abbrev) }
+	.debug_info 0 : { *(.debug_info) }
+	.debug_line 0 : { *(.debug_line) }
+	.debug_pubnames 0 : { *(.debug_pubnames) }
+	.debug_aranges 0 : { *(.debug_aranges) }
 }
