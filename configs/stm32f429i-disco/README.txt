@@ -25,7 +25,7 @@ NOTE:  Includes basic NSH command support with full 8MByte SDRAM + the
 
        The NSH configuration / testing that has been done so far was
        performed by connecting an external RS-232 line driver to pins
-       PA9 (TX) and PA10 (RX) and configuring UART1 as the NSH console.
+       PA9 (TX) and PA10 (RX) and configuring USART1 as the NSH console.
 
 Refer to the http://www.st.com website for further information about this
 board (search keyword: 429i-disco)
@@ -677,10 +677,12 @@ Where <subdir> is one of the following:
        external RS-232 line driver to the UART1 pins of the DISCO board
        on PA9 and PA10 of connector P1.
 
-  ltdc:
-  ----
-    STM32F429I-DISCO LTDC Framebuffer demo example.  See
-    configs/stm32f429i-disco/ltdc/README.txt for additional information.
+  fb
+  --
+
+    STM32F429I-DISCO LTDC Framebuffer demo example.  This is a simple
+    configuration used for some basic (non-graphic) debug of the framebuffer
+    character drivers using apps/examples/fb.
 
   nsh:
   ---

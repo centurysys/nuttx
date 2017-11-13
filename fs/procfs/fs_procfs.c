@@ -78,7 +78,7 @@
 
 extern const struct procfs_operations proc_operations;
 extern const struct procfs_operations cpuload_operations;
-extern const struct procfs_operations kmm_operations;
+extern const struct procfs_operations meminfo_operations;
 extern const struct procfs_operations module_operations;
 extern const struct procfs_operations uptime_operations;
 
@@ -124,8 +124,8 @@ static const struct procfs_entry_s g_procfs_entries[] =
   { "cpuload",       &cpuload_operations,         PROCFS_FILE_TYPE   },
 #endif
 
-#if defined(CONFIG_MM_KERNEL_HEAP) && !defined(CONFIG_FS_PROCFS_EXCLUDE_KMM)
-  { "kmm",           &kmm_operations,             PROCFS_FILE_TYPE   },
+#ifndef CONFIG_FS_PROCFS_EXCLUDE_MEMINFO
+  { "meminfo",        &meminfo_operations,        PROCFS_FILE_TYPE   },
 #endif
 
 #if defined(CONFIG_MODULE) && !defined(CONFIG_FS_PROCFS_EXCLUDE_MODULE)
