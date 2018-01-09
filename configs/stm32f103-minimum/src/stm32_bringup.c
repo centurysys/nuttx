@@ -73,6 +73,10 @@
 #  include <nuttx/leds/userled.h>
 #endif
 
+#ifdef CONFIG_VIDEO_FB
+#  include <nuttx/video/fb.h>
+#endif
+
 #include "stm32f103_minimum.h"
 
 /* Conditional logic in stm32f103_minimum.h will determine if certain features
@@ -153,6 +157,16 @@ int stm32_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_VIDEO_FB
+  /* Initialize and register the framebuffer driver */
+
+  ret = fb_register(0, 0);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: fb_register() failed: %d\n", ret);
+    }
+#endif
+
 #ifdef CONFIG_MMCSD
   ret = stm32_mmcsd_initialize(MMCSD_MINOR);
   if (ret < 0)
@@ -173,6 +187,17 @@ int stm32_bringup(void)
       return ret;
     }
 #endif
+
+#ifdef HAVE_AT24
+  /* Initialize the AT24 driver */
+
+  ret = stm32_at24_automount(AT24_MINOR);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_at24_automount failed: %d\n", ret);
+      return ret;
+    }
+#endif /* HAVE_AT24 */
 
 #ifdef CONFIG_PWM
   /* Initialize PWM and register the PWM device. */
@@ -267,6 +292,16 @@ int stm32_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: btn_lower_initialize() failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_INPUT_NUNCHUCK
+  /* Register the Nunchuck driver */
+
+  ret = nunchuck_initialize("/dev/nunchuck0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: nunchuck_initialize() failed: %d\n", ret);
     }
 #endif
 

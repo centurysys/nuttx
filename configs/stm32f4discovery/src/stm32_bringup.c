@@ -133,6 +133,16 @@ int stm32_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_VIDEO_FB
+  /* Initialize and register the framebuffer driver */
+
+  ret = fb_register(0, 0);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: fb_register() failed: %d\n", ret);
+    }
+#endif
+
 #ifdef HAVE_SDIO
   /* Initialize the SDIO block driver */
 
@@ -195,6 +205,16 @@ int stm32_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: btn_lower_initialize() failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_INPUT_NUNCHUCK
+  /* Register the Nunchuck driver */
+
+  ret = nunchuck_initialize("/dev/nunchuck0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: nunchuck_initialize() failed: %d\n", ret);
     }
 #endif
 

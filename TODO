@@ -1,4 +1,4 @@
-NuttX TODO List (Last updated November 11, 2017)
+NuttX TODO List (Last updated January 3, 2018)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This file summarizes known NuttX bugs, limitations, inconsistencies with
@@ -24,7 +24,7 @@ nuttx/:
   (0)  Other drivers (drivers/)
  (12)  Libraries (libc/, libm/)
  (10)  File system/Generic drivers (fs/, drivers/)
-  (9)  Graphics Subsystem (graphics/)
+ (10)  Graphics Subsystem (graphics/)
   (1)  Build system / Toolchains
   (3)  Linux/Cywgin simulation (arch/sim)
   (4)  ARM (arch/arm/)
@@ -1301,7 +1301,9 @@ o Network (net/, drivers/net)
                connect() most likely has this same issue.
 
                A work-around might be to raise the priority of the thread
-               that calls accept().
+               that calls accept().  accept() might also need to check the
+               tcpstateflags in the connection structure before returning
+               in order to assure that the socket truly is connected.
   Status:      Open
   Priority:    Medium.  I have never heard of this problem being reported
                before, so I suspect it might not be so prevalent as one
@@ -1757,14 +1759,10 @@ o File system / Generic drivers (fs/, drivers/)
                  intended for deeply embedded environments where there are
                  not multiple users with varying levels of trust.
 
-               truncate - The standard way of setting a fixed file size.
-                 Often used with random access, data base files.  There is no
-                 simple way of doing that now (other than just writing data
-                 to the file).
-
                link, unlink, softlink, readlink - For symbolic links.  Only
                  the ROMFS file system currently supports hard and soft links,
-                 so this is not too important.
+                 so this is not too important.  The top-level, psuedo-file
+                 system supports soft links.
 
                File locking
 
@@ -1776,6 +1774,8 @@ o File system / Generic drivers (fs/, drivers/)
 
                True inodes - Standard Unix inodes.  Currently only supported
                  by ROMFs.
+
+               File times, for example as set by utimes().
 
                The primary obstacle to all these is that each would require
                changes to all existing file systems.  That number is pretty
@@ -2011,6 +2011,27 @@ o Graphics Subsystem (graphics/)
 
   Status:      Open
   Priority:    Low for many, but I imagine higher in countries that use wide fonts
+
+  Title:       LOW-RES FRAMEBUFFER RENDERERING
+  Description: There are obvious issues in the low-res, < 8 BPP, implemenation of
+               the framebuffer rendereing logic of graphics/nxglib/fb.  I see two
+               obvious problems in reviewing nxglib_copyrectangle():
+
+               1. The masking logic might work 1 BPP, but is insufficient for other
+                  resolutions like 2-BPP and 4-BPP.
+               2. The use of lnlen will not handle multiple bits per pixel.  It
+                  would need to be converted to a byte count.
+
+               The function PDC_copy_glyph() in the file apps/graphics/pdcurs34/nuttx/pdcdisp.c
+               derives from nxglib_copyrectangle() and all of those issues have been
+               resolved in that file.
+
+               Other frambuffer rendering functions probably have similary issues.
+  Status:      Open
+  Priority:    Low.  It is not surprising that there would be bugs in this logic:
+               I have never encountered a hardware framebuffer with sub-byte pixel
+               depth.  If such a beast ever shows up, then this priority would be
+               higher.
 
 o Build system
   ^^^^^^^^^^^^

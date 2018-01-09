@@ -165,8 +165,9 @@ void spin_unlock(FAR volatile spinlock_t *lock)
   sched_note_spinunlock(this_task(), lock);
 #endif
 
-  *lock = SP_UNLOCKED;
   SP_DMB();
+  *lock = SP_UNLOCKED;
+  SP_DSB();
 }
 #endif
 
@@ -405,8 +406,15 @@ void spin_setbit(FAR volatile cpu_set_t *set, unsigned int cpu,
 #ifdef CONFIG_SCHED_INSTRUMENTATION_SPINLOCKS
   cpu_set_t prev;
 #endif
+  irqstate_t flags;
 
-  /* First, get the 'setlock' spinlock */
+  /* Disable local interrupts to prevent being re-entered from an interrupt
+   * on the same CPU.  This does not effect the behavior on other CPUs.
+   */
+
+  flags = up_irq_save();
+
+  /* Then, get the 'setlock' spinlock */
 
   spin_lock(setlock);
 
@@ -427,9 +435,10 @@ void spin_setbit(FAR volatile cpu_set_t *set, unsigned int cpu,
     }
 #endif
 
-  /* Release the 'setlock' */
+  /* Release the 'setlock' and restore local interrupts */
 
   spin_unlock(setlock);
+  up_irq_restore(flags);
 }
 
 /****************************************************************************
@@ -456,6 +465,13 @@ void spin_clrbit(FAR volatile cpu_set_t *set, unsigned int cpu,
 #ifdef CONFIG_SCHED_INSTRUMENTATION_SPINLOCKS
   cpu_set_t prev;
 #endif
+  irqstate_t flags;
+
+  /* Disable local interrupts to prevent being re-entered from an interrupt
+   * on the same CPU.  This does not effect the behavior on other CPUs.
+   */
+
+  flags = up_irq_save();
 
   /* First, get the 'setlock' spinlock */
 
@@ -480,9 +496,10 @@ void spin_clrbit(FAR volatile cpu_set_t *set, unsigned int cpu,
     }
 #endif
 
-  /* Release the 'setlock' */
+  /* Release the 'setlock' and restore local interrupts */
 
   spin_unlock(setlock);
+  up_irq_restore(flags);
 }
 
 #endif /* CONFIG_SPINLOCK */

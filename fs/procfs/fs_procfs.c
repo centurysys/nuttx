@@ -1,7 +1,7 @@
 /****************************************************************************
  * fs/procfs/fs_procfs.c
  *
- *   Copyright (C) 2013-2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013-2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,6 +148,10 @@ static const struct procfs_entry_s g_procfs_entries[] =
   { "fs/smartfs**",  &smartfs_procfsoperations,   PROCFS_UNKOWN_TYPE },
 #endif
 
+#if defined(CONFIG_MTD) && !defined(CONFIG_FS_PROCFS_EXCLUDE_MTD)
+  { "mtd",           &mtd_procfsoperations,       PROCFS_FILE_TYPE   },
+#endif
+
 #if defined(CONFIG_NET) && !defined(CONFIG_FS_PROCFS_EXCLUDE_NET)
   { "net",           &net_procfsoperations,       PROCFS_DIR_TYPE    },
 #if defined(CONFIG_NET_ROUTE) && !defined(CONFIG_FS_PROCFS_EXCLUDE_ROUTE)
@@ -155,10 +159,6 @@ static const struct procfs_entry_s g_procfs_entries[] =
   { "net/route/**",  &net_procfs_routeoperations, PROCFS_UNKOWN_TYPE },
 #endif
   { "net/**",        &net_procfsoperations,       PROCFS_UNKOWN_TYPE },
-#endif
-
-#if defined(CONFIG_MTD) && !defined(CONFIG_FS_PROCFS_EXCLUDE_MTD)
-  { "mtd",           &mtd_procfsoperations,       PROCFS_FILE_TYPE   },
 #endif
 
 #if defined(CONFIG_MTD_PARTITION) && !defined(CONFIG_FS_PROCFS_EXCLUDE_PARTITIONS)
@@ -257,6 +257,7 @@ const struct mountpt_operations procfs_operations =
   NULL,              /* sync */
   procfs_dup,        /* dup */
   procfs_fstat,      /* fstat */
+  NULL,              /* truncate */
 
   procfs_opendir,    /* opendir */
   procfs_closedir,   /* closedir */

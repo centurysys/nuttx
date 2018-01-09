@@ -85,6 +85,12 @@ ifeq ($(CONFIG_MTD_W25),y)
   CSRCS += stm32_w25.c
 endif
 
+ifeq ($(CONFIG_MTD_AT24XX),y)
+ifeq ($(CONFIG_STM32_I2C1),y)
+CSRCS += stm32_at24.c
+endif
+endif
+
 ifeq ($(CONFIG_AUDIO_TONE),y)
   CSRCS += stm32_tone.c
 endif
@@ -103,6 +109,10 @@ endif
 
 ifeq ($(CONFIG_LCD_MAX7219),y)
   CSRCS += stm32_max7219.c
+endif
+
+ifeq ($(CONFIG_INPUT_NUNCHUCK),y)
+  CSRCS += stm32_nunchuck.c
 endif
 
 ifeq ($(CONFIG_LCD_ST7567),y)

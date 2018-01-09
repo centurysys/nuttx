@@ -1647,6 +1647,10 @@ nuttx/
  |   |   `- README.txt
  |   |- fire-stm32v2/
  |   |   `- README.txt
+ |   |- flipnclick-pic32mz/
+ |   |   `- README.txt
+ |   |- flipnclick-sam3x/
+ |   |   `- README.txt
  |   |- freedom-k64f/
  |   |   `- README.txt
  |   |- freedom-k66f/
@@ -1656,6 +1660,8 @@ nuttx/
  |   |- freedom-kl26z/
  |   |   `- README.txt
  |   |- hymini-stm32v/
+ |   |   `- README.txt
+ |   |- indium-f7
  |   |   `- README.txt
  |   |- kwikstik-k40/
  |   |   `- README.txt
@@ -1681,9 +1687,13 @@ nuttx/
  |   |   `- README.txt
  |   |- lpcxpresso-lpc1768/
  |   |   `- README.txt
+ |   |- lpcxpresso-lpc54628/
+ |   |   `- README.txt
  |   |- maple/
  |   |   `- README.txt
  |   |- mbed/
+ |   |   `- README.txt
+ |   |- mcb1700/
  |   |   `- README.txt
  |   |- mcu123-lpc214x/
  |   |   `- README.txt
@@ -1868,8 +1878,6 @@ nuttx/
  |   |   `- README.txt
  |   |- xmc5400-relax/
  |   |   `- README.txt
- |   |- xtrs/
- |   |   `- README.txt
  |   |- z16f2800100zcog/
  |   |   |- ostest/README.txt
  |   |   |- pashello/README.txt
@@ -1922,6 +1930,8 @@ nuttx/
  |   |   `- README.txt
  |   `- README.txt
  |- libnx/
+ |   |- nxfongs
+ |   |   `- README.txt
  |   `- README.txt
  |- libxx/
  |   `- README.txt

@@ -103,7 +103,7 @@
  */
 
 #ifdef NSH_HAVE_MMCSD
-#  ifdef CONFIG_MMCSD_HAVECARDDETECT
+#  ifdef CONFIG_MMCSD_HAVE_CARDDETECT
 #    define NSH_HAVE_MMCSD_CD 1
 #    ifdef CONFIG_LPC17_GPIOIRQ
 #      define NSH_HAVE_MMCSD_CDINT 1
@@ -395,6 +395,17 @@ int lpc17_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: fb_register() failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_OPEN1788_DJOYSTICK
+  /* Initialize and register the joystick driver */
+
+  ret = lpc17_djoy_initialization();
+  if (ret != OK)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to register the joystick driver: %d\n", ret);
+      return ret;
     }
 #endif
 

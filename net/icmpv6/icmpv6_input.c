@@ -126,7 +126,7 @@ static uint16_t icmpv6_datahandler(FAR struct net_driver_s *dev,
   if (iob == NULL)
     {
       nerr("ERROR: Failed to create new I/O buffer chain\n");
-      return 0;
+      goto drop;
     }
 
   /* Put the IPv6 address at the beginning of the read-ahead buffer */
@@ -150,8 +150,7 @@ static uint16_t icmpv6_datahandler(FAR struct net_driver_s *dev,
        */
 
       nerr("ERROR: Failed to length to the I/O buffer chain: %d\n", ret);
-      (void)iob_free_chain(iob);
-      return 0;
+      goto drop_with_chain;
     }
 
   offset = sizeof(uint8_t);
@@ -165,8 +164,7 @@ static uint16_t icmpv6_datahandler(FAR struct net_driver_s *dev,
        */
 
       nerr("ERROR: Failed to source address to the I/O buffer chain: %d\n", ret);
-      (void)iob_free_chain(iob);
-      return 0;
+      goto drop_with_chain;
     }
 
   offset += sizeof(struct sockaddr_in6);
@@ -182,8 +180,7 @@ static uint16_t icmpv6_datahandler(FAR struct net_driver_s *dev,
        */
 
       nerr("ERROR: Failed to add data to the I/O buffer chain: %d\n", ret);
-      (void)iob_free_chain(iob);
-      return 0;
+      goto drop_with_chain;
     }
 
   /* Add the new I/O buffer chain to the tail of the read-ahead queue (again
@@ -194,12 +191,19 @@ static uint16_t icmpv6_datahandler(FAR struct net_driver_s *dev,
   if (ret < 0)
     {
       nerr("ERROR: Failed to queue the I/O buffer chain: %d\n", ret);
-      (void)iob_free_chain(iob);
-      return 0;
+      goto drop_with_chain;
     }
 
   ninfo("Buffered %d bytes\n", buflen + addrsize + 1);
+  dev->d_len = 0;
   return buflen;
+
+drop_with_chain:
+  (void)iob_free_chain(iob);
+
+drop:
+  dev->d_len = 0;
+  return 0;
 }
 #endif
 
@@ -304,7 +308,7 @@ void icmpv6_input(FAR struct net_driver_s *dev)
                  * response.
                  */
 
-                goto icmpv_send_nothing;
+                goto icmpv6_send_nothing;
               }
           }
 
@@ -384,7 +388,7 @@ void icmpv6_input(FAR struct net_driver_s *dev)
                 /* Yes.. Notify any waiting threads */
 
                 icmpv6_rnotify(dev, ipicmp->srcipaddr, opt->prefix, opt->preflen);
-                goto icmpv_send_nothing;
+                goto icmpv6_send_nothing;
               }
 
             /* Skip to the next option (units of octets) */
@@ -427,9 +431,9 @@ void icmpv6_input(FAR struct net_driver_s *dev)
 
         /* Dispatch the ECHO reply to the waiting thread */
 
-        flags = devif_conn_event(dev, ipicmp, flags, dev->d_conncb);
+        flags = devif_conn_event(dev, NULL, flags, dev->d_conncb);
 
-        /* Wwas the ECHO reply consumed by any waiting thread? */
+        /* Was the ECHO reply consumed by any waiting thread? */
 
         if ((flags & ICMPv6_ECHOREPLY) != 0)
           {
@@ -465,6 +469,8 @@ void icmpv6_input(FAR struct net_driver_s *dev)
                 goto icmpv6_drop_packet;
               }
           }
+
+          goto icmpv6_send_nothing;
       }
       break;
 #endif
@@ -495,7 +501,7 @@ icmpv6_drop_packet:
   g_netstats.icmpv6.drop++;
 #endif
 
-icmpv_send_nothing:
+icmpv6_send_nothing:
   dev->d_len = 0;
 }
 
