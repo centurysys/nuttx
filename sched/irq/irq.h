@@ -73,6 +73,7 @@ struct irq_info_s
 {
   xcpt_t handler;  /* Address of the interrupt handler */
   FAR void *arg;   /* The argument provided to the interrupt handler. */
+  uint32_t count;
 };
 
 /****************************************************************************
