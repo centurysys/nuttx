@@ -1,8 +1,8 @@
 /****************************************************************************
- * sched/irq/irq_initialize.c
+ * arch/arm/src/samdl/sam_eic.h
  *
- *   Copyright (C) 2007-2008, 2010, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Author: Matt Thompson <matt@extent3d.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,70 +33,77 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_ARM_SRC_SAMDL_SAM_EIC_H
+#define __ARCH_ARM_SRC_SAMDL_SAM_EIC_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/arch.h>
-#include <nuttx/irq.h>
 
-#include "irq/irq.h"
+#include <stdint.h>
+#include <stdbool.h>
+
+#include "sam_config.h"
+#include "sam_port.h"
+
+#if defined(CONFIG_ARCH_FAMILY_SAMD20) || defined(CONFIG_ARCH_FAMILY_SAMD21)
+#  include "chip/samd_eic.h"
+#elif defined(CONFIG_ARCH_FAMILY_SAML21)
+#  include "chip/saml_eic.h"
+#else
+#  error Unrecognized SAMD/L architecture
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* This is the number of entries in the interrupt vector table */
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
 
-#ifdef CONFIG_ARCH_MINIMAL_VECTORTABLE
-#  define TAB_SIZE CONFIG_ARCH_NUSER_INTERRUPTS
-#else
-#  define TAB_SIZE NR_IRQS
-#endif
+/****************************************************************************
+ * Inline Functions
+ ****************************************************************************/
 
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
-/* This is the interrupt vector table */
-
-#ifdef CONFIG_ARCH_MINIMAL_VECTORTABLE
-struct irq_info_s g_irqvector[CONFIG_ARCH_NUSER_INTERRUPTS];
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
 #else
-struct irq_info_s g_irqvector[NR_IRQS];
+#define EXTERN extern
 #endif
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name: irq_initialize
+ * Name: sam_eic_configure
  *
  * Description:
- *   Configure the IRQ subsystem
+ *   Configure the EIC
+ *
+ * Input Parameters:
+ *   gclkgen - GCLK Generator
+ *
+ * Returned Value:
+ *   None
  *
  ****************************************************************************/
 
-void irq_initialize(void)
-{
-  int i;
+int sam_eic_initialize(uint8_t gclkgen);
+int sam_eic_config(uint8_t eirq, port_pinset_t pinset);
 
-  /* Point all interrupt vectors to the unexpected interrupt */
-
-  for (i = 0; i < TAB_SIZE; i++)
-    {
-      g_irqvector[i].handler = irq_unexpected_isr;
-      g_irqvector[i].arg     = NULL;
-#ifdef CONFIG_SCHED_IRQMONITOR
-      g_irqvector[i].start   = 0;
-#ifdef CONFIG_HAVE_LONG_LONG
-      g_irqvector[i].count   = 0;
-#else
-      g_irqvector[i].mscount = 0;
-      g_irqvector[i].lscount = 0;
-#endif
-#endif
-    }
+#undef EXTERN
+#if defined(__cplusplus)
 }
+#endif
+#endif /* __ARCH_ARM_SRC_SAMDL_SAM_EIC_H */
