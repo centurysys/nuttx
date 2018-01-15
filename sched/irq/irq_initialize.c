@@ -89,6 +89,5 @@ void irq_initialize(void)
     {
       g_irqvector[i].handler = irq_unexpected_isr;
       g_irqvector[i].arg     = NULL;
-      g_irqvector[i].count   = 0;
     }
 }

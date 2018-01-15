@@ -90,8 +90,6 @@ void irq_dispatch(int irq, FAR void *context)
 #else
       vector = g_irqvector[irq].handler;
       arg    = g_irqvector[irq].arg;
-
-      g_irqvector[irq].count++;
 #endif
     }
 
