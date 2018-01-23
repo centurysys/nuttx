@@ -1,7 +1,7 @@
 /****************************************************************************
- * net/tcp/tcp_wrbuffer_dump.c
+ * net/udp/udp_wrbuffer_dump.c
  *
- *   Copyright (C) 2014, 2018 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 
 #include <nuttx/mm/iob.h>
 
-#include "tcp/tcp.h"
+#include "udp/udp.h"
 
 #ifdef CONFIG_DEBUG_FEATURES
 
@@ -53,19 +53,18 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: tcp_wrbuffer_dump
+ * Name: udp_wrbuffer_dump
  *
  * Description:
  *  Dump the contents of a write buffer
  *
  ****************************************************************************/
 
-void tcp_wrbuffer_dump(FAR const char *msg, FAR struct tcp_wrbuffer_s *wrb,
+void udp_wrbuffer_dump(FAR const char *msg, FAR struct udp_wrbuffer_s *wrb,
                        unsigned int len, unsigned int offset)
 {
-  syslog(LOG_DEBUG, "%s: wrb=%p segno=%d sent=%d nrtx=%d\n",
-         msg, wrb, TCP_WBSEQNO(wrb), TCP_WBSENT(wrb), TCP_WBNRTX(wrb));
-  iob_dump("I/O Buffer Chain", TCP_WBIOB(wrb), len, offset);
+  syslog(LOG_DEBUG, "%s: wrb=%p pktlen=%d\n", msg, wrb, wrb->wb_iob->io_pktlen);
+  iob_dump("I/O Buffer Chain", wrb->wb_iob, len, offset);
 }
 
 #endif /* CONFIG_DEBUG_FEATURES */
