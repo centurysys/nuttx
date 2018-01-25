@@ -902,6 +902,13 @@ config ARCH_BOARD_NUCLEO_L476RG
 	---help---
 		STMicro Nucleo L476RG board based on the STMicro STM32L476RGT6 MCU.
 
+config ARCH_BOARD_CENTURYSYS_XG50
+	bool "Century Systems XG-50"
+	depends on ARCH_CHIP_STM32L476RG
+	select ARCH_HAVE_LEDS
+	---help---
+		Century Systems XG-50 board based on the STMicro STM32L476RGT6 MCU.
+
 config ARCH_BOARD_RASPBERRY_PIZERO
 	bool "Raspberry Pi Zero"
 	depends on ARCH_CHIP_BCM2835
@@ -1685,6 +1692,7 @@ config ARCH_BOARD
 	default "nucleo-l452re"            if ARCH_BOARD_NUCLEO_L452RE
 	default "nucleo-l476rg"            if ARCH_BOARD_NUCLEO_L476RG
 	default "nucleo-l496zg"            if ARCH_BOARD_NUCLEO_L496ZG
+	default "centurysys-xg50"          if ARCH_BOARD_CENTURYSYS_XG50
 	default "nutiny-nuc120"            if ARCH_BOARD_NUTINY_NUC120
 	default "nr5m100-nexys4"           if ARCH_BOARD_NR5M100_NEXYS4
 	default "olimex-efm32g880f128-stk" if ARCH_BOARD_OLIMEX_EFM32G880F128_STK
@@ -2000,6 +2008,9 @@ source "configs/nucleo-l476rg/Kconfig"
 endif
 if ARCH_BOARD_NUCLEO_L496ZG
 source "configs/nucleo-l496zg/Kconfig"
+endif
+if ARCH_BOARD_CENTURYSYS_XG50
+source "configs/centurysys-xg50/Kconfig"
 endif
 if ARCH_BOARD_NUTINY_NUC120
 source "configs/nutiny-nuc120/Kconfig"

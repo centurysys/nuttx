@@ -1,0 +1,3 @@
+echo "boot, do bp35test"
+
+bp35test &
