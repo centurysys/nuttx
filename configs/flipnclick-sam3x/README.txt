@@ -14,6 +14,8 @@ Contents
   - STATUS
   - Buttons and LEDs
   - Serial Consoles
+  - SPI
+  - I2C
   - Loading Code
   - Flip&Click SAM3X-specific Configuration Options
   - Configurations
@@ -119,6 +121,66 @@ Serial Consoles
   problems mentioned above, USART0 is used as the default serial console
   in all configurations.  But that is easily changed by modifying the
   configuration as described under "Configurations" below.
+
+SPI
+===
+
+   SPI0 is available on the Arduino compatible SPI connector (but no SPI is
+   available on pins D10-D13 of the main Arduino Shield connectors where
+   you might expect then).  The SPI connector is configured as follows:
+
+     Pin Board Signal SAM3X  Pin Board Signal SAM3X
+     --- ------------ -----  --- ------------ -----
+      1  SPI0_MISO    PA25    2  VCC-5V       N/A
+      3  SPI0_SCK     PA27    4  SPI0_MOSI    PA26
+      5  MRST         NRSTB   6  GND          N/A
+
+   SPI0 is also available on each of the mikroBUS Click connectors (in
+   addition to 5V and GND).  The connectivity differs only in the chip
+   select pin:
+
+     MikroBUS A:              MikroBUS B:
+     Pin  Board Signal SAM3X  Pin  Board Signal SAM3X
+     ---- ------------ -----  ---- ------------ -----
+     CS   SPI0_CS0     PA28   CS   PA29         PA29
+     SCK  SPI0_SCK     PA27   SCK  SPI0_SCK     PA27
+     MISO SPI0_MISO    PA25   MISO SPI0_MISO    PA25
+     MOSI SPI0_MOSI    PA26   MOSI SPI0_MOSI    PA26
+
+     MikroBUS C:              MikroBUS D:
+     Pin  Board Signal SAM3X  Pin  Board Signal SAM3X
+     ---- ------------ -----  ---- ------------ -----
+     CS   SPI0_CS2     PB21   CS   SPI0_CS3     PB23
+     SCK  SPI0_SCK     PA27   SCK  SPI0_SCK     PA27
+     MISO SPI0_MISO    PA25   MISO SPI0_MISO    PA25
+     MOSI SPI0_MOSI    PA26   MOSI SPI0_MOSI    PA26
+
+I2C
+===
+
+   I2C0 is available on pins D16-D17 of the Arduino Shield connectors where
+   you would expect then.  The SPI connector is configured as follows:
+
+     Pin Label J1 Board Signal SAM3X
+     --- ----- -- ------------ -----
+     D16 SCL1  8  I2C0_SCL     PA17
+     D17 SDA1  7  I2C0_SDA     PA18
+
+   I2C0 and I2C1 are also available on the mikroBUS Click connectors (in
+   addition to 5V and GND).  The connectors A and B share I2C0 with the
+   Arduino shield connector.  Connectors C and D both connect to I2C1:
+
+     MikroBUS A:              MikroBUS B:
+     Pin  Board Signal SAM3X  Pin  Board Signal SAM3X
+     ---- ------------ -----  ---- ------------ -------
+     SCL  I2C0_SCL     PA17   SCL  I2C0_SCL    PA17
+     SDA  I2C0_SDA     PA1    SDA  I2C0_SDA    PA18
+
+     MikroBUS C:              MikroBUS D:
+     Pin  Board Signal SAM3X  Pin  Board Signal SAM3X
+     ---- ------------ -----  ---- ------------ -------
+     SCL  I2C1_SCL     PB13   SCL  I2C1_SCL     PB13
+     SDA  I2C1_SDA     PB12   SDA  I2C1_SDA     PB12
 
 Loading Code
 ============
@@ -349,9 +411,10 @@ Loading Code
 
    You should be able to use a 10- to 20-pin adapter to connect a SAM-ICE
    or J-Link debugger to the Flip&Click SAM3X.  I have this Olimex adapter:
-   https://www.olimex.com/Products/ARM/JTAG/ARM-JTAG-20-10/ . But so far I
-   have been unable to get the get the SAM-ICE to communicate with the
-   Flip&Click.
+   https://www.olimex.com/Products/ARM/JTAG/ARM-JTAG-20-10/ .  I have been
+   loading code and debugging with no problems using JTAG.
+
+   You can find photos my setup here: http://www.nuttx.org/doku.php?id=wiki:howtos:flipnclick-sam3x
 
 Flip&Click SAM3X-specific Configuration Options
 ===============================================
