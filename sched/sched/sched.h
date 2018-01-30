@@ -171,7 +171,7 @@ extern volatile dq_queue_t g_readytorun;
  *    and
  *  - Tasks/threads that have not been assigned to a CPU.
  *
- * Otherwise, the TCB will be reatined in an assigned task list,
+ * Otherwise, the TCB will be retained in an assigned task list,
  * g_assignedtasks.  As its name suggests, on 'g_assignedtasks queue for CPU
  * 'n' would contain only tasks/threads that are assigned to CPU 'n'.  Tasks/
  * threads would be assigned a particular CPU by one of two mechanisms:
@@ -285,7 +285,7 @@ extern struct pidhash_s g_pidhash[CONFIG_MAX_TASKS];
 /* This is a table of task lists.  This table is indexed by the task stat
  * enumeration type (tstate_t) and provides a pointer to the associated
  * static task list (if there is one) as well as a a set of attribute flags
- * indicating properities of the list, for example, if the list is an
+ * indicating properties of the list, for example, if the list is an
  * ordered list or not.
  */
 
@@ -380,15 +380,15 @@ void sched_mergeprioritized(FAR dq_queue_t *list1, FAR dq_queue_t *list2,
 bool sched_mergepending(void);
 void sched_addblocked(FAR struct tcb_s *btcb, tstate_t task_state);
 void sched_removeblocked(FAR struct tcb_s *btcb);
-int  sched_setpriority(FAR struct tcb_s *tcb, int sched_priority);
+int  nxsched_setpriority(FAR struct tcb_s *tcb, int sched_priority);
 
 /* Priority inheritance support */
 
 #ifdef CONFIG_PRIORITY_INHERITANCE
-int  sched_reprioritize(FAR struct tcb_s *tcb, int sched_priority);
+int  nxsched_reprioritize(FAR struct tcb_s *tcb, int sched_priority);
 #else
-#  define sched_reprioritize(tcb,sched_priority) \
-     sched_setpriority(tcb,sched_priority)
+#  define nxsched_reprioritize(tcb,sched_priority) \
+     nxsched_setpriority(tcb,sched_priority)
 #endif
 
 /* Support for tickless operation */
