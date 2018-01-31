@@ -284,6 +284,8 @@ struct stm32l4_serial_s
   const uint32_t    rs485_dir_gpio; /* U[S]ART RS-485 DIR GPIO pin configuration */
   const bool        rs485_dir_polarity; /* U[S]ART RS-485 DIR pin state for TX enabled */
 #endif
+
+  char *name;
 };
 
 /****************************************************************************
@@ -485,6 +487,7 @@ static struct stm32l4_serial_s g_usart1priv =
   .rs485_dir_polarity = true,
 #  endif
 #endif
+  .name = "UART1",
 };
 #endif
 
@@ -546,6 +549,7 @@ static struct stm32l4_serial_s g_usart2priv =
   .rs485_dir_polarity = true,
 #  endif
 #endif
+  .name = "USART2",
 };
 #endif
 
@@ -607,6 +611,7 @@ static struct stm32l4_serial_s g_usart3priv =
   .rs485_dir_polarity = true,
 #  endif
 #endif
+  .name = "USART3",
 };
 #endif
 
@@ -672,6 +677,7 @@ static struct stm32l4_serial_s g_uart4priv =
   .rs485_dir_polarity = true,
 #  endif
 #endif
+  .name = "UART4",
 };
 #endif
 
@@ -737,6 +743,7 @@ static struct stm32l4_serial_s g_uart5priv =
   .rs485_dir_polarity = true,
 #  endif
 #endif
+  .name = "UART5",
 };
 #endif
 
@@ -2793,6 +2800,9 @@ void up_serialinit(void)
 #if CONSOLE_UART > 0
   (void)uart_register("/dev/console", &uart_devs[CONSOLE_UART - 1]->dev);
 
+  syslog(LOG_INFO, "registered %s as /dev/console.\n",
+         uart_devs[CONSOLE_UART - 1]->name);
+
 #ifndef CONFIG_SERIAL_DISABLE_REORDERING
   /* If not disabled, register the console UART to ttyS0 and exclude
    * it from initializing it further down
@@ -2800,6 +2810,9 @@ void up_serialinit(void)
 
   (void)uart_register("/dev/ttyS0", &uart_devs[CONSOLE_UART - 1]->dev);
   minor = 1;
+
+  syslog(LOG_INFO, "registered %s as /dev/ttyS0.\n",
+         uart_devs[CONSOLE_UART - 1]->name);
 #endif
 
 #ifdef SERIAL_HAVE_CONSOLE_DMA
@@ -2835,6 +2848,9 @@ void up_serialinit(void)
 
       devname[9] = '0' + minor++;
       (void)uart_register(devname, &uart_devs[i]->dev);
+
+      syslog(LOG_INFO, "registered %s as %s.\n",
+             uart_devs[i]->name, devname);
     }
 #endif /* HAVE UART */
 }
