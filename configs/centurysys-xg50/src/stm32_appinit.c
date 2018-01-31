@@ -60,9 +60,22 @@
 
 #include "centurysys-xg50.h"
 
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
 #ifdef HAVE_RTC_DRIVER
 #  include <nuttx/timers/rtc.h>
 #  include "stm32l4_rtc.h"
+#endif
+
+#undef HAVE_I2C_DRIVER
+#if defined(CONFIG_STM32L4_I2C1) && defined(CONFIG_I2C_DRIVER)
+#  include "stm32l4_i2c.h"
+#  include <nuttx/mtd/configdata.h>
+#  include <nuttx/mtd/mtd.h>
+
+#  define HAVE_I2C_DRIVER 1
 #endif
 
 /****************************************************************************
@@ -99,6 +112,10 @@ int board_app_initialize(uintptr_t arg)
 #ifdef HAVE_RTC_DRIVER
   FAR struct rtc_lowerhalf_s *rtclower;
 #endif
+#ifdef HAVE_I2C_DRIVER
+  FAR struct i2c_master_s *i2c;
+  struct mtd_dev_s *at24;
+#endif
   int ret;
 
   (void)ret;
@@ -115,6 +132,48 @@ int board_app_initialize(uintptr_t arg)
              "ERROR: Failed to mount the PROC filesystem: %d (%d)\n",
              ret, errno);
       return ret;
+    }
+#endif
+
+#ifdef HAVE_I2C_DRIVER
+  /* Get the I2C lower half instance */
+
+  i2c = stm32l4_i2cbus_initialize(1);
+
+  if (i2c == NULL)
+    {
+      i2cerr("ERROR: Initialize I2C1: %d\n", ret);
+    }
+  else
+    {
+#  ifdef CONFIG_I2C_DRIVER
+      /* Register the I2C character driver */
+
+      ret = i2c_register(i2c, 1);
+
+      if (ret < 0)
+        {
+          i2cerr("ERROR: Failed to register I2C1 device: %d\n", ret);
+        }
+    }
+#  endif
+
+  /* Initialize the AT24 driver */
+
+  at24 = at24c_initialize(i2c);
+
+  if (!at24)
+    {
+      i2cerr("ERROR: Failed to initialize the AT24 driver\n");
+    }
+  else
+    {
+      ret = ftl_initialize(0, at24);
+
+      if (ret < 0)
+        {
+          i2cerr("ERROR: Failed to initialize the FTL layer: %d\n", ret);
+        }
     }
 #endif
 
@@ -188,4 +247,3 @@ int board_uniqueid(uint8_t *uniqueid)
   return OK;
 }
 #endif
-
