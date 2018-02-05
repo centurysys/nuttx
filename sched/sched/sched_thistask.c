@@ -39,12 +39,12 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/spinlock.h>
 
 #include <sys/types.h>
 #include <arch/irq.h>
 
 #include <nuttx/irq.h>
+#include <nuttx/spinlock.h>
 
 #include "sched/sched.h"
 
@@ -69,17 +69,28 @@
 
 FAR struct tcb_s *this_task(void)
 {
-  irqstate_t flags;
   FAR struct tcb_s *tcb;
+#if defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
+  irqstate_t flags;
 
-#ifdef CONFIG_ARCH_GLOBAL_IRQDISABLE
-  /* Disable local interrupts to avoid CPU switching */
+  /* If the CPU supports suppression of interprocessor interrupts, then simple
+   * disabling interrupts will provide sufficient protection for the following
+   * operations.
+   */
 
   flags = up_irq_save();
-#else
-  /* Enter a critical section */
+#elif defined(CONFIG_ARCH_HAVE_FETCHADD)
+  /* Global locking is supported and, hence, sched_lock() will provide the
+   * necessary protection.
+   */
 
-  //flags = enter_critical_section();
+  sched_lock();
+#else
+  /* REVISIT:  Otherwise, there is no protection available.  sched_lock() and
+   * enter_critical section are not viable options here (because both depend
+   * on this_task()).
+   */
+#  warning "Missing critical section"
 #endif
 
   /* Obtain the TCB which is currently running on this CPU */
@@ -88,10 +99,10 @@ FAR struct tcb_s *this_task(void)
 
   /* Enable local interrupts */
 
-#ifdef CONFIG_ARCH_GLOBAL_IRQDISABLE
+#if defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
   up_irq_restore(flags);
-#else
-  //leave_critical_section(flags);
+#elif defined(CONFIG_ARCH_HAVE_FETCHADD)
+  sched_unlock();
 #endif
   return tcb;
 }
