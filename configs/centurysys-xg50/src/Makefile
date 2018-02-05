@@ -38,6 +38,10 @@
 ASRCS =
 CSRCS = stm32_boot.c
 
+ifeq ($(CONFIG_ARCH_BOARD_STM32L4_CUSTOM_CLOCKCONFIG),y)
+CSRCS += stm32_clockconfig.c
+endif
+
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
 else
