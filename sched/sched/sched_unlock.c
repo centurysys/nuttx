@@ -79,9 +79,12 @@ int sched_unlock(void)
   cpu  = this_cpu();
   rtcb = current_task(cpu);
 
-  /* rtcb may be NULL only during early boot-up phases. */
+  /* Check for some special cases:  (1) rtcb may be NULL only during
+   * early boot-up phases, and (2) sched_unlock() should have no
+   * effect if called from the interrupt level.
+   */
 
-  if (rtcb != NULL)
+  if (rtcb != NULL && !up_interrupt_context())
     {
       /* Prevent context switches throughout the following. */
 
@@ -168,7 +171,7 @@ int sched_unlock(void)
                * maximum.
                */
 
-              if (rtcb != this_task())
+              if (rtcb != current_task(cpu))
                 {
                   rtcb->timeslice = MSEC2TICK(CONFIG_RR_INTERVAL);
                 }
@@ -206,7 +209,7 @@ int sched_unlock(void)
                * change the currently active task.
                */
 
-              if (rtcb == this_task())
+              if (rtcb == current_task(cpu))
                 {
                   sched_timer_reassess();
                 }
