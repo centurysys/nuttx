@@ -127,7 +127,12 @@ Status
   deferred setting g_cpu_irqlock().  That latter setting is now deferred
   until sched_resume_scheduler() runs.  These commits were made:
 
-     commit 0ba78530164814360eb09ed9805137b934c6f03b
+    commit 50ab5d638a37b539775d1e60085f182bf26be57f
+      sched/task:  It is not appropriate for logic in task_exit() to call
+      the new version of this_task().  sched/irq:  Remove redundant fetch
+      of CPU index; configs/sabre-6quad: update README.
+
+    commit 0ba78530164814360eb09ed9805137b934c6f03b
       sched/irq: Fix a infinite recursion problem that a recent change
       introduced into the i.MX6 SMP implementation.
 
@@ -147,8 +152,11 @@ Status
       minimum amount of time.
 
   With these changes, basic SMP functionality is restored and there are no
-  known issues.  Insufficient stress testing has been done to prove that the
-  solution is stable, however.
+  known issues (Configuration 'smp' with 4 CPUs and data cache disabled).
+  It is possible, however, that additional changes similar to the above will
+  be required in other areas of the OS, but none such are known as of this
+  writing.  Insufficient stress testing has been done to prove that the
+  solution is stable.
 
 Platform Features
 =================
@@ -562,7 +570,7 @@ Open Issues:
    This will cause the interrupt handlers on other CPUs to spin until
    leave_critical_section() is called.  More verification is needed.
 
-2. Cache Concurency.  Cache coherency in SMP configurations is managed by the
+2. Cache Concurrency.  Cache coherency in SMP configurations is managed by the
    MPCore snoop control unit (SCU).  But I don't think I have the set up
    correctly yet.
 
@@ -612,6 +620,10 @@ index eedf179..1db2092 100644
  }
 
  #endif
+
+3. Recent redesigns to SMP of another ARMv7-M platform have made changes to the OS
+   SMP support.  There are no known problem but the changes have not been verified
+   fully (see STATUS above for 2019-02-06).
 
 Configurations
 ==============
@@ -703,12 +715,114 @@ Configuration sub-directories
   smp
   ---
     This is a configuration of testing the SMP configuration.  It is
-    essentially equivalent to the SMP configuration except has SMP enabled.
+    essentially equivalent to the nsh configuration except has SMP enabled
+    and supports apps/examples/smp.
+
+    Sample output of the SMP test is show below (Configuration all 4 CPUs
+    but with data cache disabled):
+
+      NuttShell (NSH) NuttX-7.23
+      nsh> smp
+        Main[0]: Running on CPU0
+        Main[0]: Initializing barrier
+      Thread[1]: Started
+        Main[0]: Thread 1 created
+      Thread[1]: Running on CPU0
+        Main[0]: Now running on CPU1
+      Thread[2]: Started
+        Main[0]: Thread 2 created
+      Thread[2]: Running on CPU1
+        Main[0]: Now running on CPU2
+      Thread[3]: Started
+        Main[0]: Thread 3 created
+      Thread[3]: Running on CPU2
+        Main[0]: Now running on CPU3
+      Thread[4]: Started
+      Thread[4]: Running on CPU3
+        Main[0]: Thread 4 created
+        Main[0]: Now running on CPU0
+      Thread[5]: Started
+      Thread[5]: Running on CPU0
+        Main[0]: Thread 5 created
+      Thread[6]: Started
+      Thread[6]: Running on CPU0
+        Main[0]: Thread 6 created
+      Thread[7]: Started
+      Thread[7]: Running on CPU0
+        Main[0]: Thread 7 created
+      Thread[8]: Started
+      Thread[8]: Running on CPU0
+        Main[0]: Thread 8 created
+      Thread[2]: Now running on CPU0
+      Thread[3]: Now running on CPU0
+      Thread[4]: Now running on CPU0
+      Thread[3]: Now running on CPU2
+      Thread[3]: Now running on CPU0
+      Thread[5]: Now running on CPU1
+      Thread[5]: Now running on CPU0
+      Thread[6]: Calling pthread_barrier_wait()
+      Thread[8]: Calling pthread_barrier_wait()
+      Thread[3]: Calling pthread_barrier_wait()
+      Thread[5]: Calling pthread_barrier_wait()
+      Thread[1]: Calling pthread_barrier_wait()
+      Thread[2]: Now running on CPU2
+      Thread[2]: Calling pthread_barrier_wait()
+      Thread[7]: Now running on CPU3
+      Thread[4]: Now running on CPU1
+      Thread[4]: Calling pthread_barrier_wait()
+      Thread[7]: Calling pthread_barrier_wait()
+      Thread[7]: Back with ret=PTHREAD_BARRIER_SERIAL_THREAD (I AM SPECIAL)
+      Thread[6]: Back with ret=0 (I am not special)
+      Thread[8]: Back with ret=0 (I am not special)
+      Thread[3]: Back with ret=0 (I am not special)
+      Thread[5]: Back with ret=0 (I am not special)
+      Thread[1]: Back with ret=0 (I am not special)
+      Thread[2]: Back with ret=0 (I am not special)
+      Thread[4]: Back with ret=0 (I am not special)
+      Thread[7]: Now running on CPU1
+      Thread[6]: Now running on CPU2
+      Thread[3]: Now running on CPU1
+      Thread[5]: Now running on CPU2
+      Thread[1]: Now running on CPU1
+      Thread[4]: Now running on CPU3
+      Thread[2]: Now running on CPU0
+      Thread[7]: Now running on CPU0
+      Thread[6]: Now running on CPU0
+      Thread[3]: Now running on CPU0
+      Thread[4]: Now running on CPU0
+      Thread[1]: Now running on CPU0
+      Thread[5]: Now running on CPU0
+      Thread[3]: Now running on CPU3
+      Thread[3]: Now running on CPU0
+      Thread[4]: Now running on CPU2
+      Thread[3]: Done
+      Thread[4]: Now running on CPU0
+      Thread[4]: Done
+      Thread[7]: Done
+      Thread[2]: Done
+      Thread[5]: Now running on CPU2
+      Thread[8]: Now running on CPU1
+      Thread[8]: Done
+      Thread[6]: Now running on CPU3
+      Thread[5]: Done
+      Thread[1]: Done
+        Main[0]: Now running on CPU1
+        Main[0]: Thread 1 completed with result=0
+        Main[0]: Thread 2 completed with result=0
+        Main[0]: Thread 3 completed with result=0
+        Main[0]: Thread 4 completed with result=0
+        Main[0]: Thread 5 completed with result=0
+      Thread[6]: Done
+        Main[0]: Now running on CPU0
+        Main[0]: Thread 6 completed with result=0
+        Main[0]: Thread 7 completed with result=0
+        Main[0]: Thread 8 completed with result=0
+      nsh>
 
     NOTES:
 
     1. See the notes for the nsh configuration.  Since this configuration
        is essentially the same all of those comments apply.
 
-    2. SMP is not fully functional.  See the STATUS and SMP sections above
-       for detailed SMP-related issues.
+    2. See the STATUS and SMP sections above for detailed SMP-related
+       issues.
