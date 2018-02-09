@@ -254,6 +254,24 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
       stm32l4_unconfiggpio(GPIO_B2B_RESET);
       break;
 
+    case BIOC_GET_LEDSW:
+      {
+        int *stat;
+
+        if (arg)
+          {
+            stat = (int *) arg;
+
+            stm32l4_configgpio(GPIO_LEDSW);
+            *stat = stm32l4_gpioread(GPIO_LEDSW);
+          }
+        else
+          {
+            res = -EFAULT;
+          }
+        break;
+      }
+
     default:
       res = -ENOTTY;
       break;
