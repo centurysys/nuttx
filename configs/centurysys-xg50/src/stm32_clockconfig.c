@@ -237,6 +237,11 @@ void stm32l4_board_clockconfig(void)
 
 #define USE_MAIN_PLL
 
+      /* Set the PLL dividers and multipliers to configure the main PLL */
+
+      regval = (STM32L4_PLLCFG_PLLM | STM32L4_PLLCFG_PLLN | STM32L4_PLLCFG_PLLP
+                 | STM32L4_PLLCFG_PLLQ | STM32L4_PLLCFG_PLLR);
+
 #if defined(STM32L4_BOARD_USEHSI)
       regval |= RCC_PLLCFG_PLLSRC_HSI;
 #elif defined(STM32L4_BOARD_USEMSI)
@@ -249,11 +254,6 @@ void stm32l4_board_clockconfig(void)
 
 #ifdef USE_MAIN_PLL
       /* Configure Main PLL */
-
-      /* Set the PLL dividers and multipliers to configure the main PLL */
-
-      regval = (STM32L4_PLLCFG_PLLM | STM32L4_PLLCFG_PLLN | STM32L4_PLLCFG_PLLP
-                 | STM32L4_PLLCFG_PLLQ | STM32L4_PLLCFG_PLLR);
 
 #ifdef STM32L4_PLLCFG_PLLP_ENABLED
       regval |= RCC_PLLCFG_PLLPEN;
