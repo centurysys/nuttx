@@ -57,6 +57,7 @@
 #include <stm32l4_uid.h>
 
 #include <arch/board/board.h>
+#include <arch/board/boardctl.h>
 
 #include "centurysys-xg50.h"
 
@@ -231,7 +232,34 @@ int board_app_initialize(uintptr_t arg)
 #ifdef CONFIG_BOARDCTL_IOCTL
 int board_ioctl(unsigned int cmd, uintptr_t arg)
 {
-  return -ENOTTY;
+  int res = OK;
+
+  switch (cmd)
+    {
+    case BIOC_ENABLE_B2B:
+      syslog(LOG_INFO, "%s: BIOC_ENABLE_B2B\n", __FUNCTION__);
+
+      stm32l4_configgpio(GPIO_B2B_POWER);
+      stm32l4_configgpio(GPIO_B2B_RESET);
+
+      stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
+      stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
+      break;
+
+    case BIOC_DISABLE_B2B:
+      stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
+      stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
+
+      stm32l4_unconfiggpio(GPIO_B2B_POWER);
+      stm32l4_unconfiggpio(GPIO_B2B_RESET);
+      break;
+
+    default:
+      res = -ENOTTY;
+      break;
+    }
+
+  return res;
 }
 #endif
 

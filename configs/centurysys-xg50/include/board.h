@@ -64,11 +64,6 @@
 
 /* Values defined in arch/arm/src/stm32l4/chip/stm32l4x6xx_dma.h */
 
-#define DMACHAN_SDMMC DMACHAN_SDMMC_1     /* 2 choices */
-
-#define DMACHAN_SPI1_RX DMACHAN_SPI1_RX_1 /* 2 choices */
-#define DMACHAN_SPI1_TX DMACHAN_SPI1_TX_1 /* 2 choices */
-
 /* UART RX DMA configurations */
 
 #define DMACHAN_USART1_RX DMACHAN_USART1_RX_2
@@ -105,7 +100,7 @@
 #define GPIO_USART3_CTS  GPIO_USART3_CTS_1    /* PA6 */
 //#define GPIO_USART3_DTR  GPIO_USART3_DTR      /* PB2 */
 //#define GPIO_USART3_DSR  GPIO_USART3_DSR      /* PA7 */
-//#define GPIO_USART3_DCD  GPIO_USART3_CK_1    /* PB0 */
+//#define GPIO_USART3_DCD  GPIO_USART3_CK_1     /* PB0 */
 
 /* UART4 */
 
@@ -140,6 +135,13 @@
 #define GPIO_I2C2_SDA_GPIO \
    (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | \
     GPIO_PORTB | GPIO_PIN11)
+
+/* GPIO */
+
+#define GPIO_B2B_RESET (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN12)
+#define GPIO_B2B_POWER (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN5)
+#define GPIO_LEDSW     (GPIO_INPUT  | GPIO_PORTA | GPIO_PIN15)
+
 
 /* LEDs
  *
