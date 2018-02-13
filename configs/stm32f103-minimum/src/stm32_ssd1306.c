@@ -1,7 +1,7 @@
 /****************************************************************************
- * config/flipnclick-sam3x/src/sam_bringup.c
+ * config/stm32f103-minimum/src/sam_ug2832hsweg04.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,60 +39,97 @@
 
 #include <nuttx/config.h>
 
-#include <sys/mount.h>
-#include <stdio.h>
-#include <syslog.h>
+#include <debug.h>
 
 #include <nuttx/board.h>
+#include <nuttx/lcd/lcd.h>
+#include <nuttx/lcd/ssd1306.h>
+#include <nuttx/i2c/i2c_master.h>
 
-#include "flipnclick-sam3x.h"
+#include "stm32.h"
+#include "stm32_i2c.h"
+#include "stm32f103_minimum.h"
+
+#ifdef CONFIG_NX_LCDDRIVER
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+/* Configuration ************************************************************/
+
+#ifndef CONFIG_LCD_SSD1306
+#  error "The OLED driver requires CONFIG_LCD_SSD1306 in the configuration"
+#endif
+
+#ifndef CONFIG_LCD_MAXPOWER
+#  define CONFIG_LCD_MAXPOWER 1
+#endif
+
+#define OLED_I2C_PORT         1 /* OLED display connected to I2C1 */
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+FAR struct i2c_master_s *g_i2c;
+FAR struct lcd_dev_s    *g_lcddev;
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: sam_bringup
- *
- * Description:
- *   Perform architecture-specific initialization
- *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
- *
- *   CONFIG_BOARD_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
- *     Called from the NSH library
- *
+ * Name: board_lcd_initialize
  ****************************************************************************/
 
-int sam_bringup(void)
+int board_lcd_initialize(void)
 {
-  int ret;
+  /* Initialize I2C */
 
-#ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
-
-  ret = mount(NULL, "/proc", "procfs", 0, NULL);
-  if (ret < 0)
+  g_i2c = stm32_i2cbus_initialize(OLED_I2C_PORT);
+  if (!g_i2c)
     {
-      syslog(LOG_ERR,"ERROR: Failed to mount procfs at /proc: %d\n",
-            ret);
+      lcderr("ERROR: Failed to initialize I2C port %d\n", OLED_I2C_PORT);
+      return 0;
     }
-#endif
 
-#if defined(HAVE_HILETGO) && !defined(CONFIG_NXSTART_EXTERNINIT)
-  /* Configure the HiletGo OLED */
-
-  if (sam_graphics_setup(0) == NULL)
-    {
-      syslog(LOG_ERR,"ERROR: Failed to configure the HiletGo OLED\n");
-    }
-#endif
-
-  UNUSED(ret);
-  return OK;
+  return 1;
 }
+
+/****************************************************************************
+ * Name: board_lcd_getdev
+ ****************************************************************************/
+
+FAR struct lcd_dev_s *board_lcd_getdev(int devno)
+{
+  /* Bind the I2C port to the OLED */
+
+  g_lcddev = ssd1306_initialize(g_i2c, NULL, devno);
+  if (!g_lcddev)
+    {
+      lcderr("ERROR: Failed to bind SPI port 1 to OLED %d: %d\n", devno);
+    }
+  else
+    {
+      lcdinfo("Bound I2C port %d to OLED %d\n", OLED_I2C_PORT, devno);
+
+      /* And turn the OLED on */
+
+      (void)g_lcddev->setpower(g_lcddev, CONFIG_LCD_MAXPOWER);
+      return g_lcddev;
+    }
+
+  return NULL;
+}
+
+/****************************************************************************
+ * Name: board_lcd_uninitialize
+ ****************************************************************************/
+
+void board_lcd_uninitialize(void)
+{
+  /* TO-FIX */
+}
+
+#endif /* CONFIG_NX_LCDDRIVER */
+
