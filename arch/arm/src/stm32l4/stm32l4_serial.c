@@ -654,7 +654,11 @@ static struct stm32l4_serial_s g_uart4priv =
   .oflow         = false,
 #endif
   .baud          = CONFIG_UART4_BAUD,
+#ifndef CONFIG_UART4_USE_HSI
   .apbclock      = STM32L4_PCLK1_FREQUENCY,
+#else
+  .apbclock      = STM32L4_HSI_FREQUENCY,
+#endif
   .usartbase     = STM32L4_UART4_BASE,
   .tx_gpio       = GPIO_UART4_TX,
   .rx_gpio       = GPIO_UART4_RX,

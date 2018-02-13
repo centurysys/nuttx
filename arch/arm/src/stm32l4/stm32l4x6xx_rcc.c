@@ -614,6 +614,13 @@ static inline void rcc_enableccip(void)
   regval |= RCC_CCIPR_DFSDMSEL_SYSCLK;
 #endif
 
+#ifdef CONFIG_UART4_USE_HSI
+  /* Select HSI as UART4 clock source */
+
+  regval &= ~RCC_CCIPR_UART4SEL_MASK;
+  regval |= RCC_CCIPR_UART4SEL_HSI;
+#endif
+
   putreg32(regval, STM32L4_RCC_CCIPR);
 }
 

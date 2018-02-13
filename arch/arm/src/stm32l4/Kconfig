@@ -3571,6 +3571,12 @@ config UART4_RXDMA
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
 
+config UART4_USE_HSI
+	bool "UART4 use HSI clock"
+	default n
+	depends on STM32L4_UART4
+	---help---
+
 config UART5_RS485
 	bool "RS-485 on UART5"
 	default n
