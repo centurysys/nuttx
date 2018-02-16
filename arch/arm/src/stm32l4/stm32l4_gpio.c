@@ -334,6 +334,22 @@ int stm32l4_configgpio(uint32_t cfgset)
       putreg32(regval, regaddr);
     }
 
+  /* Set analog switch control register */
+
+  regval  = getreg32(base + STM32L4_GPIO_ASCR_OFFSET);
+  setting = 1 << pin;
+
+  if (pinmode == GPIO_MODER_ANALOG)
+    {
+      regval |= setting;
+    }
+  else
+    {
+      regval &= ~setting;
+    }
+
+  putreg32(regval, base + STM32L4_GPIO_ASCR_OFFSET);
+
   leave_critical_section(flags);
   return OK;
 }
