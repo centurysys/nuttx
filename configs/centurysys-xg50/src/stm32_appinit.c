@@ -254,6 +254,17 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
       stm32l4_unconfiggpio(GPIO_B2B_RESET);
       break;
 
+    case BIOC_RESET_B2B:
+      {
+        uint32_t wait_msec = *((uint32_t *) arg);
+
+        stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
+        usleep(wait_msec * 1000);
+        stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
+
+        break;
+      }
+
     case BIOC_GET_LEDSW:
       {
         int *stat;

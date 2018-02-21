@@ -49,19 +49,23 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-#if 1
-#  define HSI_CLOCK_CONFIG          /* HSI-16 clock configuration */
-#elif 0
-/* Make sure you installed one! */
+#define HSI_CLOCK_CONFIG          /* HSI-16 clock configuration */
+//#define HSE_CLOCK_CONFIG          /* HSE with 8 MHz xtal */
+//#define MSI_CLOCK_CONFIG          /* MSI @ 4 MHz autotrimmed via LSE */
 
-#  define HSE_CLOCK_CONFIG          /* HSE with 8 MHz xtal */
-#else
-#  define MSI_CLOCK_CONFIG          /* MSI @ 4 MHz autotrimmed via LSE */
-#endif
+#define STM32L4_BOARD_ENABLE_HSI
+//#define STM32L4_BOARD_ENABLE_HSE
+//#define STM32L4_BOARD_ENABLE_MSI
+
+#define STM32L4_USE_LSE           1
 
 /* Clocking *************************************************************************/
 
-#if defined(HSI_CLOCK_CONFIG)
+#ifdef STM32L4_BOARD_ENABLE_MSI
+#define STM32L4_BOARD_MSIRANGE    RCC_CR_MSIRANGE_4M
+#endif
+
+#ifdef HSI_CLOCK_CONFIG
 /* The NUCLEOL476RG supports both HSE and LSE crystals (X2 and X3).  However, as
  * shipped, the X3 crystal is not populated.  Therefore the Nucleo-L476RG
  * will need to run off the 16MHz HSI clock, or the 32khz-synced MSI.
@@ -95,6 +99,7 @@
 
 #define STM32L4_HSI_FREQUENCY     16000000ul
 #define STM32L4_LSI_FREQUENCY     32000
+#define STM32L4_HSE_FREQUENCY     16000000ul
 #define STM32L4_LSE_FREQUENCY     32768
 
 #define STM32L4_BOARD_USEHSI      1
@@ -258,10 +263,6 @@
 #define STM32L4_USE_CLK48
 #define STM32L4_CLK48_SEL         RCC_CCIPR_CLK48SEL_PLLSAI1
 
-/* enable the LSE oscillator, used automatically trim the MSI, and for RTC */
-
-#define STM32L4_USE_LSE           1
-
 /* AHB clock (HCLK) is SYSCLK (80MHz) */
 
 #define STM32L4_RCC_CFGR_HPRE     RCC_CFGR_HPRE_SYSCLK      /* HCLK  = SYSCLK / 1 */
@@ -305,11 +306,13 @@
 
 /* TODO SDMMC */
 
-#elif defined(HSE_CLOCK_CONFIG)
+#endif /* HSI_CLOCK_CONFIG */
+
+#ifdef HSE_CLOCK_CONFIG
 
 /* Use the HSE */
 
-#define STM32L4_BOARD_USEHSE      1
+#define STM32L4_BOARD_USEHSE      0
 
 /* XXX sysclk mux = pllclk */
 
@@ -321,12 +324,12 @@
 
 /* 'main' PLL config; we use this to generate our system clock */
 
-#define STM32L4_PLLCFG_PLLN             RCC_PLLCFG_PLLN(20)
+#define STM32L4_PLLCFG_PLLN             RCC_PLLCFG_PLLN(10)
 #define STM32L4_PLLCFG_PLLP             0
 #undef  STM32L4_PLLCFG_PLLP_ENABLED
-#define STM32L4_PLLCFG_PLLQ             0
+#define STM32L4_PLLCFG_PLLQ             RCC_PLLCFG_PLLQ_2
 #undef STM32L4_PLLCFG_PLLQ_ENABLED
-#define STM32L4_PLLCFG_PLLR             RCC_PLLCFG_PLLR_2
+#define STM32L4_PLLCFG_PLLR             RCC_PLLCFG_PLLR(2)
 #define STM32L4_PLLCFG_PLLR_ENABLED
 
 /* 'SAIPLL1' is used to generate the 48 MHz clock */
@@ -334,7 +337,7 @@
 #define STM32L4_PLLSAI1CFG_PLLN         RCC_PLLSAI1CFG_PLLN(12)
 #define STM32L4_PLLSAI1CFG_PLLP         0
 #undef  STM32L4_PLLSAI1CFG_PLLP_ENABLED
-#define STM32L4_PLLSAI1CFG_PLLQ         RCC_PLLSAI1CFG_PLLQ_2
+#define STM32L4_PLLSAI1CFG_PLLQ         RCC_PLLSAI1CFG_PLLQ_4
 #define STM32L4_PLLSAI1CFG_PLLQ_ENABLED
 #define STM32L4_PLLSAI1CFG_PLLR         0
 #undef  STM32L4_PLLSAI1CFG_PLLR_ENABLED
@@ -354,9 +357,9 @@
 #define STM32L4_USE_CLK48
 #define STM32L4_CLK48_SEL         RCC_CCIPR_CLK48SEL_PLLSAI1
 
-/* Enable LSE (for the RTC) */
-
-#define STM32L4_USE_LSE           1
+#define STM32L4_HSE_FREQUENCY     16000000ul
+#define STM32L4_LSI_FREQUENCY     32000
+#define STM32L4_LSE_FREQUENCY     32768
 
 /* Configure the HCLK divisor (for the AHB bus, core, memory, and DMA */
 
@@ -387,12 +390,14 @@
 #define STM32L4_APB2_TIM16_CLKIN  (2*STM32L4_PCLK2_FREQUENCY)
 #define STM32L4_APB2_TIM17_CLKIN  (2*STM32L4_PCLK2_FREQUENCY)
 
-#elif defined(MSI_CLOCK_CONFIG)
+#endif /* HSE_CLOCK_CONFIG */
+
+#ifdef MSI_CLOCK_CONFIG
 
 /* Use the MSI; frequ = 4 MHz; autotrim from LSE */
 
-#define STM32L4_BOARD_USEMSI      1
-#define STM32L4_BOARD_MSIRANGE    RCC_CR_MSIRANGE_4M
+#define STM32L4_BOARD_USEMSI      0
+//#define STM32L4_BOARD_MSIRANGE    RCC_CR_MSIRANGE_4M
 
 /* XXX sysclk mux = pllclk */
 
@@ -436,10 +441,6 @@
 
 #define STM32L4_USE_CLK48
 #define STM32L4_CLK48_SEL         RCC_CCIPR_CLK48SEL_PLLSAI1
-
-/* Enable LSE (for the RTC) */
-
-#define STM32L4_USE_LSE           1
 
 /* Configure the HCLK divisor (for the AHB bus, core, memory, and DMA */
 

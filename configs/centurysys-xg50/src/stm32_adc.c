@@ -59,14 +59,17 @@
 
 /* The number of ADC channels in the conversion list */
 
-#define ADC1_NCHANNELS 2
+#define ADC1_NCHANNELS 4
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
 
-static const uint8_t  g_adc1_chanlist[ADC1_NCHANNELS] = {1, 2};
-static const uint32_t g_adc1_pinlist[ADC1_NCHANNELS]  = {GPIO_ADC1_IN1, GPIO_ADC1_IN2};
+static const uint8_t  g_adc1_chanlist[ADC1_NCHANNELS] = {0, 1, 2, 17};
+static const uint32_t g_adc1_pinlist[ADC1_NCHANNELS]  = {0,
+                                                         GPIO_ADC1_IN1,
+                                                         GPIO_ADC1_IN2,
+                                                         0};
 
 /************************************************************************************
  * Private Functions
@@ -94,7 +97,10 @@ int stm32l4_adc_setup(void)
 
   for (i = 0; i < ADC1_NCHANNELS; i++)
     {
-      stm32l4_configgpio(g_adc1_pinlist[i]);
+      if (g_adc1_pinlist[i] != 0)
+        {
+          stm32l4_configgpio(g_adc1_pinlist[i]);
+        }
     }
 
   /* Call stm32l4_adc_initialize() to get an instance of the ADC interface */

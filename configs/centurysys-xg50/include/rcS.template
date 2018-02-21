@@ -1,3 +1,11 @@
-echo "boot, do bp35test"
+#! /bin/nsh
 
-bp35test &
+resources
+echo "* resources created."
+
+bp35_task
+sensor_task
+
+usleep 200
+
+main_task

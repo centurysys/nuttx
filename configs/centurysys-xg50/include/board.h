@@ -33,8 +33,8 @@
  *
  ************************************************************************************/
 
-#ifndef __CONFIGS_NUCLEO_L476RG_INCLUDE_BOARD_H
-#define __CONFIGS_NUCLEO_L476RG_INCLUDE_BOARD_H
+#ifndef __CONFIGS_CENTURYSYS_XG50_INCLUDE_BOARD_H
+#define __CONFIGS_CENTURYSYS_XG50_INCLUDE_BOARD_H
 
 /************************************************************************************
  * Included Files
