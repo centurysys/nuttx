@@ -349,7 +349,7 @@
                                                  /* 0x1024d0 – 0x1024d4 Reserved */
 #  define FT80X_REG_CTOUCH_EXTENDED    0x1024f4  /* Set capacitive touch operation mode:
                                                   * 0: extended mode (multi-touch)
-                                                  * 0: 1: FT800 compatibility mode (single touch) */
+                                                  * 1: FT800 compatibility mode (single touch) */
 #  define FT80X_REG_CTOUCH_REG         0x1024f8  /* CTPM configure register write
                                                   * Bits [7:0]: configure register address
                                                   * Bits [15:8]: configure register value */
@@ -358,7 +358,7 @@
                                                   * (x-MSB16; y-LSB16) */
 #  define FT80X_REG_CTOUCH_TOUCH1_XY   0x102508  /* Extended mode: touch-screen screen data for touch 1
                                                   * (x-MSB16; y-LSB16) */
-#  define FT80X_REG_CTOUCH_TOUCH4_XY   0x10250c  /* Extended mode: touch-screen screen Y data for touch 4 */
+#  define FT80X_REG_CTOUCH_TOUCH4_Y    0x10250c  /* Extended mode: touch-screen screen Y data for touch 4 */
 #  define FT80X_REG_CTOUCH_SCREEN_XY   0x102510  /* Compatibility mode: touch-screen screen
                                                   * (x-MSB16; y-LSB16) */
 #  define FT80X_REG_CTOUCH_TOUCH0_XY   0x102510  /* Extended mode: touch-screen screen data for touch 0
@@ -411,9 +411,27 @@
                                                   * the screen immediately after the current
                                                   * frame is scanned out (recommended).
                                                   */
+/* FT80X_REG_PLAYBACK_FORMAT */
+
+#define AUDIO_FORMAT_LINEAR            0         /* Linear Sample format */
+#define AUDIO_FORMAT_ULAW              1         /* uLaw Sample format */
+#define AUDIO_FORMAT_ADPCM             2         /* 4-bit IMA ADPCM Sample format */
+
 /* FT80X_REG_TOUCH_TAG */
 
 #define TOUCH_TAG_MASK                 0xff      /* Bits 0-7: Tag of touched graphic object */
+
+/* FT80X_REG_TOUCH_MODE */
+
+#define TOUCH_MODE_OFF                 0         /* Acquisition stopped, touch detection
+                                                  * interrupt is still valid. */
+#define TOUCH_MODE_ONESHOT             1         /* Perform acquisition once every write of 1
+                                                  * to REG_TOUCH_MODE. */
+#define TOUCH_MODE_FRAMESYNC           2         /* Perform acquisition for every frame sync
+                                                  * (~60 data acquisition/second). */
+#define TOUCH_MODE_CONTINUOUS          3         /* Perform acquisition continuously at
+                                                  * approximately 1000 data acquisition /
+                                                  * second. */
 
 /* Interrupts *******************************************************************************/
 /* The interrupt output pin is enabled by REG_INT_EN.  When REG_INT_EN is 0, INT_N is
