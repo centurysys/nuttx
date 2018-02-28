@@ -155,12 +155,14 @@
 
 /* LED index values for use with board_userled() */
 
-#define BOARD_LD2         0
-#define BOARD_NLEDS       1
+#define BOARD_LED_R       0
+#define BOARD_LED_G       1
+#define BOARD_NLEDS       2
 
 /* LED bits for use with board_userled_all() */
 
-#define BOARD_LD2_BIT     (1 << BOARD_LD2)
+#define BOARD_LED_R_BIT     (1 << BOARD_LED_R)
+#define BOARD_LED_G_BIT     (1 << BOARD_LED_G)
 
 /* These LEDs are not used by the board port unless CONFIG_ARCH_LEDS is
  * defined.  In that case, the usage by the board port is defined in

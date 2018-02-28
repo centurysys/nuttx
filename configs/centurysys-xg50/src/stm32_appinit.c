@@ -258,6 +258,15 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
       {
         uint32_t wait_msec = *((uint32_t *) arg);
 
+        if (wait_msec == 0)
+          {
+            wait_msec = 100;
+          }
+        else if (wait_msec > 1000)
+          {
+            wait_msec = 1000;
+          }
+
         stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
         usleep(wait_msec * 1000);
         stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
@@ -280,6 +289,15 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
           {
             res = -EFAULT;
           }
+        break;
+      }
+
+    case BIOC_SET_LED:
+      {
+        bool on = (bool) arg;
+
+        board_userled(BOARD_LED_G, on);
+
         break;
       }
 

@@ -64,9 +64,9 @@
 
 void board_autoled_initialize(void)
 {
-  /* Configure LD2 GPIO for output */
+  /* Configure LED_R GPIO for output */
 
-  stm32l4_configgpio(GPIO_LD2);
+  stm32l4_configgpio(GPIO_LED_R);
 }
 
 /****************************************************************************
@@ -77,7 +77,7 @@ void board_autoled_on(int led)
 {
   if (led == 1)
     {
-      stm32l4_gpiowrite(GPIO_LD2, false);
+      stm32l4_gpiowrite(GPIO_LED_R, false);
     }
 }
 
@@ -89,7 +89,7 @@ void board_autoled_off(int led)
 {
   if (led == 1)
     {
-      stm32l4_gpiowrite(GPIO_LD2, true);
+      stm32l4_gpiowrite(GPIO_LED_R, true);
     }
 }
 

@@ -78,7 +78,10 @@ void stm32l4_board_initialize(void)
   /* Configure on-board LEDs if LED support has been selected. */
 
 #ifdef CONFIG_ARCH_LEDS
+  extern void board_userled_initialize(void);
+
   board_autoled_initialize();
+  board_userled_initialize();
 #endif
 
   /* Configure SPI chip selects if 1) SP2 is not disabled, and 2) the weak function

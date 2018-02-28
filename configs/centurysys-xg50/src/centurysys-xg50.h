@@ -72,8 +72,12 @@
 
 /* LED */
 
-#define GPIO_LD2 \
-  (GPIO_PORTD | GPIO_PIN2 | GPIO_OUTPUT_CLEAR | GPIO_OUTPUT | GPIO_PULLUP | \
+#define GPIO_LED_R                                                      \
+  (GPIO_PORTD | GPIO_PIN2  | GPIO_OUTPUT_CLEAR | GPIO_OUTPUT | GPIO_PULLUP | \
+   GPIO_SPEED_50MHz)
+
+#define GPIO_LED_G                                                      \
+  (GPIO_PORTC | GPIO_PIN12 | GPIO_OUTPUT_CLEAR | GPIO_OUTPUT | GPIO_PULLUP | \
    GPIO_SPEED_50MHz)
 
 /* Devices on the onboard bus.

@@ -43,7 +43,7 @@ CSRCS += stm32_clockconfig.c
 endif
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
-CSRCS += stm32_autoleds.c
+CSRCS += stm32_autoleds.c stm32_userleds.c
 else
 CSRCS += stm32_userleds.c
 endif

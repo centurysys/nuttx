@@ -52,8 +52,6 @@
 #include "stm32l4.h"
 #include "centurysys-xg50.h"
 
-#ifndef CONFIG_ARCH_LEDS
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -170,9 +168,10 @@ static int led_pm_prepare(struct pm_callback_s *cb, int domain,
 
 void board_userled_initialize(void)
 {
-  /* Configure LD2 GPIO for output */
+  /* Configure LED_G GPIO for output */
 
-  stm32l4_configgpio(GPIO_LD2);
+  stm32l4_configgpio(GPIO_LED_G);
+  stm32l4_gpiowrite(GPIO_LED_G, 1);
 }
 
 /****************************************************************************
@@ -181,9 +180,9 @@ void board_userled_initialize(void)
 
 void board_userled(int led, bool ledon)
 {
-  if (led == BOARD_LD2)
+  if (led == BOARD_LED_G)
     {
-      stm32l4_gpiowrite(GPIO_LD2, ledon);
+      stm32l4_gpiowrite(GPIO_LED_G, !ledon);
     }
 }
 
@@ -193,7 +192,7 @@ void board_userled(int led, bool ledon)
 
 void board_userled_all(uint8_t ledset)
 {
-  stm32l4_gpiowrite(GPIO_LD2, (ledset & BOARD_LD2_BIT) != 0);
+  stm32l4_gpiowrite(GPIO_LED_G, !((ledset & BOARD_LED_G_BIT) != 0));
 }
 
 /****************************************************************************
@@ -210,5 +209,3 @@ void stm32_led_pminitialize(void)
   UNUSED(ret);
 }
 #endif /* CONFIG_PM */
-
-#endif /* !CONFIG_ARCH_LEDS */
