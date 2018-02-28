@@ -594,6 +594,14 @@ int up_timer_gettime(FAR struct timespec *ts)
   int pending;
   irqstate_t flags;
 
+  if (g_tickless.tch == 0)
+    {
+      ts->tv_sec = 0;
+      ts->tv_nsec = 0;
+
+      return OK;
+    }
+
   DEBUGASSERT(g_tickless.tch && ts);
 
   /* Temporarily disable the overflow counter.  NOTE that we have to be
