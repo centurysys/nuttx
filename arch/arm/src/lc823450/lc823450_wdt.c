@@ -43,9 +43,9 @@
 #include <nuttx/arch.h>
 
 #include <stdint.h>
+#include <syslog.h>
 #include <errno.h>
 #include <debug.h>
-#include <stdio.h>
 
 #include <nuttx/timers/watchdog.h>
 
@@ -550,7 +550,7 @@ int lc823450_wdt_initialize(void)
 #else
   if (getreg32(WDT_WT0RSTS) & (1 << WDT_WT0RSTS_RSTS))
     {
-      printf("**** WATCHDOG RESET****\n");
+      syslog(LOG_EMERG, "**** WATCHDOG RESET****\n");
     }
 #endif
 
@@ -578,7 +578,7 @@ void lc823450_wdt_work_enable(int en)
 
       if (getreg32(WDT_WT0RSTS) & (1 << WDT_WT0RSTS_RSTS))
         {
-          printf("**** WATCHDOG RESET****\n");
+          syslog(LOG_EMERG, "**** WATCHDOG RESET****\n");
         }
 
       if (getreg32(LOCKUPR) & LOCKUPR_LOCKUPR0)

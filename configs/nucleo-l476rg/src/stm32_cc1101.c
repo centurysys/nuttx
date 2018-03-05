@@ -1,9 +1,8 @@
 /****************************************************************************
- * arch/misoc/src/lm32/lm32_assert.c
+ * configs/nucleo-l476rg/src/stm32_cc1101.c
  *
- *   Copyright (C) 2016, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *           Ramtin Amin <keytwo@gmail.com>
+ *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Author: lihaichen <li8303@163.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,125 +38,111 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
-#include <stdint.h>
-#include <stdlib.h>
-#include <assert.h>
 #include <debug.h>
 
-#include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
-#include <nuttx/syslog/syslog.h>
-#include <nuttx/usb/usbdev_trace.h>
+#include <nuttx/config.h>
+#include <nuttx/kmalloc.h>
+#include <nuttx/wqueue.h>
+#include <nuttx/spi/spi.h>
+#include <nuttx/wireless/cc1101.h>
 
-#include <arch/board/board.h>
+#include "stm32l4.h"
+#include "nucleo-l476rg.h"
 
-#include "sched/sched.h"
-#include "lm32.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/* USB trace dumping */
-
-#ifndef CONFIG_USBDEV_TRACE
-#  undef CONFIG_ARCH_USBDUMP
-#endif
+#ifdef CONFIG_WL_CC1101
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: _up_assert
+ * Name: cc1101_wait
+ *
+ * Description:
+ *
  ****************************************************************************/
 
-static void _up_assert(int errorcode) noreturn_function;
-static void _up_assert(int errorcode)
+static void cc1101_wait(struct cc1101_dev_s *dev, uint32_t pin)
 {
-  /* Are we in an interrupt handler or the idle task? */
-
-  if (g_current_regs || this_task()->pid == 0)
+  while (stm32l4_gpioread(pin) == true)
     {
-       (void)up_irq_save();
-        for (; ; )
-          {
-#ifdef CONFIG_ARCH_LEDS
-            board_autoled_on(LED_PANIC);
-            up_mdelay(250);
-            board_autoled_off(LED_PANIC);
-            up_mdelay(250);
-#endif
-          }
-    }
-  else
-    {
-      exit(errorcode);
     }
 }
 
 /****************************************************************************
- * Name: assert_tracecallback
+ * Name: cc1101_irq
+ *
+ * Description:
+ *
  ****************************************************************************/
 
-#ifdef CONFIG_ARCH_USBDUMP
-static int usbtrace_syslog(FAR const char *fmt, ...)
+static void cc1101_irq(FAR struct cc1101_dev_s *dev, bool enable)
 {
-  va_list ap;
-  int ret;
-
-  /* Let nx_vsyslog do the real work */
-
-  va_start(ap, fmt);
-  ret = nx_vsyslog(LOG_EMERG, fmt, &ap);
-  va_end(ap);
-  return ret;
+  if (enable)
+    {
+      stm32l4_gpiosetevent(dev->isr_pin, false, true, true, cc1101_isr, dev);
+    }
+  else
+    {
+      stm32l4_gpiosetevent(dev->isr_pin, false, true, true, NULL, NULL);
+    }
 }
 
-static int assert_tracecallback(FAR struct usbtrace_s *trace, FAR void *arg)
+/****************************************************************************
+ * Name: cc1101_pwr
+ *
+ * Description:
+ *
+ ****************************************************************************/
+
+static void cc1101_pwr(FAR struct cc1101_dev_s *dev, bool enable)
 {
-  usbtrace_trprintf(usbtrace_syslog, trace->event, trace->value);
-  return 0;
 }
-#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_assert
+ * Name: stm32_cc1101_initialize
+ *
+ * Description:
+ *   Initialize and register the cc1101 radio driver
+ *
  ****************************************************************************/
 
-void up_assert(const uint8_t *filename, int lineno)
+int stm32_cc1101_initialize(void)
 {
-#if CONFIG_TASK_NAME_SIZE > 0 && defined(CONFIG_DEBUG_ALERT)
-  struct tcb_s *rtcb = this_task();
-#endif
+  FAR struct spi_dev_s *spi    = NULL;
+  FAR struct cc1101_dev_s *dev = NULL;
 
-  board_autoled_on(LED_ASSERTION);
+  spi = stm32l4_spibus_initialize(CONFIG_CC1101_SPIDEV);
+  if (spi == NULL)
+    {
+      ierr("ERROR: Failed to initialize SPI bus %d\n", CONFIG_CC1101_SPIDEV);
+      return -ENODEV;
+    }
 
-#if CONFIG_TASK_NAME_SIZE > 0
-  _alert("Assertion failed at file:%s line: %d task: %s\n",
-        filename, lineno, rtcb->name);
-#else
-  _alert("Assertion failed at file:%s line: %d\n",
-        filename, lineno);
-#endif
+  dev = kmm_malloc(sizeof(struct cc1101_dev_s));
+  if (dev == NULL)
+    {
+      return -ENOMEM;
+    }
 
-  lm32_dumpstate();
+  dev->spi        = spi;
+  dev->isr_pin    = GPIO_CC1101_GDO2;
+  dev->miso_pin   = GPIO_CC1101_MISO;
+  dev->gdo        = CC1101_PIN_GDO2;
+  dev->rfsettings = &cc1101_rfsettings_ISM2_433MHzMSK500kbps;
+  dev->dev_id     = SPIDEV_WIRELESS(5);
+  dev->channel    = 0;
+  dev->power      = 1;
+  dev->ops.wait   = cc1101_wait;
+  dev->ops.pwr    = cc1101_pwr;
+  dev->ops.irq    = cc1101_irq;
 
-#ifdef CONFIG_ARCH_USBDUMP
-  /* Dump USB trace data */
-
-  (void)usbtrace_enumerate(assert_tracecallback, NULL);
-#endif
-
-#ifdef CONFIG_BOARD_CRASHDUMP
-  board_crashdump(up_getsp(), this_task(), filename, lineno);
-#endif
-
-  _up_assert(EXIT_FAILURE);
+  return cc1101_register("/dev/cc1101", dev);
 }
+#endif
