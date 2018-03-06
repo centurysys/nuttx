@@ -1,8 +1,12 @@
 /****************************************************************************
- * lib/syslog/lib_setlogmask.c
+ * include/nuttx/i2c/pca9540bdp.h
  *
- *   Copyright (C) 2007-2009, 2011-2012, 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2018 Giorgio Groß. All rights reserved.
+ *   Author: Giorgio Groß <giorgio.gross@robodev.eu>
+ *
+ * References:
+ *   "PCA9540B 2-channel I2C-bus multiplexer product datasheet",
+ *   31 October 2016, NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,75 +37,88 @@
  *
  ****************************************************************************/
 
+#ifndef __INCLUDE_I2C_PCA9540BDP_H
+#define __INCLUDE_I2C_PCA9540BDP_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
-#include <stdint.h>
-#include <syslog.h>
-
-#include <nuttx/irq.h>
-
-#include "syslog/syslog.h"
+#include <sys/ioctl.h>
+#include <nuttx/i2c/i2c_master.h>
 
 /****************************************************************************
- * Public Data
+ * Pre-processor Definitions
+ ****************************************************************************/
+#ifndef CONFIG_PCA9540BDP_BASEADDR
+#  define CONFIG_PCA9540BDP_BASEADDR        0x70
+#endif
+
+#define PCA9540BDP_SEL_PORT0                0x0
+#define PCA9540BDP_SEL_PORT1                0x1
+
+/****************************************************************************
+ * Public Types
  ****************************************************************************/
 
-/* The currently enabled set of syslog priorities */
-
-uint8_t g_syslog_mask = LOG_ALL;
+struct pca9540bdp_dev_s;
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
 /****************************************************************************
- * Name: setlogmask
+ * Name: pca9540bdp_lower_half
  *
  * Description:
- *   The setlogmask() function sets the logmask and returns the previous
- *   mask. If the mask argument is 0, the current logmask is not modified.
+ *   Initialize the lower half of the PCA9540BDP by creating a i2c_master_s
+ *   for the virtual i2c master and link it to the associated PCA9540BDP and
+ *   its port.
  *
- *   The SYSLOG priorities are: LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR,
- *   LOG_WARNING, LOG_NOTICE, LOG_INFO, and LOG_DEBUG.  The bit corresponding
- *   to a priority p is LOG_MASK(p); LOG_UPTO(p) provides the mask of all
- *   priorities in the above list up to and including p.
+ * Input Parameters:
+ *   dev  - Pointer to the associated PCA9540BDP
+ *   port - The port number as defined in pca9540bdp.h
  *
- *   Per OpenGroup.org "If the maskpri argument is 0, the current log mask
- *   is not modified."  In this implementation, the value zero is permitted
- *   in order to disable all syslog levels.
- *
- * REVISIT: Per POSIX the syslog mask should be a per-process value but in
- * NuttX, the scope of the mask is dependent on the nature of the build:
- *
- *   Flat Build:  There is one, global SYSLOG mask that controls all output.
- *   Protected Build:  There are two SYSLOG masks.  One within the kernel
- *     that controls only kernel output.  And one in user-space that controls
- *     only user SYSLOG output.
- *   Kernel Build:  The kernel build is compliant with the POSIX requirement:
- *     There will be one mask for each user process, controlling the SYSLOG
- *     output only form that process.  There will be a separate mask
- *     accessible only in the kernel code to control kernel SYSLOG output.
+ * Returned Value:
+ *   Common i2c multiplexer device instance; NULL on failure.
  *
  ****************************************************************************/
 
-int setlogmask(int mask)
-{
-  uint8_t oldmask;
-  irqstate_t flags;
+FAR struct i2c_master_s *
+  pca9540bdp_lower_half(FAR struct pca9540bdp_dev_s *dev, uint8_t port);
 
-  /* These operations must be exclusive with respect to other threads as well
-   * as interrupts.
-   */
+/****************************************************************************
+ * Name: pca9540bdp_initialize
+ *
+ * Description:
+ *   Initialize the PCA9540BDP device.
+ *
+ * Input Parameters:
+ *   i2c  - An instance of the I2C interface to use to communicate with
+ *          PCA9540BDP
+ *   addr - The I2C address of the PCA9540BDP.  The base I2C address of the
+ *          PCA9540BDP is 0x70.
+ *
+ * Returned Value:
+ *   Common i2c multiplexer device instance; NULL on failure.
+ *
+ ****************************************************************************/
 
-  flags = enter_critical_section();
+FAR struct pca9540bdp_dev_s *
+  pca9540bdp_initialize(FAR struct i2c_master_s *i2c, uint8_t addr);
 
-  oldmask       = g_syslog_mask;
-  g_syslog_mask = (uint8_t)mask;
-
-  leave_critical_section(flags);
-  return oldmask;
+#undef EXTERN
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* __INCLUDE_I2C_PCA9540BDP_H */
