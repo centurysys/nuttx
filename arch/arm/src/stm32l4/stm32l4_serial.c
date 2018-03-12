@@ -73,6 +73,10 @@
  ****************************************************************************/
 
 /* Some sanity checks *******************************************************/
+
+#  define PORT_VALID(cfgset)                                        \
+  (((cfgset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT) < STM32L4_NPORTS)
+
 /* DMA configuration */
 
 /* If DMA is enabled on any USART, then very that other pre-requisites
@@ -263,6 +267,12 @@ struct stm32l4_serial_s
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
   const uint32_t    cts_gpio;  /* U[S]ART CTS GPIO pin configuration */
 #endif
+#ifdef CONFIG_SERIAL_FULL_CONNECTION
+  const uint32_t    dtr_gpio;  /* U[S]ART DTR GPIO pin configuration */
+  const uint32_t    dsr_gpio;  /* U[S]ART DSR GPIO pin configuration */
+  const uint32_t    dcd_gpio;  /* U[S]ART DCD GPIO pin configuration */
+  const uint32_t    ri_gpio;   /* U[S]ART RI  GPIO pin configuration */
+#endif
 
 #ifdef SERIAL_HAVE_DMA
   const unsigned int rxdma_channel; /* DMA channel assigned */
@@ -302,6 +312,12 @@ static void stm32l4serial_detach(FAR struct uart_dev_s *dev);
 static int  up_interrupt(int irq, FAR void *context, FAR void *arg);
 static int  stm32l4serial_ioctl(FAR struct file *filep, int cmd,
                                 unsigned long arg);
+#ifdef CONFIG_SERIAL_FULL_CONNECTION
+static int stm32l4serial_tiocmget(struct stm32l4_serial_s *priv, int *arg);
+static int stm32l4serial_tiocmset(struct stm32l4_serial_s *priv, const int *arg);
+static int stm32l4serial_tiocmbic(struct stm32l4_serial_s *priv, const int *arg);
+static int stm32l4serial_tiocmbis(struct stm32l4_serial_s *priv, const int *arg);
+#endif
 #ifndef SERIAL_HAVE_ONLY_DMA
 static int  stm32l4serial_receive(FAR struct uart_dev_s *dev,
                                   FAR unsigned int *status);
@@ -536,6 +552,20 @@ static struct stm32l4_serial_s g_usart2priv =
   .iflow         = true,
   .rts_gpio      = GPIO_USART2_RTS,
 #endif
+#if defined(CONFIG_SERIAL_FULL_CONNECTION)
+#  if defined(GPIO_USART2_DTR)
+  .dtr_gpio      = GPIO_USART2_DTR,
+#  endif
+#  if defined(GPIO_USART2_DSR)
+  .dsr_gpio      = GPIO_USART2_DSR,
+#  endif
+#  if defined(GPIO_USART2_DCD)
+  .dcd_gpio      = GPIO_USART2_DCD,
+#  endif
+#  if defined(GPIO_USART2_RI)
+  .ri_gpio      = GPIO_USART2_RI,
+#  endif
+#endif
 #ifdef CONFIG_USART2_RXDMA
   .rxdma_channel = DMAMAP_USART2_RX,
   .rxfifo        = g_usart2rxfifo,
@@ -597,6 +627,20 @@ static struct stm32l4_serial_s g_usart3priv =
 #if defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_USART3_IFLOWCONTROL)
   .iflow         = true,
   .rts_gpio      = GPIO_USART3_RTS,
+#endif
+#if defined(CONFIG_SERIAL_FULL_CONNECTION)
+#  if defined(GPIO_USART3_DTR)
+  .dtr_gpio      = GPIO_USART3_DTR,
+#  endif
+#  if defined(GPIO_USART3_DSR)
+  .dsr_gpio      = GPIO_USART3_DSR,
+#  endif
+#  if defined(GPIO_USART3_DCD)
+  .dcd_gpio      = GPIO_USART3_DCD,
+#  endif
+#  if defined(GPIO_USART3_RI)
+  .ri_gpio      = GPIO_USART3_RI,
+#  endif
 #endif
 #ifdef CONFIG_USART3_RXDMA
   .rxdma_channel = DMAMAP_USART3_RX,
@@ -1341,6 +1385,28 @@ static int stm32l4serial_setup(FAR struct uart_dev_s *dev)
     }
 #endif
 
+#ifdef CONFIG_SERIAL_FULL_CONNECTION
+  if (PORT_VALID(priv->dtr_gpio))
+    {
+      stm32l4_configgpio(priv->dtr_gpio);
+    }
+
+  if (PORT_VALID(priv->dsr_gpio))
+    {
+      stm32l4_configgpio(priv->dsr_gpio);
+    }
+
+  if (PORT_VALID(priv->dcd_gpio))
+    {
+      stm32l4_configgpio(priv->dcd_gpio);
+    }
+
+  if (PORT_VALID(priv->ri_gpio))
+    {
+      stm32l4_configgpio(priv->ri_gpio);
+    }
+#endif
+
 #ifdef HAVE_RS485
   if (priv->rs485_dir_gpio != 0)
     {
@@ -1552,6 +1618,28 @@ static void stm32l4serial_shutdown(FAR struct uart_dev_s *dev)
   if (priv->rts_gpio != 0)
     {
       stm32l4_unconfiggpio(priv->rts_gpio);
+    }
+#endif
+
+#ifdef CONFIG_SERIAL_FULL_CONNECTION
+  if (PORT_VALID(priv->dtr_gpio))
+    {
+      stm32l4_unconfiggpio(priv->dtr_gpio);
+    }
+
+  if (PORT_VALID(priv->dsr_gpio))
+    {
+      stm32l4_unconfiggpio(priv->dsr_gpio);
+    }
+
+  if (PORT_VALID(priv->dcd_gpio))
+    {
+      stm32l4_unconfiggpio(priv->dcd_gpio);
+    }
+
+  if (PORT_VALID(priv->ri_gpio))
+    {
+      stm32l4_unconfiggpio(priv->ri_gpio);
     }
 #endif
 
@@ -1988,6 +2076,24 @@ static int stm32l4serial_ioctl(FAR struct file *filep, int cmd,
 #  endif
 #endif
 
+#ifdef CONFIG_SERIAL_FULL_CONNECTION
+    case TIOCMGET:
+      ret = stm32l4serial_tiocmget(priv, (int *) arg);
+      break;
+
+    case TIOCMSET:
+      ret = stm32l4serial_tiocmset(priv, (const int *) arg);
+      break;
+
+    case TIOCMBIC:
+      ret = stm32l4serial_tiocmbic(priv, (const int *) arg);
+      break;
+
+    case TIOCMBIS:
+      ret = stm32l4serial_tiocmbis(priv, (const int *) arg);
+      break;
+#endif
+
     default:
       ret = -ENOTTY;
       break;
@@ -1995,6 +2101,126 @@ static int stm32l4serial_ioctl(FAR struct file *filep, int cmd,
 
   return ret;
 }
+
+#ifdef CONFIG_SERIAL_FULL_CONNECTION
+
+/****************************************************************************
+ * Name: stm32l4serial_tiocmget
+ ****************************************************************************/
+
+static int stm32l4serial_tiocmget(struct stm32l4_serial_s *priv, int *arg)
+{
+  int status = 0;
+
+  if (!arg)
+    {
+      return -EFAULT;
+    }
+
+  if (PORT_VALID(priv->dtr_gpio))
+    {
+      if (stm32l4_gpioread(priv->dtr_gpio) == 0)
+        {
+          status |= TIOCM_DTR;
+        }
+    }
+
+  if (PORT_VALID(priv->dsr_gpio))
+    {
+      if (stm32l4_gpioread(priv->dsr_gpio) == 0)
+        {
+          status |= TIOCM_DSR;
+        }
+    }
+
+  if (PORT_VALID(priv->dcd_gpio))
+    {
+      if (stm32l4_gpioread(priv->dcd_gpio) == 0)
+        {
+          status |= TIOCM_CD;
+        }
+    }
+
+  if (PORT_VALID(priv->ri_gpio))
+    {
+      if (stm32l4_gpioread(priv->ri_gpio) == 0)
+        {
+          status |= TIOCM_RNG;
+        }
+    }
+
+  *arg = status;
+
+  return 0;
+}
+
+/****************************************************************************
+ * Name: stm32l4serial_tiocmset
+ ****************************************************************************/
+
+static int stm32l4serial_tiocmset(struct stm32l4_serial_s *priv, const int *arg)
+{
+  bool value;
+
+  if (!arg)
+    {
+      return -EFAULT;
+    }
+
+  if (PORT_VALID(priv->dtr_gpio))
+    {
+      value = (*arg & TIOCM_DTR) ? 0 : 1;
+      stm32l4_gpiowrite(priv->dtr_gpio, value);
+    }
+
+  return 0;
+}
+
+/****************************************************************************
+ * Name: stm32l4serial_tiocmbic
+ ****************************************************************************/
+
+static int stm32l4serial_tiocmbic(struct stm32l4_serial_s *priv, const int *arg)
+{
+  if (!arg)
+    {
+      return -EFAULT;
+    }
+
+  if (PORT_VALID(priv->dtr_gpio))
+    {
+      if (*arg & TIOCM_DTR)
+        {
+          stm32l4_gpiowrite(priv->dtr_gpio, 1);
+        }
+    }
+
+  return 0;
+}
+
+/****************************************************************************
+ * Name: stm32l4serial_tiocmbis
+ ****************************************************************************/
+
+static int stm32l4serial_tiocmbis(struct stm32l4_serial_s *priv, const int *arg)
+{
+  if (!arg)
+    {
+      return -EFAULT;
+    }
+
+  if (PORT_VALID(priv->dtr_gpio))
+    {
+      if (*arg & TIOCM_DTR)
+        {
+          stm32l4_gpiowrite(priv->dtr_gpio, 0);
+        }
+    }
+
+  return 0;
+}
+
+#endif /* CONFIG_SERIAL_FULL_CONNECTION */
 
 /****************************************************************************
  * Name: stm32l4serial_receive

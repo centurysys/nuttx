@@ -503,6 +503,12 @@ config SERIAL_OFLOWCONTROL
 	bool
 	default n
 
+config SERIAL_FULL_CONNECTION
+	bool
+	default n
+	---help---
+		Support DTR/DSR/DCD/RI signals.
+
 config SERIAL_DMA
 	bool
 	default n
@@ -1145,6 +1151,13 @@ config USART2_OFLOWCONTROL
 	select SERIAL_OFLOWCONTROL
 	---help---
 		Enable USART2 CTS flow control
+
+config USART2_FULL_SIGNAL
+	bool "USART2 FULL signal (DTR/DSR/DCD/RI) support"
+	default n
+	select SERIAL_FULL_CONNECTION
+	---help---
+		Enable USART2 DTR/DSR/DCD/RI signal
 
 config USART2_DMA
 	bool "USART2 DMA support"
