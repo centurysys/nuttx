@@ -1340,9 +1340,9 @@ static int adc_setup(FAR struct adc_dev_s *dev)
 
   /* ADC CCR configuration */
 
-  clrbits = ADC_CCR_PRESC_MASK;
-  setbits = ADC_CCR_PRESC_NOT_DIV | ADC_CCR_VREFEN |
+  clrbits = ADC_CCR_PRESC_MASK | ADC_CCR_VREFEN |
             ADC_CCR_TSEN | ADC_CCR_VBATEN;
+  setbits = ADC_CCR_PRESC_NOT_DIV;
 
   /* On STM32L4X3 devices DAC1 and DAC2 outputs are multiplexed with ADC1 TS and VBAT.
    * adc_internal() knows about this and does not set TSEN or VBATEN bits if configuration
@@ -1402,11 +1402,6 @@ static int adc_setup(FAR struct adc_dev_s *dev)
         adc_getreg(priv, STM32L4_ADC_CR_OFFSET),
         adc_getreg(priv, STM32L4_ADC_CFGR_OFFSET),
         adc_getreg(priv, STM32L4_ADC_CFGR2_OFFSET));
-  ainfo("IER:   0x%08x SMPR1: 0x%08x SMPR2: 0x%08x DIFSEL:0x%08x\n",
-        adc_getreg(priv, STM32L4_ADC_IER_OFFSET),
-        adc_getreg(priv, STM32L4_ADC_SMPR1_OFFSET),
-        adc_getreg(priv, STM32L4_ADC_SMPR2_OFFSET),
-        adc_getreg(priv, STM32L4_ADC_DIFSEL_OFFSET));
   ainfo("SQR1:  0x%08x SQR2:  0x%08x SQR3:  0x%08x SQR4:  0x%08x\n",
         adc_getreg(priv, STM32L4_ADC_SQR1_OFFSET),
         adc_getreg(priv, STM32L4_ADC_SQR2_OFFSET),
