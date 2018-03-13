@@ -490,6 +490,20 @@ static struct stm32l4_serial_s g_usart1priv =
   .iflow         = true,
   .rts_gpio      = GPIO_USART1_RTS,
 #endif
+#if defined(CONFIG_SERIAL_FULL_CONNECTION)
+#  if defined(GPIO_USART1_DTR)
+  .dtr_gpio      = GPIO_USART1_DTR,
+#  endif
+#  if defined(GPIO_USART1_DSR)
+  .dsr_gpio      = GPIO_USART1_DSR,
+#  endif
+#  if defined(GPIO_USART1_DCD)
+  .dcd_gpio      = GPIO_USART1_DCD,
+#  endif
+#  if defined(GPIO_USART1_RI)
+  .ri_gpio      = GPIO_USART1_RI,
+#  endif
+#endif
 #ifdef CONFIG_USART1_RXDMA
   .rxdma_channel = DMAMAP_USART1_RX,
   .rxfifo        = g_usart1rxfifo,
