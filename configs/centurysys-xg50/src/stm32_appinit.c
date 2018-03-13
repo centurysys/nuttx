@@ -301,6 +301,34 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
         break;
       }
 
+    case BIOC_ENABLE_DI:
+      stm32l4_configgpio(GPIO_DI_POWER);
+      stm32l4_configgpio(GPIO_DI_CH0);
+      stm32l4_configgpio(GPIO_DI_CH1);
+
+      stm32l4_gpiowrite(GPIO_DI_POWER, 0);
+      break;
+
+    case BIOC_DISABLE_DI:
+      stm32l4_gpiowrite(GPIO_DI_POWER, 1);
+
+      stm32l4_unconfiggpio(GPIO_DI_CH0);
+      stm32l4_unconfiggpio(GPIO_DI_CH1);
+      stm32l4_unconfiggpio(GPIO_DI_POWER);
+      break;
+
+    case BIOC_GET_DI:
+      {
+        uint8_t *ptr = (uint8_t *) arg;
+        bool val[2];
+
+        val[0] = !stm32l4_gpioread(GPIO_DI_CH0);
+        val[1] = !stm32l4_gpioread(GPIO_DI_CH1);
+
+        *ptr = val[1] << 1 | val[0];
+        break;
+      }
+
     default:
       res = -ENOTTY;
       break;
