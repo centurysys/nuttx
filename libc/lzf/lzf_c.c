@@ -123,15 +123,18 @@
  *
  ****************************************************************************/
 
-unsigned int lzf_compress(FAR const void *const in_data,
-                          unsigned int in_len, FAR void *out_data,
-                          unsigned int out_len, lzf_state_t htab)
+size_t lzf_compress(FAR const void *const in_data,
+                    unsigned int in_len, FAR void *out_data,
+                    unsigned int out_len, lzf_state_t htab,
+                    FAR struct lzf_header_s **reshdr)
 {
   FAR const uint8_t *ip = (const uint8_t *)in_data;
   FAR       uint8_t *op = (uint8_t *)out_data;
   FAR const uint8_t *in_end  = ip + in_len;
   FAR       uint8_t *out_end = op + out_len;
   FAR const uint8_t *ref;
+  ssize_t cs;
+  ssize_t retlen;
 
   /* off requires a type wide enough to hold a general pointer difference.
    * ISO C doesn't have that (size_t might not be enough and ptrdiff_t only
@@ -151,7 +154,8 @@ unsigned int lzf_compress(FAR const void *const in_data,
 
   if (!in_len || !out_len)
     {
-      return 0;
+      cs = 0;
+      goto genhdr;
     }
 
 #if INIT_HTAB
@@ -198,7 +202,8 @@ unsigned int lzf_compress(FAR const void *const in_data,
 
               if (op - !lit + 3 + 1 >= out_end)
                 {
-                  return 0;
+                  cs = 0;
+                  goto genhdr;
                 }
             }
 
@@ -370,7 +375,10 @@ unsigned int lzf_compress(FAR const void *const in_data,
           /* One more literal byte we must copy */
 
           if (expect_false (op >= out_end))
-            return 0;
+            {
+              cs = 0;
+              goto genhdr;
+            }
 
           lit++;
           *op++ = *ip++;
@@ -387,7 +395,8 @@ unsigned int lzf_compress(FAR const void *const in_data,
 
   if (op + 3 > out_end)
     {
-      return 0;
+      cs = 0;
+      goto genhdr;
     }
 
   while (ip < in_end)
@@ -405,7 +414,49 @@ unsigned int lzf_compress(FAR const void *const in_data,
   op [- lit - 1] = lit - 1; /* End run */
   op -= !lit;               /* Undo run if length is zero */
 
-  return op - (uint8_t *)out_data;
+  cs = op - (uint8_t *)out_data;
+
+genhdr:
+  if (cs)
+    {
+      FAR struct lzf_type1_header_s *header;
+
+      /* Write compressed */
+
+      header = (FAR struct lzf_type1_header_s *)
+               ((uintptr_t)out_data - LZF_TYPE1_HDR_SIZE);
+      
+      header->lzf_magic[0] = 'Z';
+      header->lzf_magic[1] = 'V';
+      header->lzf_type     = LZF_TYPE1_HDR;
+      header->lzf_clen[0]  = cs >> 8;
+      header->lzf_clen[1]  = cs & 0xff;
+      header->lzf_ulen[0]  = in_len >> 8;
+      header->lzf_ulen[1]  = in_len & 0xff;
+
+      *reshdr              = (FAR struct lzf_header_s *)header;
+      retlen               = cs + LZF_TYPE1_HDR_SIZE;
+    }
+  else
+    {
+      FAR struct lzf_type0_header_s *header;
+
+      /* Write uncompressed */
+
+      header = (FAR struct lzf_type0_header_s *)
+               ((uintptr_t)in_data - LZF_TYPE0_HDR_SIZE);
+
+      header->lzf_magic[0] = 'Z';
+      header->lzf_magic[1] = 'V';
+      header->lzf_type     = LZF_TYPE0_HDR;
+      header->lzf_len[0]   = in_len >> 8;
+      header->lzf_len[1]   = in_len & 0xff;
+
+      *reshdr              = (FAR struct lzf_header_s *)header;
+      retlen               = in_len + LZF_TYPE0_HDR_SIZE;
+    }
+
+  return retlen;
 }
 
 #endif /* CONFIG_LIBC_LZF */
