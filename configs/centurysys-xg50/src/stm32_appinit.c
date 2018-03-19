@@ -75,7 +75,7 @@
 #  include "stm32l4_i2c.h"
 #  include <nuttx/mtd/configdata.h>
 #  include <nuttx/mtd/mtd.h>
-
+#  include <nuttx/leds/tca6507.h>
 #  define HAVE_I2C_DRIVER 1
 #endif
 
@@ -176,6 +176,16 @@ int board_app_initialize(uintptr_t arg)
           i2cerr("ERROR: Failed to initialize the FTL layer: %d\n", ret);
         }
     }
+
+#  ifdef CONFIG_TCA6507
+
+  ret = tca6507_register("/dev/leddrv0", i2c, 0x45);
+
+  if (ret < 0)
+    {
+      i2cerr("ERROR: Failed to initialize TCA6507 driver\n");
+    }
+#  endif
 #endif
 
 #ifdef HAVE_RTC_DRIVER
