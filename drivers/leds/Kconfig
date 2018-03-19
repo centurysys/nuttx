@@ -89,4 +89,12 @@ config NCP5623C
 		Enable support for the onsemi NCP5623C LED driver which can be
 		utilized to drive up to 3 LED's.
 
+config TCA6507
+	bool "TCA6507 I2C LED Driver"
+	default n
+	select I2C
+	---help---
+		Enable support for the TI TCA6507 LED driver which can be
+		utilized to drive up to 6 LED's.
+
 endmenu # LED Support
