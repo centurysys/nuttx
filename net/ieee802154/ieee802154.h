@@ -66,7 +66,7 @@
 
 /* Frame size */
 
-/* This maximum size of an IEEE802.15.4 frame.  Certain, non-standard
+/* This maximum size of an IEEE 802.15.4 frame.  Certain, non-standard
  * devices may exceed this value, however.
  */
 
@@ -153,7 +153,6 @@ EXTERN const struct sock_intf_s g_ieee802154_sockif;
 struct ieee802154_data_ind_s; /* Forward reference */
 struct radio_driver_s;        /* Forward reference */
 struct net_driver_s;          /* Forward reference */
-struct eth_hdr_s;             /* Forward reference */
 struct socket;                /* Forward reference */
 struct sockaddr;              /* Forward reference */
 
@@ -175,7 +174,7 @@ void ieee802154_initialize(void);
  * Name: ieee802154_conn_initialize
  *
  * Description:
- *   Initialize the IEEE 802.15.5 connection structure allocator.  Called
+ *   Initialize the IEEE 802.15.4 connection structure allocator.  Called
  *   once and only from ieee802154_initialize().
  *
  * Assumptions:

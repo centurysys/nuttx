@@ -59,8 +59,9 @@
 #define PF_INET        2 /* IPv4 Internet protocols */
 #define PF_INET6       3 /* IPv6 Internet protocols */
 #define PF_PACKET      4 /* Low level packet interface */
-#define PF_IEEE802154  5 /* Low level IEEE 802.15.4 radio frame interface */
-#define PF_PKTRADIO    6 /* Low level packet radio interface */
+#define PF_BLUETOOTH   5 /* Bluetooth sockets */
+#define PF_IEEE802154  6 /* Low level IEEE 802.15.4 radio frame interface */
+#define PF_PKTRADIO    7 /* Low level packet radio interface */
 
 /* Supported Address Families. Opengroup.org requires only AF_UNSPEC,
  * AF_UNIX, AF_INET and AF_INET6.
@@ -72,6 +73,7 @@
 #define AF_INET        PF_INET
 #define AF_INET6       PF_INET6
 #define AF_PACKET      PF_PACKET
+#define AF_BLUETOOTH   PF_BLUETOOTH
 #define AF_IEEE802154  PF_IEEE802154
 #define AF_PKTRADIO    PF_PKTRADIO
 
@@ -156,6 +158,10 @@
 #define SOL_IPV6        2 /* See options in include/netinet/ip6.h */
 #define SOL_TCP         3 /* See options in include/netinet/tcp.h */
 #define SOL_UDP         4 /* See options in include/netinit/udp.h */
+#define SOL_HCI         5 /* See options in include/netpacket/bluetooth.h */
+#define SOL_L2CAP       6 /* See options in include/netpacket/bluetooth.h */
+#define SOL_SCO         7 /* See options in include/netpacket/bluetooth.h */
+#define SOL_RFCOMM      8 /* See options in include/netpacket/bluetooth.h */
 
 /* Protocol-level socket options may begin with this value */
 

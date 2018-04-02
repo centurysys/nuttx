@@ -1,5 +1,5 @@
 /****************************************************************************
- * wireless/bluetooth/bt_att.c
+ * wireless/bluetooth/bt_hdicore.h
  * HCI core Bluetooth handling.
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
@@ -139,6 +139,40 @@ struct bt_dev_s
   FAR const struct bt_driver_s *dev;
 };
 
+/* Connection callback structure */
+
+struct bt_conn_s; /* Forward reference */
+struct bt_conn_cb_s
+{
+  FAR struct bt_conn_cb_s *flink;
+  FAR void *context;
+
+  CODE void (*connected)(FAR struct bt_conn_s *conn, FAR void *context);
+  CODE void (*disconnected)(FAR struct bt_conn_s *conn, FAR void *context);
+};
+
+/****************************************************************************
+ * Name: bt_le_scan_cb_t
+ *
+ * Description:
+ *   A function of this type will be called back when user application
+ *   triggers active LE scan. The caller will populate all needed
+ *   parameters based on data coming from scan result.
+ *   Such function can be set by user when LE active scan API is used.
+ *
+ * Input Parameters:
+ *  addr     - Advertiser LE address and type.
+ *  rssi     - Strength of advertiser signal.
+ *  adv_type - Type of advertising response from advertiser.
+ *  adv_data - Address of buffer containing advertiser data.
+ *  len      - Length of advertiser data contained in buffer.
+ *
+ ****************************************************************************/
+
+typedef CODE void bt_le_scan_cb_t(FAR const bt_addr_le_t *addr, int8_t rssi,
+                                  uint8_t adv_type,
+                                  FAR const uint8_t *adv_data, uint8_t len);
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -205,11 +239,40 @@ static inline bool bt_addr_le_is_identity(FAR const bt_addr_le_t *addr)
  * Public Function Prototypes
  ****************************************************************************/
 
+struct bt_eir_s; /* Forward reference */
+
+/****************************************************************************
+ * Name: bt_initialize
+ *
+ * Description:
+ *   Initialize Bluetooth. Must be the called before anything else.
+ *
+ * Returned Value:
+ *    Zero on success or (negative) error code otherwise.
+ *
+ ****************************************************************************/
+
+int bt_initialize(void);
+
+/****************************************************************************
+ * Name: bt_hci_cmd_create
+ *
+ * Description:
+ *   Allocate and initialize a buffer for a command
+ *
+ * Returned Value:
+ *   A reference to the allocated buffer.  NULL could possibly be returned
+ *   on any failure to allocate.
+ *
+ ****************************************************************************/
+
 FAR struct bt_buf_s *bt_hci_cmd_create(uint16_t opcode, uint8_t param_len);
+
+/* Send HCI commands */
+
 int bt_hci_cmd_send(uint16_t opcode, FAR struct bt_buf_s *buf);
 int bt_hci_cmd_send_sync(uint16_t opcode, FAR struct bt_buf_s *buf,
                          FAR struct bt_buf_s **rsp);
-int bt_le_scan_update(void);
 
 /* The helper is only safe to be called from internal kernel threads as it's
  * not multi-threading safe
@@ -219,5 +282,102 @@ int bt_le_scan_update(void);
 FAR const char *bt_addr_str(FAR const bt_addr_t *addr);
 FAR const char *bt_addr_le_str(FAR const bt_addr_le_t *addr);
 #endif
+
+/****************************************************************************
+ * Name: bt_start_advertising
+ *
+ * Description:
+ *   Set advertisement data, scan response data, advertisement parameters
+ *   and start advertising.
+ *
+ * Input Parameters:
+ *   type - Advertising type.
+ *   ad   - Data to be used in advertisement packets.
+ *   sd   - Data to be used in scan response packets.
+ *
+ * Returned Value:
+ *   Zero on success or (negative) error code otherwise.
+ *
+ ****************************************************************************/
+
+int bt_start_advertising(uint8_t type, FAR const struct bt_eir_s *ad,
+                         FAR const struct bt_eir_s *sd);
+
+/****************************************************************************
+ * Name: bt_stop_advertising
+ *
+ * Description:
+ *   Stops ongoing advertising.
+ *
+ * Returned Value:
+ *   Zero on success or (negative) error code otherwise.
+ *
+ ****************************************************************************/
+
+int bt_stop_advertising(void);
+
+/****************************************************************************
+ * Name: bt_start_scanning
+ *
+ * Description:
+ *   Start LE scanning with and provide results through the specified
+ *   callback.
+ *
+ * Input Parameters:
+ *   filter_dups - Enable duplicate filtering (or not).
+ *   cb          - Callback to notify scan results.
+ *
+ * Returned Value:
+ *   Zero on success or error code otherwise, positive in case
+ *   of protocol error or negative (POSIX) in case of stack internal error
+ *
+ ****************************************************************************/
+
+int bt_start_scanning(uint8_t filter_dups, bt_le_scan_cb_t cb);
+
+/****************************************************************************
+ * Name: bt_stop_scanning
+ *
+ * Description:
+ *   Stops ongoing LE scanning.
+ *
+ * Returned Value:
+ *   Zero on success or error code otherwise, positive in case
+ *   of protocol error or negative (POSIX) in case of stack internal error
+ *
+ ****************************************************************************/
+
+int bt_stop_scanning(void);
+
+/****************************************************************************
+ * Name: bt_le_scan_update
+ *
+ * Description:
+ *   Used to determine whether to start scan and which scan type should be
+ *   used.
+ *
+ * Returned Value:
+ *   Zero on success or error code otherwise, positive in case
+ *   of protocol error or negative (POSIX) in case of stack internal error
+ *
+ ****************************************************************************/
+
+int bt_le_scan_update(void);
+
+/****************************************************************************
+ * Name: bt_conn_cb_register
+ *
+ * Description:
+ *   Register callbacks to monitor the state of connections.
+ *
+ * Input Parameters:
+ *   cb - Instance of the callback structure.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void bt_conn_cb_register(FAR struct bt_conn_cb_s *cb);
 
 #endif /* __WIRELESS_BLUETOOTH_BT_HDICORE_H */
