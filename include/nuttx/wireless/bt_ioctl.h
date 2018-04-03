@@ -58,10 +58,11 @@
 
 /* Bluetooth network device IOCTL commands. */
 
-#ifndef WL_BLUETOOTHCMDS != 14
+#ifndef WL_BLUETOOTHCMDS != 15
 #  error Incorrect setting for number of Bluetooth IOCTL commands
 #endif
 
+/* NetBSD IOCTL commands ****************************************************/
 /* All of the following use an argument of type struct btreg_s:
  *
  * SIOCGBTINFO
@@ -90,6 +91,9 @@
  *   Read device statistics.
  * SIOCZBTSTATS
  *   Read device statistics, and zero them.
+ *
+ * NOTE: These are here for reference.  None of the NetBSD IOCTL commands
+ * have been implemented in NuttX.
  */
 
 #define SIOCGBTINFO            _WLIOC(WL_BLUETOOTHFIRST + 0)
@@ -102,6 +106,7 @@
 #define SIOCGBTSTATS           _WLIOC(WL_BLUETOOTHFIRST + 7)
 #define SIOCZBTSTATS           _WLIOC(WL_BLUETOOTHFIRST + 8)
 
+/* NuttX-specific IOCTL commands. *******************************************/
 /* SIOCBT_ADVERTISESTART
  *   Description:   Set advertisement data, scan response data,
  *                  advertisement parameters and start advertising.
@@ -114,7 +119,8 @@
 
 /* SIOCBT_ADVERTISESTOP
  *   Description:   Stop advertising.
- *   Input:         None
+ *   Input:         A reference to a write-able instance of struct
+ *                  bt_scanstop_s.
  *   Output:        None
  */
 
@@ -123,7 +129,7 @@
 /* SIOCBT_SCANSTART
  *   Description:   Start LE scanning.  Buffered scan results may be
  *                  obtained via SIOCBT_SCANGET
- *   Input:         1=Duplicate filtering enabled
+ *   Input:         A read-only referent to struct bt_scanstart_s.
  *   Output:        None
  */
 
@@ -142,12 +148,23 @@
 
 /* SIOCBT_SCANSTOP
  *   Description:   Stop LE scanning and discard any buffered results.
- *   Input:         None
+ *   Input:         A reference to a write-able instance of struct
+ *                  bt_scanstop_s.
  *   Output:        None
  */
 
 #define SIOCBT_SCANSTOP        _WLIOC(WL_BLUETOOTHFIRST + 13)
 
+/* SIOCBT_SECURITY
+ *   Description:   Enable security for a connection.
+ *   Input:         A reference to a write-able instance of struct
+ *                  bt_security_s.
+ *   Output:        None
+ */
+
+#define SIOCBT_SECURITY        _WLIOC(WL_BLUETOOTHFIRST + 14)
+
+/* Definitions associated with struct btreg_s *******************************/
 /* struct btreq_s union field accessors */
 
 #define btr_flags              btru.btri.btri_flags
@@ -168,17 +185,17 @@
 
 /* btr_flags */
 
-#define BTF_UP                 (1 << 0)  /* unit is up */
-#define BTF_RUNNING            (1 << 1)  /* unit is running */
-#define BTF_XMIT_CMD           (1 << 2)  /* transmitting CMD packets */
-#define BTF_XMIT_ACL           (1 << 3)  /* transmitting ACL packets */
-#define BTF_XMIT_SCO           (1 << 4)  /* transmitting SCO packets */
-#define BTF_INIT_BDADDR        (1 << 5)  /* waiting for bdaddr */
-#define BTF_INIT_BUFFER_SIZE   (1 << 6)  /* waiting for buffer size */
-#define BTF_INIT_FEATURES      (1 << 7)  /* waiting for features */
-#define BTF_NOOP_ON_RESET      (1 << 8)  /* wait for No-op on reset */
-#define BTF_INIT_COMMANDS      (1 << 9)  /* waiting for supported commands */
-#define BTF_MASTER             (1 << 10) /* request Master role */
+#define BTF_UP                 (1 << 0)  /* Unit is up */
+#define BTF_RUNNING            (1 << 1)  /* Unit is running */
+#define BTF_XMIT_CMD           (1 << 2)  /* Transmitting CMD packets */
+#define BTF_XMIT_ACL           (1 << 3)  /* Transmitting ACL packets */
+#define BTF_XMIT_SCO           (1 << 4)  /* Transmitting SCO packets */
+#define BTF_INIT_BDADDR        (1 << 5)  /* Waiting for bdaddr */
+#define BTF_INIT_BUFFER_SIZE   (1 << 6)  /* Waiting for buffer size */
+#define BTF_INIT_FEATURES      (1 << 7)  /* Waiting for features */
+#define BTF_NOOP_ON_RESET      (1 << 8)  /* Wait for No-op on reset */
+#define BTF_INIT_COMMANDS      (1 << 9)  /* Waiting for supported commands */
+#define BTF_MASTER             (1 << 10) /* Request Master role */
 
 /****************************************************************************
  * Public Types
@@ -237,8 +254,30 @@ struct bt_advertisestart_s
 {
   char as_name[HCI_DEVNAME_SIZE];  /* Device name */
   uint8_t as_type;                 /* Advertising type */
-  FAR const struct bt_eir_s as_ad; /* Data for advertisement packets */
-  FAR const struct bt_eir_s as_sd; /* Data for scan response packets */
+  FAR struct bt_eir_s as_ad;       /* Data for advertisement packets */
+  FAR struct bt_eir_s as_sd;       /* Data for scan response packets */
+};
+
+/* The read-only data that accompanies the SIOCBT_SCANSTOP IOCTL command */
+
+struct bt_advertisestop_s
+{
+  char at_name[HCI_DEVNAME_SIZE];   /* Device name */
+};
+
+/* The read-only data that accompanies the SIOCBT_SCANSTART IOCTL command */
+
+struct bt_scanstart_s
+{
+  char ss_name[HCI_DEVNAME_SIZE];   /* Device name */
+  bool ss_dupenable;                /* True: enable duplicate filtering */
+};
+
+/* The read-only data that accompanies the SIOCBT_SCANSTOP IOCTL command */
+
+struct bt_scanstop_s
+{
+  char st_name[HCI_DEVNAME_SIZE];   /* Device name */
 };
 
 /* Write-able data that accompanies the SIOCBT_SCANGET IOCTL command */
@@ -256,14 +295,23 @@ struct bt_scanresponse_s
 struct bt_scanresult_s
 {
   char sr_name[HCI_DEVNAME_SIZE];   /* Device name */
-  uint8_t sc_nrsp;                  /* Input:  Max number of responses
+  uint8_t sr_nrsp;                  /* Input:  Max number of responses
                                      * Return: Actual number of responses */
-  struct bt_scanresponse_s sc_rsp[1];
+  struct bt_scanresponse_s sr_rsp[1];
 };
 
 #define SIZEOF_BT_SCANRESULT_S(n) \
   (sizeof(struct bt_scanresult_s) + \
    ((n) - 1) * sizeof(struct bt_scanresponse_s))
+
+/* Read-only data that accompanies the SIOCBT_SECURITY IOCTL command */
+
+struct bt_security_s
+{
+  char se_name[HCI_DEVNAME_SIZE];   /* Device name */
+  bt_addr_le_t se_addr;             /* BLE address */
+  enum bt_security_e se_level;      /* Security level */
+};
 
 /****************************************************************************
  * Public Function Prototypes
