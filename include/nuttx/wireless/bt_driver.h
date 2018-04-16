@@ -60,11 +60,11 @@ struct bt_driver_s
 
   /* Open the HCI transport */
 
-  CODE int (*open)(FAR const struct bt_driver_s *dev);
+  CODE int (*open)(FAR const struct bt_driver_s *btdev);
 
   /* Send data to HCI */
 
-  CODE int (*send)(FAR const struct bt_driver_s *dev,
+  CODE int (*send)(FAR const struct bt_driver_s *btdev,
                    FAR struct bt_buf_s *buf);
 };
 
@@ -79,11 +79,8 @@ struct bt_driver_s
  *   Register a network driver to access the Bluetooth layer using a 6LoWPAN
  *   IPv6 or AF_BLUETOOTH socket.
  *
- *   This function should be called only once from board bring-up logic
- *   *AFTER* any Bluetooth devices have been registered.
- *
  * Input Parameters:
- *   None
+ *   btdev - An instance of the low-level drivers interface structure.
  *
  * Returned Value:
  *   Zero (OK) is returned on success.  Otherwise a negated errno value is
@@ -91,45 +88,7 @@ struct bt_driver_s
  *
  ****************************************************************************/
 
-int bt_netdev_register(void);
-
-/****************************************************************************
- * Name: bt_driver_register
- *
- * Description:
- *   Register the Bluetooth low-level driver with the Bluetooth stack.
- *   This is called from the low-level driver and is part of the driver
- *   interface prototyped in include/nuttx/wireless/bt_driver.h
- *
- * Input Parameters:
- *   dev - An instance of the low-level drivers interface structure.
- *
- * Returned Value:
- *  Zero is returned on success; a negated errno value is returned on any
- *  failure.
- *
- ****************************************************************************/
-
-int bt_driver_register(FAR const struct bt_driver_s *dev);
-
-/****************************************************************************
- * Name: bt_driver_unregister
- *
- * Description:
- *   Unregister a Bluetooth low-level driver previously registered with
- *   bt_driver_register.  This may be called from the low-level driver and
- *   is part of the driver interface prototyped in
- *   include/nuttx/wireless/bt_driver.h
- *
- * Input Parameters:
- *   dev - An instance of the low-level drivers interface structure.
- *
- * Returned Value:
- *  None
- *
- ****************************************************************************/
-
-void bt_driver_unregister(FAR const struct bt_driver_s *dev);
+int bt_netdev_register(FAR const struct bt_driver_s *btdev);
 
 /****************************************************************************
  * Name: bt_hci_receive

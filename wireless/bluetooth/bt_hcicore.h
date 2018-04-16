@@ -58,23 +58,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Enabling debug increases stack size requirement considerably */
-
-#if defined(CONFIG_DEBUG_WIRELESS_INFO)
-#  define BT_STACK_DEBUG_EXTRA  512
-#else
-#  define BT_STACK_DEBUG_EXTRA  0
-#endif
-
-#define BT_STACK(name, size) \
-  char __stack name[(size) + BT_STACK_DEBUG_EXTRA]
-#define BT_STACK_NOINIT(name, size) \
-  char __noinit __stack name[(size) + BT_STACK_DEBUG_EXTRA]
-
 /* LMP feature helpers */
 
-#define lmp_bredr_capable(dev)  (!((dev).features[4] & BT_LMP_NO_BREDR))
-#define lmp_le_capable(dev)     ((dev).features[4] & BT_LMP_LE)
+#define lmp_bredr_capable(btdev)  (!((btdev).features[4] & BT_LMP_NO_BREDR))
+#define lmp_le_capable(btdev)     ((btdev).features[4] & BT_LMP_LE)
 
 /****************************************************************************
  * Public Types
@@ -136,7 +123,7 @@ struct bt_dev_s
 
   /* Registered HCI driver */
 
-  FAR const struct bt_driver_s *dev;
+  FAR const struct bt_driver_s *btdev;
 };
 
 /* Connection callback structure */
@@ -255,6 +242,46 @@ struct bt_eir_s; /* Forward reference */
 int bt_initialize(void);
 
 /****************************************************************************
+ * Name: bt_driver_register
+ *
+ * Description:
+ *   Register the Bluetooth low-level driver with the Bluetooth stack.
+ *   This is called from the low-level driver and is part of the driver
+ *   interface prototyped in include/nuttx/wireless/bt_driver.h
+ *
+ *   This function associates the Bluetooth driver with the Bluetooth stack.
+ *
+ * Input Parameters:
+ *   btdev - An instance of the low-level drivers interface structure.
+ *
+ * Returned Value:
+ *  Zero is returned on success; a negated errno value is returned on any
+ *  failure.
+ *
+ ****************************************************************************/
+
+int bt_driver_register(FAR const struct bt_driver_s *btdev);
+
+/****************************************************************************
+ * Name: bt_driver_unregister
+ *
+ * Description:
+ *   Unregister a Bluetooth low-level driver previously registered with
+ *   bt_driver_register.  This may be called from the low-level driver and
+ *   is part of the driver interface prototyped in
+ *   include/nuttx/wireless/bt_driver.h
+ *
+ * Input Parameters:
+ *   btdev - An instance of the low-level drivers interface structure.
+ *
+ * Returned Value:
+ *  None
+ *
+ ****************************************************************************/
+
+void bt_driver_unregister(FAR const struct bt_driver_s *btdev);
+
+/****************************************************************************
  * Name: bt_hci_cmd_create
  *
  * Description:
@@ -278,7 +305,7 @@ int bt_hci_cmd_send_sync(uint16_t opcode, FAR struct bt_buf_s *buf,
  * not multi-threading safe
  */
 
-#ifdef CONFIG_DEBUG_WIRELESS_INFO
+#ifdef CONFIG_DEBUG_WIRELESS_ERROR
 FAR const char *bt_addr_str(FAR const bt_addr_t *addr);
 FAR const char *bt_addr_le_str(FAR const bt_addr_le_t *addr);
 #endif

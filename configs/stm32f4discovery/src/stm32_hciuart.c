@@ -1,9 +1,8 @@
-/****************************************************************************
- * wireless/bluetooth/bt_ioctl.h
- * Bluetooth network IOCTL handler
+/************************************************************************************
+ * configs/stm32f4discovery/src/stm32_xen1210.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
+ *   Author:  Alan Carvalho de Assis <acassis@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,10 +31,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
-
-#ifndef __WIRELESS_BLUETOOTH_BT_IOCTL_H
-#define __WIRELESS_BLUETOOTH_BT_IOCTL_H 1
+ ************************************************************************************/
 
 /****************************************************************************
  * Included Files
@@ -43,31 +39,67 @@
 
 #include <nuttx/config.h>
 
+#include <stdbool.h>
+#include <stdio.h>
+#include <debug.h>
+#include <errno.h>
+
+#include <nuttx/wireless/bt_uart.h>
+
+#include "stm32_hciuart.h"
+#include "stm32f4discovery.h"
+
+#include <arch/board/board.h>
+
+#ifdef HAVE_HCIUART
+
 /****************************************************************************
- * Public Types
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
- /****************************************************************************
- * Name: btnet_ioctl
+ * Name: hciuart_dev_initialize
  *
  * Description:
- *   Handle network IOCTL commands directed to this device.
+ *   This function is called by board initialization logic to configure the
+ *   Bluetooth HCI UART driver
  *
  * Input Parameters:
- *   netdev - Reference to the NuttX driver state structure
- *   cmd    - The IOCTL command
- *   arg    - The argument for the IOCTL command
+ *   None
  *
  * Returned Value:
- *   OK on success; Negated errno on failure.
+ *   Zero is returned on success.  Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
  ****************************************************************************/
 
-struct net_driver_s;  /* Forward reference */
-int btnet_ioctl(FAR struct net_driver_s *netdev, int cmd, unsigned long arg);
+int hciuart_dev_initialize(void)
+{
+  const struct btuart_lowerhalf_s *lower;
+  int ret;
 
-#endif /* __WIRELESS_BLUETOOTH_BT_IOCTL_H */
+  /* Perform one-time initialization */
+
+  hciuart_initialize();
+
+  /* Instantiate the HCI UART lower half interface */
+
+  lower = hciuart_instantiate(HCIUART_SERDEV);
+  if (lower == NULL)
+    {
+      wlerr("ERROR: Failed to instantiate HCIUART%d\n", HCIUART_SERDEV + 1);
+      return -ENODEV;
+    }
+
+  /* Then initialize the HCI UART upper half driver with the bluetooth stack */
+
+  ret = btuart_register(lower);
+  if (ret < 0)
+    {
+      wlerr("ERROR: btuart_register() failed: %d\n", ret);
+    }
+
+  return ret;
+}
+
+#endif /* HAVE_HCIUART */

@@ -1,9 +1,8 @@
 /****************************************************************************
- * wireless/bluetooth/bt_ioctl.h
- * Bluetooth network IOCTL handler
+ * config/imxrt1050-evk/src/imxrt_flexspi_nor_boot.c
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Author: Ivan Ucherdzhiev <ivanucherdjiev@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,40 +33,35 @@
  *
  ****************************************************************************/
 
-#ifndef __WIRELESS_BLUETOOTH_BT_IOCTL_H
-#define __WIRELESS_BLUETOOTH_BT_IOCTL_H 1
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
+#include "imxrt_flexspi_nor_boot.h"
 
 /****************************************************************************
- * Public Types
+ * Public Data
  ****************************************************************************/
 
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
+__attribute__((section(".boot_hdr.ivt")))
+const struct ivt_s image_vector_table =
+{
+  IVT_HEADER,                         /* IVT Header */
+  0x60002000,                         /* Image  Entry Function */
+  IVT_RSVD,                           /* Reserved = 0 */
+  (uint32_t)DCD_ADDRESS,              /* Address where DCD information is stored */
+  (uint32_t)BOOT_DATA_ADDRESS,        /* Address where BOOT Data Structure is stored */
+  (uint32_t)&image_vector_table,      /* Pointer to IVT Self (absolute address */
+  (uint32_t)CSF_ADDRESS,              /* Address where CSF file is stored */
+  IVT_RSVD                            /* Reserved = 0 */
+};
 
- /****************************************************************************
- * Name: btnet_ioctl
- *
- * Description:
- *   Handle network IOCTL commands directed to this device.
- *
- * Input Parameters:
- *   netdev - Reference to the NuttX driver state structure
- *   cmd    - The IOCTL command
- *   arg    - The argument for the IOCTL command
- *
- * Returned Value:
- *   OK on success; Negated errno on failure.
- *
- ****************************************************************************/
+__attribute__((section(".boot_hdr.boot_data")))
+const struct boot_data_s boot_data =
+{
+  FLASH_BASE,                         /* boot start location */
+  (FLASH_END - FLASH_BASE),           /* size */
+  PLUGIN_FLAG,                        /* Plugin flag*/
+  0xFFFFFFFF                          /* empty - extra data word */
+};
 
-struct net_driver_s;  /* Forward reference */
-int btnet_ioctl(FAR struct net_driver_s *netdev, int cmd, unsigned long arg);
-
-#endif /* __WIRELESS_BLUETOOTH_BT_IOCTL_H */

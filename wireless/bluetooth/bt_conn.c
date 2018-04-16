@@ -178,7 +178,7 @@ static int conn_tx_kthread(int argc, FAR char *argv[])
         }
 
       wlinfo("passing buf %p len %u to driver\n", buf, buf->len);
-      g_btdev.dev->send(g_btdev.dev, buf);
+      g_btdev.btdev->send(g_btdev.btdev, buf);
       bt_buf_release(buf);
     }
 
@@ -565,6 +565,7 @@ void bt_conn_set_state(FAR struct bt_conn_s *conn,
                                CONFIG_BLUETOOTH_TXCONN_STACKSIZE,
                                conn_tx_kthread, NULL);
           DEBUGASSERT(pid > 0);
+          UNUSED(pid);
 
           /* Take the semaphore again.  This will force us to wait with the
            * sem_count at -1.  It will be zero again when we continue.

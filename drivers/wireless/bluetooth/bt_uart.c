@@ -198,8 +198,8 @@ static FAR struct bt_buf_s *btuart_acl_recv(FAR struct btuart_upperhalf_s *upper
   return buf;
 }
 
-static void btuart_interrupt(FAR const struct btuart_lowerhalf_s *lower,
-                             FAR void *arg)
+static void btuart_rxcallback(FAR const struct btuart_lowerhalf_s *lower,
+                              FAR void *arg)
 {
   FAR struct btuart_upperhalf_s *upper;
   static FAR struct bt_buf_s *buf;
@@ -343,16 +343,15 @@ static int btuart_open(FAR const struct bt_driver_s *dev)
   DEBUGASSERT(upper != NULL && upper->lower != NULL);
   lower = upper->lower;
 
-  /* Disable Tx and Rx interrupts */
+  /* Disable Rx callbacks */
 
-  lower->txenable(lower, false);
   lower->rxenable(lower, false);
 
   /* Drain any cached Rx data */
 
   (void)lower->rxdrain(lower);
 
-  /* Enable Rx interrupts */
+  /* Re-enable Rx callbacks */
 
   lower->rxenable(lower, true);
   return OK;
@@ -383,6 +382,8 @@ int btuart_register(FAR const struct btuart_lowerhalf_s *lower)
   FAR struct btuart_upperhalf_s *upper;
   int ret;
 
+  wlinfo("lower %p\n", lower);
+
   DEBUGASSERT(lower != NULL);
 
   /* Allocate a new instance of the upper half driver state structure */
@@ -405,13 +406,14 @@ int btuart_register(FAR const struct btuart_lowerhalf_s *lower)
 
   /* Attach the interrupt handler */
 
-  lower->attach(lower, btuart_interrupt, upper);
+  lower->rxattach(lower, btuart_rxcallback, upper);
 
-  /* And register the driver with the Bluetooth stack */
+  /* And register the driver with the network and the Bluetooth stack. */
 
-  ret = bt_driver_register(&upper->dev);
+  ret = bt_netdev_register(&upper->dev);
   if (ret < 0)
     {
+      wlerr("ERROR: bt_driver_register failed: %d\n", ret);
       kmm_free(upper);
     }
 
