@@ -45,43 +45,17 @@
 
 #include <nuttx/config.h>
 
-#include <stddef.h>
+#include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <debug.h>
 
-#include <nuttx/kmalloc.h>
 #include <nuttx/wireless/bt_core.h>
 #include <nuttx/wireless/bt_hci.h>
 #include <nuttx/wireless/bt_driver.h>
 #include <nuttx/wireless/bt_uart.h>
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define H4_HEADER_SIZE  1
-
-#define H4_CMD          0x01
-#define H4_ACL          0x02
-#define H4_SCO          0x03
-#define H4_EVT          0x04
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-struct btuart_upperhalf_s
-{
-  /* This structure must appear first in the structure so that this structure
-   * is cast compatible with struct bt_driver_s.
-   */
-
-  struct bt_driver_s dev;
-
-  /* The cached lower half interface */
-
-  FAR const struct btuart_lowerhalf_s *lower;
-};
+#include "bt_uart.h"
 
 /****************************************************************************
  * Private Functions
@@ -94,6 +68,9 @@ static ssize_t btuart_read(FAR struct btuart_upperhalf_s *upper,
   FAR const struct btuart_lowerhalf_s *lower;
   ssize_t nread;
   ssize_t ntotal = 0;
+
+  wlinfo("buflen %lu minread %lu\n",
+         (unsigned long)buflen, (unsigned long)minread);
 
   DEBUGASSERT(upper != NULL && upper->lower != NULL);
   lower = upper->lower;
@@ -129,7 +106,7 @@ static ssize_t btuart_read(FAR struct btuart_upperhalf_s *upper,
 }
 
 static FAR struct bt_buf_s *btuart_evt_recv(FAR struct btuart_upperhalf_s *upper,
-                                            FAR int *remaining)
+                                            FAR unsigned int *hdrlen)
 {
   FAR struct bt_buf_s *buf;
   struct bt_hci_evt_hdr_s hdr;
@@ -141,12 +118,11 @@ static FAR struct bt_buf_s *btuart_evt_recv(FAR struct btuart_upperhalf_s *upper
                       sizeof(struct bt_hci_evt_hdr_s),
                       sizeof(struct bt_hci_evt_hdr_s));
 
-  if (nread < 0)
+  if (nread != sizeof(struct bt_hci_evt_hdr_s))
     {
+      wlerr("ERROR: btuart_read returned %ld\n", (long)nread);
       return NULL;
     }
-
-  *remaining = hdr.len;
 
   buf = bt_buf_alloc(BT_EVT, NULL, 0);
   if (buf != NULL)
@@ -159,12 +135,14 @@ static FAR struct bt_buf_s *btuart_evt_recv(FAR struct btuart_upperhalf_s *upper
       wlerr("ERROR: No available event buffers!\n");
     }
 
-  wlinfo("len %u\n", hdr.len);
+  *hdrlen = (int)hdr.len;
+
+  wlinfo("hdrlen %u\n", hdr.len);
   return buf;
 }
 
 static FAR struct bt_buf_s *btuart_acl_recv(FAR struct btuart_upperhalf_s *upper,
-                                            FAR int *remaining)
+                                            FAR unsigned int *hdrlen)
 {
   FAR struct bt_buf_s *buf;
   struct bt_hci_acl_hdr_s hdr;
@@ -176,13 +154,14 @@ static FAR struct bt_buf_s *btuart_acl_recv(FAR struct btuart_upperhalf_s *upper
                       sizeof(struct bt_hci_acl_hdr_s),
                       sizeof(struct bt_hci_acl_hdr_s));
 
-  if (nread < 0)
+  if (nread != sizeof(struct bt_hci_acl_hdr_s))
     {
+      wlerr("ERROR: btuart_read returned %ld\n", (long)nread);
       return NULL;
     }
 
   buf = bt_buf_alloc(BT_ACL_IN, NULL, 0);
-  if (buf)
+  if (buf != NULL)
     {
       memcpy(bt_buf_extend(buf, sizeof(struct bt_hci_acl_hdr_s)), &hdr,
              sizeof(struct bt_hci_acl_hdr_s));
@@ -192,97 +171,133 @@ static FAR struct bt_buf_s *btuart_acl_recv(FAR struct btuart_upperhalf_s *upper
       wlerr("ERROR: No available ACL buffers!\n");
     }
 
-  *remaining = BT_LE162HOST(hdr.len);
+  *hdrlen = BT_LE162HOST(hdr.len);
 
-  wlinfo("len %u\n", *remaining);
+  wlinfo("hdrlen %u\n", *hdrlen);
   return buf;
+}
+
+static void btuart_rxwork(FAR void *arg)
+{
+  FAR struct btuart_upperhalf_s *upper;
+  FAR const struct btuart_lowerhalf_s *lower;
+  static FAR struct bt_buf_s *buf;
+  static unsigned int hdrlen;
+  static int remaining;
+  ssize_t nread;
+  uint8_t type;
+
+  upper = (FAR struct btuart_upperhalf_s *)arg;
+  DEBUGASSERT(upper != NULL && upper->lower != NULL);
+  lower = upper->lower;
+
+  /* Beginning of a new packet.  Read the first byte to get the packet type. */
+
+  buf    = NULL;
+  hdrlen = 0;
+
+  nread = btuart_read(upper, &type, 1, 0);
+  if (nread != 1)
+    {
+      wlwarn("WARNING: Unable to read H4 packet type: %ld\n",
+             (long)nread);
+      goto errout_with_busy;
+    }
+
+  switch (type)
+    {
+      case H4_EVT:
+        buf = btuart_evt_recv(upper, &hdrlen);
+        break;
+
+      case H4_ACL:
+        buf = btuart_acl_recv(upper, &hdrlen);
+        break;
+
+      default:
+        wlerr("ERROR: Unknown H4 type %u\n", type);
+        goto errout_with_busy;
+    }
+
+  if (buf == NULL)
+    {
+      /* Failed to allocate a buffer.  Drain the Rx data and fail the read. */
+
+      nread = lower->rxdrain(lower);
+      wlwarn("WARNING: Discarded %ld bytes\n", (long)nread);
+      goto errout_with_busy;
+    }
+  else if ((hdrlen - 1) > bt_buf_tailroom(buf))
+    {
+      wlerr("ERROR: Not enough space in buffer\n");
+      goto errout_with_buf;
+    }
+
+  remaining = hdrlen;
+  wlinfo("Need to get %u bytes\n", remaining);
+
+  while (remaining > 0)
+    {
+      nread = btuart_read(upper, bt_buf_tail(buf), remaining, 0);
+      wlinfo("Received %ld bytes\n", (long)nread);
+
+      buf->len  += nread;
+      remaining -= nread;
+    }
+
+  wlinfo("Full packet received\n");
+
+  /* Drain any un-read bytes from the Rx buffer */
+
+  nread = lower->rxdrain(lower);
+  if (nread > 0)
+    {
+      wlwarn("WARNING: Discarded %ld bytes\n", (long)nread);
+    }
+
+  /* Pass buffer to the stack */
+
+  upper->busy = false;
+
+  BT_DUMP("Received",  buf->data, buf->len);
+  bt_hci_receive(buf);
+  return;
+
+errout_with_buf:
+  bt_buf_release(buf);
+
+errout_with_busy:
+  upper->busy = false;
+  return;
 }
 
 static void btuart_rxcallback(FAR const struct btuart_lowerhalf_s *lower,
                               FAR void *arg)
 {
   FAR struct btuart_upperhalf_s *upper;
-  static FAR struct bt_buf_s *buf;
-  static int remaining;
-  ssize_t nread;
 
-  DEBUGASSERT(lower != NULL && lower->rxdrain != NULL && arg != NULL);
+  DEBUGASSERT(lower != NULL && arg != NULL);
   upper = (FAR struct btuart_upperhalf_s *)arg;
 
-  /* Beginning of a new packet */
-
-  while (remaining > 0)
+  if (!upper->busy)
     {
-      uint8_t type;
-
-     /* Get packet type */
-
-      nread = btuart_read(upper, &type, 1, 0);
-      if (nread != sizeof(type))
+      int ret = work_queue(HPWORK, &upper->work, btuart_rxwork, arg, 0);
+      if (ret < 0)
         {
-          wlwarn("WARNING: Unable to read H4 packet type\n");
-          continue;
+          wlerr("ERROR: work_queue failed: %d\n", ret);
         }
-
-      switch (type)
+      else
         {
-          case H4_EVT:
-            buf = btuart_evt_recv(upper, &remaining);
-            break;
-
-          case H4_ACL:
-            buf = btuart_acl_recv(upper, &remaining);
-            break;
-
-          default:
-            wlerr("ERROR: Unknown H4 type %u\n", type);
-            return;
+          upper->busy = true;
         }
-
-      if (buf != NULL && remaining > bt_buf_tailroom(buf))
-        {
-          wlerr("ERROR: Not enough space in buffer\n");
-          goto failed;
-        }
-
-      wlinfo("Need to get %u bytes\n", remaining);
     }
-
-  if (buf == NULL)
-    {
-      nread = lower->rxdrain(lower);
-      wlwarn("WARNING: Discarded %ld bytes\n", (long)nread);
-      remaining -= nread;
-    }
-
-  nread = btuart_read(upper, bt_buf_tail(buf), remaining, 0);
-
-  buf->len  += nread;
-  remaining -= nread;
-
-  wlinfo("Received %ld bytes\n", (long)nread);
-
-  if (remaining == 0)
-    {
-      wlinfo("Full packet received\n");
-
-      /* Pass buffer to the stack */
-
-      bt_hci_receive(buf);
-      buf = NULL;
-    }
-
-  return;
-
-failed:
-  bt_buf_release(buf);
-  remaining = 0;
-  buf       = NULL;
-  return;
 }
 
-static int btuart_send(FAR const struct bt_driver_s *dev,
-                       FAR struct bt_buf_s *buf)
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+int btuart_send(FAR const struct bt_driver_s *dev, FAR struct bt_buf_s *buf)
 {
   FAR struct btuart_upperhalf_s *upper;
   FAR const struct btuart_lowerhalf_s *lower;
@@ -320,6 +335,8 @@ static int btuart_send(FAR const struct bt_driver_s *dev,
         return -EINVAL;
     }
 
+  BT_DUMP("Sending",  buf->data, buf->len);
+
   nwritten = lower->write(lower, buf->data, buf->len);
   if (nwritten == buf->len)
     {
@@ -334,10 +351,12 @@ static int btuart_send(FAR const struct bt_driver_s *dev,
   return -EIO;
 }
 
-static int btuart_open(FAR const struct bt_driver_s *dev)
+int btuart_open(FAR const struct bt_driver_s *dev)
 {
   FAR struct btuart_upperhalf_s *upper;
   FAR const struct btuart_lowerhalf_s *lower;
+
+  wlinfo("dev %p\n", dev);
 
   upper = (FAR struct btuart_upperhalf_s *)dev;
   DEBUGASSERT(upper != NULL && upper->lower != NULL);
@@ -351,71 +370,12 @@ static int btuart_open(FAR const struct bt_driver_s *dev)
 
   (void)lower->rxdrain(lower);
 
+  /* Attach the Rx event handler */
+
+  lower->rxattach(lower, btuart_rxcallback, upper);
+
   /* Re-enable Rx callbacks */
 
   lower->rxenable(lower, true);
   return OK;
-}
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: btuart_register
- *
- * Description:
- *   Create the UART-based Bluetooth device and register it with the
- *   Bluetooth stack.
- *
- * Input Parameters:
- *   lower - an instance of the lower half driver interface
- *
- * Returned Value:
- *   Zero is returned on success; a negated errno value is returned on any
- *   failure.
- *
- ****************************************************************************/
-
-int btuart_register(FAR const struct btuart_lowerhalf_s *lower)
-{
-  FAR struct btuart_upperhalf_s *upper;
-  int ret;
-
-  wlinfo("lower %p\n", lower);
-
-  DEBUGASSERT(lower != NULL);
-
-  /* Allocate a new instance of the upper half driver state structure */
-
-  upper = (FAR struct btuart_upperhalf_s *)
-    kmm_zalloc(sizeof(struct btuart_upperhalf_s));
-
-  if (upper == NULL)
-    {
-      wlerr("ERROR: Failed to allocate upper-half state\n");
-      return -ENOMEM;
-    }
-
-  /* Initialize the upper half driver state */
-
-  upper->dev.head_reserve = H4_HEADER_SIZE;
-  upper->dev.open         = btuart_open;
-  upper->dev.send         = btuart_send;
-  upper->lower            = lower;
-
-  /* Attach the interrupt handler */
-
-  lower->rxattach(lower, btuart_rxcallback, upper);
-
-  /* And register the driver with the network and the Bluetooth stack. */
-
-  ret = bt_netdev_register(&upper->dev);
-  if (ret < 0)
-    {
-      wlerr("ERROR: bt_driver_register failed: %d\n", ret);
-      kmm_free(upper);
-    }
-
-  return ret;
 }

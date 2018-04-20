@@ -258,6 +258,16 @@ config ARCH_BOARD_FREEDOM_KL26Z
 		This is the configuration for the NXP/FreeScale Freedom KL26Z board.  This
 		board has the K26Z128VLH4 chip with a built-in SDA debugger.
 
+config ARCH_BOARD_HYMINI_STM32V
+	bool "HY-Mini STM32v board"
+	depends on ARCH_CHIP_STM32F103VC
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		A configuration for the HY-Mini STM32v board.  This board is based on the
+		STM32F103VCT6 chip.
+
 config ARCH_BOARD_IMXRT1050_EVK
 	bool "NXP i.MX RT 1050 EVK"
 	depends on ARCH_CHIP_MIMXRT1052DVL6A
@@ -1417,6 +1427,16 @@ config ARCH_BOARD_TM4C1294_LAUNCHPAD
 	---help---
 		Tiva EK-TM4C1294XL LaunchPad.
 
+config ARCH_BOARD_TMS570LS31X_USB_KIT
+	bool "TI TMS570LS31X_USB_KIT"
+	depends on ARCH_CHIP_TMS570LS3137ZWT
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		TI Hercules TMS570LS31xx Evaluation Kit (TMDS570ls31xx USB Kit)
+		featuring the Hercules TMS570LS3137ZWT chip.
+
 config ARCH_BOARD_TWR_K60N512
 	bool "FreeScale TWR-K60N512 development board"
 	depends on ARCH_CHIP_MK60N512VMD100
@@ -1753,6 +1773,7 @@ config ARCH_BOARD
 	default "teensy-lc"                if ARCH_BOARD_TEENSY_LC
 	default "tm4c123g-launchpad"       if ARCH_BOARD_TM4C123G_LAUNCHPAD
 	default "tm4c1294-launchpad"       if ARCH_BOARD_TM4C1294_LAUNCHPAD
+	default "tms570ls31x-usb-kit"      if ARCH_BOARD_TMS570LS31X_USB_KIT
 	default "twr-k60n512"              if ARCH_BOARD_TWR_K60N512
 	default "twr-k64f120m"             if ARCH_BOARD_TWR_K64F120M
 	default "u-blox-c027"              if ARCH_BOARD_U_BLOX_C027
@@ -2202,6 +2223,9 @@ source "configs/tm4c123g-launchpad/Kconfig"
 endif
 if ARCH_BOARD_TM4C1294_LAUNCHPAD
 source "configs/tm4c1294-launchpad/Kconfig"
+endif
+if ARCH_BOARD_TMS570LS31X_USB_KIT
+source "configs/tms570ls31x-usb-kit/Kconfig"
 endif
 if ARCH_BOARD_TWR_K60N512
 source "configs/twr-k60n512/Kconfig"

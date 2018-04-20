@@ -319,8 +319,8 @@ static int  hciuart_dma_nextrx(const struct hciuart_config_s *config);
 #endif
 
 static uint16_t hciuart_rxinuse(const struct hciuart_config_s *config);
-static inline void hciuart_rxflow_enable(const struct hciuart_config_s *config);
-static inline void hciuart_rxflow_disable(const struct hciuart_config_s *config);
+static void hciuart_rxflow_enable(const struct hciuart_config_s *config);
+static void hciuart_rxflow_disable(const struct hciuart_config_s *config);
 static ssize_t hciuart_copytorxbuffer(const struct hciuart_config_s *config);
 static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
               uint8_t *dest, size_t destlen);
@@ -764,19 +764,22 @@ static inline void hciuart_putreg32(const struct hciuart_config_s *config,
 static void hciuart_enableints(const struct hciuart_config_s *config,
                                uint32_t intset)
 {
-  uint32_t regval;
+  uint32_t cr1;
+  uint32_t cr2;
 
   /* And restore the interrupt state (see the interrupt enable/usage table
    * above)
    */
 
-  regval  = hciuart_getreg32(config, STM32_USART_CR1_OFFSET);
-  regval |= (intset & USART_CR1_USED_INTS);
-  hciuart_putreg32(config, STM32_USART_CR1_OFFSET, regval);
+  cr1  = hciuart_getreg32(config, STM32_USART_CR1_OFFSET);
+  cr1 |= (intset & USART_CR1_USED_INTS);
+  hciuart_putreg32(config, STM32_USART_CR1_OFFSET, cr1);
 
-  regval  = hciuart_getreg32(config, STM32_USART_CR3_OFFSET);
-  regval |= (intset & USART_CR3_EIE);
-  hciuart_putreg32(config, STM32_USART_CR3_OFFSET, regval);
+  cr2  = hciuart_getreg32(config, STM32_USART_CR3_OFFSET);
+  cr2 |= (intset & USART_CR3_EIE);
+  hciuart_putreg32(config, STM32_USART_CR3_OFFSET, cr2);
+
+  wlinfo("CR1 %08x CR2 %08x\n", cr1, cr2);
 }
 
 /****************************************************************************
@@ -793,19 +796,22 @@ static void hciuart_enableints(const struct hciuart_config_s *config,
 static void hciuart_disableints(const struct hciuart_config_s *config,
                                 uint32_t intset)
 {
-  uint32_t regval;
+  uint32_t cr1;
+  uint32_t cr2;
 
   /* And restore the interrupt state (see the interrupt enable/usage table
    * above)
    */
 
-  regval  = hciuart_getreg32(config, STM32_USART_CR1_OFFSET);
-  regval &= ~(intset & USART_CR1_USED_INTS);
-  hciuart_putreg32(config, STM32_USART_CR1_OFFSET, regval);
+  cr1  = hciuart_getreg32(config, STM32_USART_CR1_OFFSET);
+  cr1 &= ~(intset & USART_CR1_USED_INTS);
+  hciuart_putreg32(config, STM32_USART_CR1_OFFSET, cr1);
 
-  regval  = hciuart_getreg32(config, STM32_USART_CR3_OFFSET);
-  regval &= ~(intset & USART_CR3_EIE);
-  hciuart_putreg32(config, STM32_USART_CR3_OFFSET, regval);
+  cr2  = hciuart_getreg32(config, STM32_USART_CR3_OFFSET);
+  cr2 &= ~(intset & USART_CR3_EIE);
+  hciuart_putreg32(config, STM32_USART_CR3_OFFSET, cr2);
+
+  wlinfo("CR1 %08x CR2 %08x\n", cr1, cr2);
 }
 
 /****************************************************************************
@@ -827,13 +833,15 @@ static bool hciuart_isenabled(const struct hciuart_config_s *config,
    */
 
   regval  = hciuart_getreg32(config, STM32_USART_CR1_OFFSET);
-  if ((regval & USART_CR1_USED_INTS) != 0)
+  regval &= USART_CR1_USED_INTS;
+  if ((regval & intset) != 0)
     {
       return true;
     }
 
   regval  = hciuart_getreg32(config, STM32_USART_CR3_OFFSET);
-  if ((regval & USART_CR3_EIE) != 0)
+  regval &= USART_CR3_EIE;
+  if ((regval & intset) != 0)
     {
       return true;
     }
@@ -941,11 +949,15 @@ static uint16_t hciuart_rxinuse(const struct hciuart_config_s *config)
  * Name: hciuart_rxflow_enable
  *
  * Description:
- *   Enable software Rx flow control.
+ *   Enable software Rx flow control, i.e., deassert the RTS output.  This
+ *   will be seen as CTS on the other end of the cable and the HCI UART
+ *   device must stop sending data.
+ *
+ *   NOTE:  RTS is logic low
  *
  ****************************************************************************/
 
-static inline void hciuart_rxflow_enable(const struct hciuart_config_s *config)
+static void hciuart_rxflow_enable(const struct hciuart_config_s *config)
 {
 #ifdef  CONFIG_STM32_HCIUART_SW_RXFLOW
   struct hciuart_state_s *state;
@@ -974,11 +986,15 @@ static inline void hciuart_rxflow_enable(const struct hciuart_config_s *config)
  * Name: hciuart_rxflow_disable
  *
  * Description:
- *   Enable software Rx flow control.
+ *   Disable software Rx flow control, i.e., assert the RTS output.  This
+ *   will be seen as CTS on the other end of the cable and the HCI UART
+ *   device can resume sending data.
+ *
+ *   NOTE:  RTS is logic low
  *
  ****************************************************************************/
 
-static inline void hciuart_rxflow_disable(const struct hciuart_config_s *config)
+static void hciuart_rxflow_disable(const struct hciuart_config_s *config)
 {
 #ifdef  CONFIG_STM32_HCIUART_SW_RXFLOW
   struct hciuart_state_s *state;
@@ -1138,7 +1154,7 @@ static ssize_t hciuart_copytorxbuffer(const struct hciuart_config_s *config)
       nxsem_post(&state->rxwait);
     }
 
-  wlinfo("nbytes %ld\n", (long)nbytes);
+  wlinfo("rxhead %u rxtail %u nbytes %ld\n", rxhead, rxtail, (long)nbytes);
   return nbytes;
 }
 
@@ -1155,7 +1171,7 @@ static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
                                         uint8_t *dest, size_t destlen)
 {
   struct hciuart_state_s *state;
-  ssize_t nbytes = 0;
+  ssize_t nbytes;
   uint16_t rxhead;
   uint16_t rxtail;
   uint8_t rxbyte;
@@ -1165,20 +1181,14 @@ static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
   state  = config->state;
   rxhead = state->rxhead;
   rxtail = state->rxtail;
+  nbytes = 0;
 
-  /* Is there data available in the Rx FIFO? */
+  /* Is there data available in the Rx buffer?  Is there space in the user
+   * buffer?
+   */
 
-  while ((hciuart_getreg32(config, STM32_USART_SR_OFFSET) & USART_SR_RXNE) != 0)
+  while (rxhead != rxtail && nbytes < destlen)
     {
-      /* Is the Rx buffer empty? Is there space in the user buffer? */
-
-      if (rxhead == rxtail && nbytes < destlen)
-        {
-          /* Yes, stop the copy and update the indices */
-
-          break;
-        }
-
       /* Get a byte from the head of the Rx buffer */
 
       rxbyte = config->rxbuffer[rxhead];
@@ -1186,6 +1196,9 @@ static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
       /* And add it to the caller's buffer buffer */
 
       dest[nbytes] = rxbyte;
+
+      /* Update indices and counts */
+
       nbytes++;
 
       if (++rxhead >= config->rxbufsize)
@@ -1202,7 +1215,7 @@ static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
 
   state->rxhead = rxhead;
 
-  wlinfo("nbytes %ld\n", (long)nbytes);
+  wlinfo("rxhead %u rxtail %u nbytes %ld\n", rxhead, rxtail, (long)nbytes);
   return nbytes;
 }
 
@@ -1416,19 +1429,12 @@ static void hciuart_line_configure(const struct hciuart_config_s *config)
   hciuart_putreg32(config, STM32_USART_CR1_OFFSET, regval);
   hciuart_putreg32(config, STM32_USART_BRR_OFFSET, brr);
 
-  /* Configure parity mode
+  /* Configure parity mode and word length
    *
-   * HCI UART spec requires:  No parity
+   * HCI UART spec requires:  8 data bits, No parity
    */
 
   regval &= ~(USART_CR1_PCE | USART_CR1_PS | USART_CR1_M);
-
-  /* Configure word length
-   *
-   * HCI UART spec requires:  8 data bits
-   */
-
-  regval |= USART_CR1_M;
   hciuart_putreg32(config, STM32_USART_CR1_OFFSET, regval);
 
   /* Configure STOP bits
@@ -1575,9 +1581,14 @@ static int hciuart_configure(const struct hciuart_config_s *config)
    * have broken HW based RTS behavior (they assert nRTS after every byte
    * received)  Enable this setting workaround this issue by using software
    * based management of RTS.
+   *
+   * Convert the RTS alternate function pin to a push-pull output with
+   * initial output value of one, i.e., rx flow control enabled.  The HCI
+   * UART device should not send data until we assert RTS.
    */
 
-  pinset = (config & ~GPIO_MODE_MASK) | GPIO_OUTPUT;
+  regval = GPIO_MODE_MASK | GPIO_PUPD_MASK | GPIO_OPENDRAIN | GPIO_EXTI;
+  pinset = (config & ~regval) | GPIO_OUTPUT | GPIO_OUTPUT_SET;
 #endif
   stm32_configgpio(pinset);
 
@@ -1650,6 +1661,9 @@ static int hciuart_configure(const struct hciuart_config_s *config)
                  (void *)config, true);
 #endif
 
+  /* Disable Rx flow control, i.e, assert RTS. */
+
+  hciuart_rxflow_disable(config);
   return OK;
 }
 
