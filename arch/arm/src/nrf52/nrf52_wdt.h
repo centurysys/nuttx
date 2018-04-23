@@ -1,5 +1,5 @@
 /****************************************************************************
- * config/nrf52-pca10040/src/nrf53_bringup.c
+ * arch/arm/src/nrf52/nrf52_wdg.h
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -33,47 +33,76 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_ARM_SRC_NRF52_NRF52_WDG_H
+#define __ARCH_ARM_SRC_NRF52_NRF52_WDG_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
-#include <syslog.h>
+#ifdef CONFIG_WATCHDOG
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define NRF_WDT_RR_VALUE         0x6E524635UL /* Fixed value, don't modify it */
+#define NRF_WDT_TASK_SET         1
+#define WDT_CONFIG_HALT_POS      3
+#define WDT_CONFIG_SLEEP_POS     0
+#define NRF_WDT_INT_TIMEOUT_MASK 1
+
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
+enum wdg_behaviour_e
+{
+  WDG_PAUSE = 0,
+  WDG_RUN = 1
+};
+
 /****************************************************************************
- * Name: nrf52_bringup
+ * Name: nrf52_wdg_initialize
  *
  * Description:
- *   Perform architecture-specific initialization
+ *   Initialize the IWDG watchdog time.  The watchdog timer is initialized
+ *   and registers as 'devpath.  The initial state of the watchdog time is
+ *   disabled.
  *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
+ * Input Parameters:
+ *   devpath - The full path to the watchdog.  This should be of the form
+ *     /dev/watchdog0
+ *   behaviour_sleep - The behaviour of watchdog when CPU enter sleep mode
+ *   behaviour_halt - The behaviour of watchdog when CPU was  HALT by
+ *     debugger
  *
- *   CONFIG_BOARD_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
- *     Called from the NSH library
+ * Returned Values:
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   any failure.
  *
  ****************************************************************************/
 
-int nrf52_bringup(void)
-{
-  int ret;
-
 #ifdef CONFIG_NRF52_WDT
-  /* Start Watchdog timer */
-
-  ret = nrf52_wdt_initialize(CONFIG_WATCHDOG_DEVPATH, 1, 1);
-  if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: nrf52_wdt_initialize failed: %d\n", ret);
-    }
+int nrf52_wdg_initialize(FAR const char *devpath, int16_t behaviour_sleep,
+                         int16_t behaviour_halt);
 #endif
 
-  UNUSED(ret);
-  return OK;
+#undef EXTERN
+#if defined(__cplusplus)
 }
+#endif
+
+#endif /* CONFIG_WATCHDOG */
+#endif /* __ARCH_ARM_SRC_NRF52_NRF52_WDG_H */

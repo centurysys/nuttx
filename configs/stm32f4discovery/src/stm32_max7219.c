@@ -1,7 +1,7 @@
 /****************************************************************************
- * config/nrf52-pca10040/src/nrf53_bringup.c
+ * config/stm32f103-minimum/src/stm32_max7219.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,41 +39,89 @@
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
-#include <syslog.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <debug.h>
+#include <errno.h>
+
+#include <nuttx/arch.h>
+#include <nuttx/board.h>
+#include <nuttx/spi/spi.h>
+#include <nuttx/lcd/lcd.h>
+#include <nuttx/lcd/max7219.h>
+
+#include "stm32_gpio.h"
+#include "stm32_spi.h"
+#include "stm32f4discovery.h"
+
+#ifdef CONFIG_NX_LCDDRIVER
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define LCD_SPI_PORTNO 1   /* On SPI1 */
+
+#ifndef CONFIG_LCD_CONTRAST
+#  define CONFIG_LCD_CONTRAST 60
+#endif
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+FAR struct spi_dev_s *g_spidev;
+FAR struct lcd_dev_s *g_lcddev;
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nrf52_bringup
- *
- * Description:
- *   Perform architecture-specific initialization
- *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
- *
- *   CONFIG_BOARD_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
- *     Called from the NSH library
- *
+ * Name: board_lcd_initialize
  ****************************************************************************/
 
-int nrf52_bringup(void)
+int board_lcd_initialize(void)
 {
-  int ret;
+  g_spidev = stm32_spibus_initialize(LCD_SPI_PORTNO);
 
-#ifdef CONFIG_NRF52_WDT
-  /* Start Watchdog timer */
-
-  ret = nrf52_wdt_initialize(CONFIG_WATCHDOG_DEVPATH, 1, 1);
-  if (ret < 0)
+  if (g_spidev == NULL)
     {
-      syslog(LOG_ERR, "ERROR: nrf52_wdt_initialize failed: %d\n", ret);
+      lcderr("ERROR: Failed to initialize SPI port %d\n", LCD_SPI_PORTNO);
+      return -ENODEV;
     }
-#endif
 
-  UNUSED(ret);
   return OK;
 }
+
+/****************************************************************************
+ * Name: board_lcd_getdev
+ ****************************************************************************/
+
+FAR struct lcd_dev_s *board_lcd_getdev(int lcddev)
+{
+  g_lcddev = max7219_initialize(g_spidev, lcddev);
+  if (!g_lcddev)
+    {
+      lcderr("ERROR: Failed to bind SPI port 1 to LCD %d: %d\n", lcddev);
+    }
+  else
+    {
+      lcdinfo("SPI port 1 bound to LCD %d\n", lcddev);
+
+      return g_lcddev;
+    }
+
+  return NULL;
+}
+
+/****************************************************************************
+ * Name: board_lcd_uninitialize
+ ****************************************************************************/
+
+void board_lcd_uninitialize(void)
+{
+  /* TO-FIX */
+}
+
+#endif /* CONFIG_NX_LCDDRIVER */
