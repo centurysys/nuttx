@@ -627,6 +627,18 @@ BT860
   configure a new U[S]ART and/or modify the pin selections in
   include/board.h.
 
+CC2564
+------
+
+  [To be provided]
+
+  One confusing thing compared with the BT860 is in the naming of the pins
+  at the 4-pin RS232 TTL interface:  The BT860 uses BT860-centric naming,
+  the Rx pin is for BT860 receive and needs to connect with the STM32 Tx
+  pin, the Tx pin is for BT860 transmit an needs to be connected with the
+  STM32 Rx pin, etc.  The CC2564, on the hand, uses host-centric naming so
+  that the CC2564 Rx pin connects to the STM32 Rx pin, Tx to Tx pin, etc.
+
 Troubleshooting
 ---------------
 
@@ -1331,6 +1343,12 @@ Configuration Sub-directories
          pin 5  Module_TX_O   USART3_RX  PB11,  P1 pin 35
          pin 6  Module_CTS_I  USART3_RTS PB14,  P1 pin 38
 
+       NOTICE that the BT860 uses BT860-centric naming, the Rx pin is for
+       BT860 receive and needs to connect with the STM32 Tx pin, the Tx pin
+       is for BT860 transmit an needs to be connected with the STM32 Rx pin,
+       etc.  Other parts may use host-centric naming so that the HCI UART Rx
+       pin connects to the STM32 Rx pin, Tx to Tx pin, etc.
+
     3. Due to conflicts, USART3 many not be used if Ethernet is enabled with
        the STM32F4DIS-BB base board:
 
@@ -1349,15 +1367,18 @@ Configuration Sub-directories
        that the part supports auto baudrate detection, but I have found no
        documentation on how to use that.
 
-       Currently only a fixed, configurable BAUD is used and this must
-       be set to the BT860 default.
+       Currently the "generic" HCI UART upper half is used with the BT860
+       and that upper half driver supports only a fixed (but configurable
+       BAUD) is used and this must be set to the BT860 default (115200).
 
-       Baud rate can be set with vendor-specific command.  Ideally, the
-       sequence would be:  (1) start at default baud rate, (2) get local
-       version info, (3) send the vendor-specific baud rate change command,
-       (4) wait for response, and (5) set local UART to higher baud rate.
+       A custom BT860 upper half driver is needed that can use vendor
+       specific command:  Baud rate can be set with such a vendor-specific
+       command.  Ideally, the sequence would be:  (1) start at default baud
+       rate, (2) get local version info, (3) send the vendor-specific baud
+       rate change command, (4) wait for response, and (5) set the local
+       UART to the matching, higher baud rate.
 
-       The custom, vendor-specific command is
+       The custom, vendor-specific BT860 command is:
 
          {0x18, 0xfc, 0x06, 0x00, 0x00, NN, NN, NN, NN}
 
@@ -1383,8 +1404,8 @@ Configuration Sub-directories
     This is another version of the NuttShell configuration for the
     STM32F4-Discovery with the STM32F4DIS-BB base board.  It is very similar
     to the netnsh configuration except that it has IPv6 enabled and IPv4
-    disabled.  Several network utilities that are not yet available under
-    IPv6 are disabled.
+    disabled.  Several network utilities that are not yet available when
+    IPv6 is disabled.
 
     NOTES:
 
