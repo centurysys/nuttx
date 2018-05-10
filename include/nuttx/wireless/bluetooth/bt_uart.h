@@ -39,8 +39,8 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_NUTTX_WIRELESS_BT_UART_H
-#define __INCLUDE_NUTTX_WIRELESS_BT_UART_H 1
+#ifndef __INCLUDE_NUTTX_WIRELESS_BLUETOOTH_BT_UART_H
+#define __INCLUDE_NUTTX_WIRELESS_BLUETOOTH_BT_UART_H 1
 
 /****************************************************************************
  * Included Files
@@ -141,7 +141,7 @@ struct btuart_lowerhalf_s
  * Name: btuart_register
  *
  * Description:
- *   Create the UART-based Bluetooth device and register it with the
+ *   Create the generic UART-based Bluetooth device and register it with the
  *   Bluetooth stack.
  *
  * Input Parameters:
@@ -155,4 +155,4 @@ struct btuart_lowerhalf_s
 
 int btuart_register(FAR const struct btuart_lowerhalf_s *lower);
 
-#endif /* __INCLUDE_NUTTX_WIRELESS_BT_UART_H */
+#endif /* __INCLUDE_NUTTX_WIRELESS_BLUETOOTH_BT_UART_H */

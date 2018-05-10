@@ -7,7 +7,7 @@ if ARCH_ARM
 comment "ARM Options"
 
 choice
-	prompt "ARM chip selection"
+	prompt "ARM MCU selection"
 	default ARCH_CHIP_STM32
 
 config ARCH_CHIP_A1X
@@ -149,6 +149,7 @@ config ARCH_CHIP_LPC17XX
 	select ARCH_HAVE_MPU
 	select ARM_HAVE_MPU_UNIFIED
 	select ARCH_HAVE_FETCHADD
+	select ARMV7M_HAVE_STACKCHECK
 	---help---
 		NXP LPC17xx architectures (ARM Cortex-M3)
 

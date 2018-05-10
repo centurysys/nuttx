@@ -369,8 +369,10 @@ clean_context:
 
 check_context:
 	$(Q) if [ ! -e ${TOPDIR}/.config -o ! -e ${TOPDIR}/Make.defs ]; then \
-		echo "" ; echo "Nuttx has not been configured:" ; \
-		echo "  cd tools; ./configure.sh <target>" ; echo "" ; \
+		echo "" ; \
+		echo "Nuttx has not been configured:" ; \
+		echo "  tools/configure.sh <target>" ; \
+		echo "" ; \
 		exit 1 ; \
 	fi
 
@@ -529,7 +531,7 @@ savedefconfig: do_savedefconfig
 	$(Q) grep "^CONFIG_ARCH_CHIP_" .config >> defconfig.tmp; true
 	$(Q) grep "CONFIG_ARCH_BOARD=" .config && grep "CONFIG_ARCH_BOARD=" .config >> defconfig.tmp; true
 	$(Q) grep "^CONFIG_ARCH_CUSTOM" .config && grep "^CONFIG_ARCH_CUSTOM" .config >> defconfig.tmp; true
-	$(Q) cat defconfig.tmp | sort | uniq > defconfig
+	$(Q) export LC_ALL=C; cat defconfig.tmp | sort | uniq > defconfig
 	$(Q) rm -f defconfig.tmp
 
 # export
