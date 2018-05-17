@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/imxrt/sam3u_edma.c
+ * arch/arm/src/imxrt/imxrt_edma.c
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -69,14 +69,23 @@
  * Private Types
  ****************************************************************************/
 
+/* State of a DMA channel */
+
+enum imxrt_dmastate_e
+{
+  IMXRT_DMA_IDLE = 0,             /* No DMA in progress */
+  IMXRT_DMA_CONFIGURED,           /* DMA configured, but not yet started */
+  IMXRT_DMA_ACTIVE                /* DMA has been started and is in progress */
+}
+
 /* This structure describes one DMA channel */
 
 struct imxrt_dmach_s
 {
   uint8_t chan;                   /* DMA channel number (0-IMXRT_EDMA_NCHANNELS) */
   bool inuse;                     /* true: The DMA channel is in use */
-  bool active;                    /* true: DMA has been started */
-  bool rx;                        /* true: Peripheral to memory transfer */
+  uint8_t ttype;                  /* Transfer type: M2M, M2P, P2M, or P2P */
+  uint8_t state;                  /* Channel state.  See enum imxrt_dmastate_e */
   uint32_t flags;                 /* DMA channel flags */
   dma_callback_t callback;        /* Callback invoked when the DMA completes */
   void *arg;                      /* Argument passed to callback function */
@@ -222,7 +231,7 @@ static void imxrt_dmaterminate(struct imxrt_dmach_s *dmach, int result)
    * to force reloads from memory.
    */
 
-  if (dmach->rx)
+  if ((dmach->ttype & TTYPE_2P_MASK) == 0)
     {
       arch_invalidate_dcache(dmach->rxaddr, dmach->rxaddr + dmach->rxsize);
     }
@@ -236,7 +245,7 @@ static void imxrt_dmaterminate(struct imxrt_dmach_s *dmach, int result)
 
   dmach->callback = NULL;
   dmach->arg      = NULL;
-  dmach->active   = false;
+  dmach->state    = IMXRT_DMA_IDLE;
 }
 
 /****************************************************************************
@@ -249,14 +258,44 @@ static void imxrt_dmaterminate(struct imxrt_dmach_s *dmach, int result)
 
 static void imxrt_dmach_interrupt(struct imxrt_dmach_s *dmach)
 {
+  uintptr_t regaddr;
+  uint16_t regval16;
+  uint8_t regval8;
+  int result;
+
+  /* Is (or was) DMA active on this channel? */
+
+  if (dmach->state == IMXRT_DMA_ACTIVE)
+    {
+      /* Yes.. Get the eDMA TCD Control and Status register value. */
+
+      regaddr = IMXRT_EDMA_TCD_CSR(dmach->chan);
+
+      /* Check if the transfer is done */
+
+      if ((regaddr & EDMA_TCD_CSR_DONE) != 0)
+        {
+          /* Clear the pending DONE interrupt status. */
+
+          regval8 = EDMA_CDNE(dmach->chan);
+          putreg8(regval8, IMXRT_EDMA_CDNE);
+          result   = OK;
+        }
+
+      /* Check if any errors have occurred. */
 #warning Missing logic
-  /* Get the eDMA status register value.  Ignore all masked interrupt
-   * status bits.
-   */
 
-  /* Check if the any transfer has completed or any errors have occurred. */
+        {
+          /* Clear the pending error interrupt status. */
+#warning Missing logic
 
-  imxrt_dmaterminate(dmach);
+          result = -EIO;
+        }
+
+      /* Terminate the transfer */
+
+      imxrt_dmaterminate(dmach, result);
+    }
 }
 
 /****************************************************************************
@@ -286,21 +325,14 @@ static int imxrt_edma_interrupt(int irq, void *context, FAR void *arg)
 
   /* Check for an interrupt on the lower numbered DMA channel */
 
-  if (dmach->active)
-    {
-      imxrt_dmach_interrupt(dmach);
-    }
+  imxrt_dmach_interrupt(dmach);
 
-  /* Check for an interrupt on the lower numbered DMA channel */
+  /* Check for an interrupt on the higher numbered DMA channel */
 
   chan += 16;
   DEBUGASSERT(chan < IMXRT_EDMA_NCHANNELS);
   dmach = &g_edma.dmach[chan];
-
-  if (dmach->active)
-    {
-      imxrt_dmach_interrupt(dmach);
-    }
+  imxrt_dmach_interrupt(dmach);
 
   return OK;
 }
@@ -420,9 +452,9 @@ DMA_HANDLE imxrt_dmachannel(void)
       struct imxrt_dmach_s *candidate = &g_edma.dmach[chndx];
       if (!candidate->inuse)
         {
-          dmach         = candidate;
-          dmach->inuse  = true;
-          dmach->active = false;
+          dmach        = candidate;
+          dmach->inuse = true;
+          dmach->state = IMXRT_DMA_IDLE;
 
           /* Clear any pending interrupts on the channel */
 
@@ -466,7 +498,7 @@ void imxrt_dmafree(DMA_HANDLE handle)
   struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
 
   dmainfo("dmach: %p\n", dmach);
-  DEBUGASSERT(dmach != NULL && dmach->inuse && !dmach->active);
+  DEBUGASSERT(dmach != NULL && dmach->inuse && dmach->state != IMXRT_DMA_ACTIVE);
 
   /* Mark the channel no longer in use.  Clearing the inuse flag is an atomic
    * operation and so should be safe.
@@ -474,78 +506,78 @@ void imxrt_dmafree(DMA_HANDLE handle)
 
   dmach->flags = 0;
   dmach->inuse = false;                   /* No longer in use */
-  dmach->inuse = active;                  /* Better not be active */
+  dmach->state = IMXRT_DMA_IDLE;          /* Better not be active! */
 }
 
-/****************************************************************************
- * Name: imxrt_dmatxsetup
+/************************************************************************************
+ * Name: imxrt_dmasetup
  *
  * Description:
- *   Configure DMA for transmit of one buffer (memory to peripheral).  This
- *   function may be called multiple times to handle large and/or dis-
- *   continuous transfers.  Calls to imxrt_dmatxsetup() and imxrt_dmarxsetup()
- *   must not be intermixed on the same transfer, however.
+ *   Configure DMA for one Rx (peripheral-to-memory) or Rx (memory-to-peripheral)
+ *   transfer of one buffer.
  *
- ****************************************************************************/
+ *   TODO:  This function needs to be called multiple times to handle multiple,
+ *   discontinuous transfers.
+ *
+ ************************************************************************************/
 
-int imxrt_dmatxsetup(DMA_HANDLE handle, uint8_t pchan, uint32_t maddr,
-                     size_t nbytes, uint32_t chflags)
+int imxrt_dmasetup(DMA_HANDLE handle, uint32_t saddr, uint32_t daddr, size_t nbytes,
+                   uint32_t chflags);
 {
   struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
   int ret = OK;
 
-  dmainfo("dmach: %p pchan: %u maddr: %08x nbytes: %d chflags %08x\n",
-          dmach, (int)pchan, (int)maddr, (int)nbytes, (unsigned int)chflags);
   DEBUGASSERT(dmach != NULL);
+  dmainfo("dmach%u: %p saddr: %08lx maddr: %08lx nbytes: %lu chflags %08x\n",
+          dmach, dmach->chan, (unsigned long)pchan, (unsigned long)maddr,
+          (unsigned long)nbytes, (unsigned int)chflags);
 
+  /* To initialize the eDMA:
+   *
+   *   1. Write to the CR if a configuration other than the default is desired.
+   *   2. Write the channel priority levels to the DCHPRIn registers if a
+   *      configuration other than the default is desired.
+   *   3. Enable error interrupts in the EEI register if so desired.
+   *   4. Write the 32-byte TCD for each channel that may request service.
+   *
+   *      To perform a simple transfer of n bytes of data with one activation, set
+   *      the major loop to one (TCDn_CITER = TCDn_BITER = 1). The data transfer
+   *      begins after the channel service request is acknowledged and the channel
+   *      is selected to execute. After the transfer is complete, the TCDn_CSR[DONE]
+   *      bit is set and an interrupt generates if properly enabled.
+   *
+   *   5. Enable any hardware service requests via the ERQ register.
+   *   6. Request channel service via either:
+   *      - Software: setting the TCDn_CSR[START]
+   *      - Hardware: slave device asserting its eDMA peripheral request signal
+   *
+   * This function performs steps 1-5.  Step 6 is performed separately by
+   * imxrt_dmastart().
+   */
 #warning Missing logic
 
-  /* Save an indication so that the DMA interrupt completion logic will know
-   * that this was not an RX transfer.
-   */
+  /* Check for an Rx (memory-to-peripheral) DMA transfer */
 
-  dmach->rx     = false;
-  dmach->active = true;
+  dmach->ttype = (chflags & DMACH_FLAG_TTYPE_MASK) >> DMACH_FLAG_TTYPE_SHIFT;
+  if (dmach->ttype == TTYPE_P2M)
+    {
+      /* Save an information so that the DMA interrupt completion logic will
+       * will be able to invalidate the cache after the Rx DMA.
+       */
 
-  /* Clean caches associated with the DMA memory */
+      dmach->rxaddr = maddr;
+      dmach->rxsize = nbytes;
+    }
 
-  arch_clean_dcache(maddr, maddr + nbytes);
-  return ret;
-}
+  /* Check for an Tx (peripheral-to-memory) DMA transfer */
 
-/****************************************************************************
- * Name: imxrt_dmarxsetup
- *
- * Description:
- *   Configure DMA for receipt of one buffer (peripheral to memory).  This
- *   function may be called multiple times to handle large and/or dis-
- *   continuous transfers.  Calls to imxrt_dmatxsetup() and imxrt_dmarxsetup()
- *   must not be intermixed on the same transfer, however.
- *
- ****************************************************************************/
+  else if (dmach->ttype != TTYPE_M2P)
+    {
+      dmaerr("ERROR: Unsupported ttype: %u\n", dmach->ttype);
+      return -ENOSYS;
+    }
 
-int imxrt_dmarxsetup(DMA_HANDLE handle, uint8_t pchan, uint32_t maddr,
-                     size_t nbytes, uint32_t chflags)
-{
-  struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
-  size_t maxtransfer;
-  size_t remaining;
-  int ret = OK;
-
-  dmainfo("dmach: %p pchan: %u maddr: %08x nbytes: %d chflags %08x\n",
-          dmach, (int)pchan, (int)maddr, (int)nbytes, (unsigned int)chflags);
-  DEBUGASSERT(dmach);
-
-#warning Missing logic
-
-  /* Save an indication so that the DMA interrupt completion logic will know
-   * that this was an RX transfer and will invalidate the cache.
-   */
-
-  dmach->rx     = true;
-  dmach->rxaddr = maddr;
-  dmach->rxsize = nbytes;
-  dmach->active = true;
+  dmach->state = IMXRT_DMA_CONFIGURED;
 
   /* Clean caches associated with the DMA memory */
 
@@ -564,23 +596,48 @@ int imxrt_dmarxsetup(DMA_HANDLE handle, uint8_t pchan, uint32_t maddr,
 int imxrt_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg)
 {
   struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
-  int ret = -EINVAL;
+  irqstate_t flags;
+  uintptr_t regaddr;
+  uint16_t regval16;
+  uint8_t regval8;
+  uint8_t chan;
 
-  dmainfo("dmach: %p callback: %p arg: %p\n", dmach, callback, arg);
-  DEBUGASSERT(dmach != NULL);
-
-  /* Verify that the DMA has been setup (i.e., at least one entry in the
-   * link list).
-   */
+  DEBUGASSERT(dmach != NULL && dmach->state == IMXRT_DMA_CONFIGURED);
+  chan            = dmach->chan;
+  dmainfo("dmach%u: %p callback: %p arg: %p\n", dmach, chan, callback, arg);
 
   /* Save the callback info.  This will be invoked whent the DMA commpletes */
 
+  flags           = spin_lock_irqsave();
   dmach->callback = callback;
   dmach->arg      = arg;
+  dmach->state    = IMXRT_DMA_ACTIVE;
 
+  /* Enable the DONE interrupt when the major interation count completes. */
 #warning Missing logic
 
-  return ret;
+  /* Enable channel ERROR interrupts */
+#warning Missing logic
+
+  /* Enable the DMA request for this channel */
+
+  regval8         = EDMA_SERQ(chan);
+  putreg8(regval8, IMXRT_EDMA_SERQ_OFFSET);
+
+  /* Request channel service via either:
+   *   - Software: setting the TCDn_CSR[START]
+   *   - Hardware: slave device asserting its eDMA peripheral request signal
+   *
+   * REVISIT: Which case do we need to do the software interrupt?
+   */
+
+  regaddr         = IMXRT_EDMA_TCD_CSR(chan);
+  regval16        = getreg16(regaddr);
+  regval16       |= EDMA_TCD_CSR_START;
+  putreg16(regval16, regaddr);
+
+  spin_unlock_irqrestore(flags);
+  return OK;
 }
 
 /****************************************************************************
