@@ -60,4 +60,8 @@ ifeq ($(CONFIG_LIB_BOARDCTL),y)
 CSRCS += stm32_appinit.c
 endif
 
+ifeq ($(CONFIG_STM32L4_OTGFS),y)
+CSRCS += stm32_usb.c
+endif
+
 include $(TOPDIR)/configs/Board.mk

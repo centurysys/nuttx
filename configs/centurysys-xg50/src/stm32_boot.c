@@ -84,21 +84,16 @@ void stm32l4_board_initialize(void)
   board_userled_initialize();
 #endif
 
+#if defined(CONFIG_STM32L4_HOST)
+  stm32_usbinitialize();
+#endif
+
   /* Configure SPI chip selects if 1) SP2 is not disabled, and 2) the weak function
    * stm32l4_spiinitialize() has been brought into the link.
    */
 
 #if defined(CONFIG_STM32L4_SPI1) || defined(CONFIG_STM32L4_SPI2) || defined(CONFIG_STM32L4_SPI3)
   stm32l4_spiinitialize();
-#endif
-
-  /* Initialize USB is 1) USBDEV is selected, 2) the USB controller is not
-   * disabled, and 3) the weak function stm32l4_usbinitialize() has been brought
-   * into the build.
-   */
-
-#if defined(CONFIG_USBDEV) && defined(CONFIG_STM32L4_USB)
-  stm32l4_usbinitialize();
 #endif
 }
 
@@ -125,12 +120,6 @@ void board_initialize(void)
 
 #if defined(CONFIG_NSH_LIBRARY) && !defined(CONFIG_NSH_ARCHINIT)
   board_app_initialize(0);
-#endif
-
-  /* CC3000 wireless initialization */
-
-#ifdef CONFIG_WL_CC3000
-  wireless_archinitialize(0);
 #endif
 }
 #endif

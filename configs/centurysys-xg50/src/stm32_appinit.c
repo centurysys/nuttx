@@ -235,6 +235,10 @@ int board_app_initialize(uintptr_t arg)
     }
 #endif
 
+#ifdef CONFIG_BOARDCTL_IOCTL
+  board_ioctl(BIOC_CONFIG_GPIO, 0);
+#endif
+
   UNUSED(ret);
   return OK;
 }
@@ -246,22 +250,34 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
 
   switch (cmd)
     {
+    case BIOC_CONFIG_GPIO:
+      /* configure GPIO pins */
+      stm32l4_configgpio(GPIO_B2B_RESET);
+      stm32l4_configgpio(GPIO_B2B_DCDC);
+      stm32l4_configgpio(GPIO_B2B_POWER);
+      stm32l4_configgpio(GPIO_B2B_WAKEUP);
+      stm32l4_configgpio(GPIO_B2B_GPIO);
+      stm32l4_configgpio(GPIO_B2B_RI);
+      stm32l4_configgpio(GPIO_MODESW);
+      stm32l4_configgpio(GPIO_LEDSW);
+      stm32l4_configgpio(GPIO_INITSW);
+      stm32l4_configgpio(GPIO_RX485_RXE);
+      stm32l4_configgpio(GPIO_RX485_TXE);
+      stm32l4_configgpio(GPIO_DCDC_SEL);
+      break;
+
     case BIOC_ENABLE_B2B:
       syslog(LOG_INFO, "%s: BIOC_ENABLE_B2B\n", __FUNCTION__);
 
-      stm32l4_configgpio(GPIO_B2B_POWER);
-      stm32l4_configgpio(GPIO_B2B_RESET);
-
-      stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
       stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
+      stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
+      stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
       break;
 
     case BIOC_DISABLE_B2B:
       stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
       stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
-
-      stm32l4_unconfiggpio(GPIO_B2B_POWER);
-      stm32l4_unconfiggpio(GPIO_B2B_RESET);
+      stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
       break;
 
     case BIOC_RESET_B2B:
@@ -311,33 +327,8 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
         break;
       }
 
-    case BIOC_ENABLE_DI:
-      stm32l4_configgpio(GPIO_DI_POWER);
-      stm32l4_configgpio(GPIO_DI_CH0);
-      stm32l4_configgpio(GPIO_DI_CH1);
-
-      stm32l4_gpiowrite(GPIO_DI_POWER, 0);
-      break;
-
-    case BIOC_DISABLE_DI:
-      stm32l4_gpiowrite(GPIO_DI_POWER, 1);
-
-      stm32l4_unconfiggpio(GPIO_DI_CH0);
-      stm32l4_unconfiggpio(GPIO_DI_CH1);
-      stm32l4_unconfiggpio(GPIO_DI_POWER);
-      break;
-
     case BIOC_GET_DI:
-      {
-        uint8_t *ptr = (uint8_t *) arg;
-        bool val[2];
-
-        val[0] = !stm32l4_gpioread(GPIO_DI_CH0);
-        val[1] = !stm32l4_gpioread(GPIO_DI_CH1);
-
-        *ptr = val[1] << 1 | val[0];
-        break;
-      }
+      break;
 
     default:
       res = -ENOTTY;
