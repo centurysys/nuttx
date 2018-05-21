@@ -57,6 +57,7 @@
 #include "chip.h"
 #include "chip/imxrt_edma.h"
 #include "chip/imxrt_dmamux.h"
+#include "imxrt_periphclks.h"
 #include "imxrt_edma.h"
 
 #ifdef CONFIG_IMXRT_EDMA
@@ -224,8 +225,18 @@ static void imxrt_dmaterminate(struct imxrt_dmach_s *dmach, int result)
   struct imxrt_edma_s *dmac = imxrt_controller(dmach);
 
   /* Disable all channel interrupts */
+  /* Disable channel ERROR interrupts */
+
+  regval8         = EDMA_CEEI(chan);
+  putreg8(regval8, IMXRT_EDMA_CEEI);
+
+  /* Disable the DONE interrupt when the major iteration count completes. */
+
+  regaddr         = IMXRT_EDMA_TCD_CSR(chan);
+  modifyreg16(regaddr, EDMA_TCD_CSR_INTMAJOR | EDMA_TCD_CSR_INTHALF, 0);
 
   /* Disable the channel. */
+#warning Missing logic
 
   /* If this was an RX DMA (peripheral-to-memory), then invalidate the cache
    * to force reloads from memory.
@@ -259,17 +270,28 @@ static void imxrt_dmaterminate(struct imxrt_dmach_s *dmach, int result)
 static void imxrt_dmach_interrupt(struct imxrt_dmach_s *dmach)
 {
   uintptr_t regaddr;
+  uint32_t regval32;
   uint16_t regval16;
   uint8_t regval8;
+  unsigned int chan;
   int result;
 
-  /* Is (or was) DMA active on this channel? */
+  /* Check for a pending interrupt on this channel */
 
-  if (dmach->state == IMXRT_DMA_ACTIVE)
+  chan     = dmach->chan;
+  regval32 = getreg32(IMXRT_EDMA_INT);
+
+  if ((regval32 & EDMA_INT(chan)) != 0)
     {
+      /* An interrupt is pending.  This should only happen if the channel is
+       * active.
+       */
+
+      DEBUGASSERT(dmach->state == IMXRT_DMA_ACTIVE);
+
       /* Yes.. Get the eDMA TCD Control and Status register value. */
 
-      regaddr = IMXRT_EDMA_TCD_CSR(dmach->chan);
+      regaddr = IMXRT_EDMA_TCD_CSR(chan);
 
       /* Check if the transfer is done */
 
@@ -277,20 +299,33 @@ static void imxrt_dmach_interrupt(struct imxrt_dmach_s *dmach)
         {
           /* Clear the pending DONE interrupt status. */
 
-          regval8 = EDMA_CDNE(dmach->chan);
+          regval8 = EDMA_CDNE(chan);
           putreg8(regval8, IMXRT_EDMA_CDNE);
           result   = OK;
         }
-
-      /* Check if any errors have occurred. */
-#warning Missing logic
-
+      else
         {
-          /* Clear the pending error interrupt status. */
-#warning Missing logic
+          /* Check if any errors have occurred. */
 
-          result = -EIO;
+          regval32 = getreg32(IMXRT_EDMA_ERR);
+          if ((regval32 & EDMA_ERR(n)(chan)) != 0)
+            {
+              dmaerr("ERROR: eDMA ES=%08lx\n",
+                     (unsigned long)getreg32(IMXRT_EDMA_ES));
+
+              /* Clear the pending error interrupt status. */
+
+              regval8 = EDMA_CERR(chan);
+              putreg32(regval8, IMXRT_EDMA_CERR);
+              result = -EIO;
+            }
         }
+
+      /* Clear the pending interrupt */
+
+      regval8 = EDMA_CINT(chan);
+      putreg32(regval8, IMXRT_EDMA_CINT);
+      result = -EIO;
 
       /* Terminate the transfer */
 
@@ -311,7 +346,7 @@ static int imxrt_edma_interrupt(int irq, void *context, FAR void *arg)
   struct imxrt_dmach_s *dmach;
   unsigned int chan;
 
-  /* 'arg' should the the DMA channel instance.
+  /* 'arg' should the DMA channel instance.
    *
    * NOTE that there are only 16 vectors for 32 DMA channels.  The 'arg' will
    * always be the lower-numbered DMA channel.  The other DMA channel will
@@ -354,15 +389,43 @@ static int imxrt_edma_interrupt(int irq, void *context, FAR void *arg)
 
 void weak_function up_dmainitialize(void)
 {
+  uintptr_t regaddr;
+  uint32_t regval;
   int i;
 
   dmainfo("Initialize eDMA\n");
 
-  /* Enable peripheral clock */
+  /* Enable peripheral clocking to eDMA and DMAMUX modules */
 
-  /* Enable data structures */
+  imxrt_clockrun_dma();
 
-  memset(&g_edma, 0, sizeof());
+  /* Configure the eDMA controller */
+
+  regval = getreg32(IMXRT_EDMA_CR);
+  regval &= ~(EDMA_CR_EDBG | EDMA_CR_ERCA | EDMA_CR_HOE | EDMA_CR_CLM |
+              EDMA_CR_EMLM);
+
+#ifdef CONFIG_IMXRT_EDMA_EDBG
+  regval |= EDMA_CR_EDBG;   /* Enable Debug */
+#endif
+#ifdef CONFIG_IMXRT_EDMA_ERCA
+  regval |= EDMA_CR_ERCA;   /* Enable Round Robin Channel Arbitration */
+#endif
+#ifdef CONFIG_IMXRT_EDMA_HOE
+  regval |= EDMA_CR_HOE;    /* Halt On Error */
+#endif
+#ifdef CONFIG_IMXRT_EDMA_CLM
+  regval |= EDMA_CR_CLM;    /*  Continuous Link Mode */
+#endif
+#ifdef CONFIG_IMXRT_EDMA_EMLIM
+  regval |= EDMA_CR_EMLM;   /*  Enable Minor Loop Mapping */
+#endif
+
+  putreg32(regval, IMXRT_EDMA_CR);
+
+  /* Initialize data structures */
+
+  memset(&g_edma, 0, sizeof(struct imxrt_edma_s));
   for (i = 0; i < IMXRT_EDMA_NCHANNELS; i++)
     {
       g_edma.dmach[i].chan = i;
@@ -397,9 +460,15 @@ void weak_function up_dmainitialize(void)
 
   /* Disable all DMA interrupts at the eDMA controller */
 
-  /* Disable all DMA channels */
+  putreg32(0, IMXRT_EDMA_EEEI); /* Disable error interrupts */
 
-  /* Enable the DMA controller */
+  for (i = 0; i < IMXRT_EDMA_NCHANNELS; i++)
+    {
+      /* Disable all DMA channels and DMA channel interrupts */
+
+      regaddr = IMXRT_EDMA_TCD_CSR(i);
+      putreg(0, regaddr);
+    }
 
   /* Enable the IRQ at the NVIC (still disabled at the eDMA controller) */
 
@@ -424,13 +493,20 @@ void weak_function up_dmainitialize(void)
 /****************************************************************************
  * Name: imxrt_dmachannel
  *
- *   Allocate a DMA channel.  This function sets aside a DMA channel then
- *   gives the caller exclusive access to the DMA channel.
+ *   Allocate a DMA channel.  This function sets aside a DMA channel,
+ *   initializes the DMAMUX for the channel, then gives the caller exclusive
+ *   access to the DMA channel.
  *
- *   The naming convention in all of the DMA interfaces is that one side is
- *   the 'peripheral' and the other is 'memory'.  However, the interface
- *   could still be used if, for example, both sides were memory although
- *   the naming would be awkward.
+ * Input Parameters:
+ *   dmamux - DMAMUX configuration see DMAMUX channel configuration register
+ *            bit-field definitions in chip/imxrt_dmamux.h.  Settings include:
+ *
+ *            DMAMUX_CHCFG_SOURCE     Chip-specific DMA source (required)
+ *            DMAMUX_CHCFG_AON        DMA Channel Always Enable (optional)
+ *            DMAMUX_CHCFG_TRIG       DMA Channel Trigger Enable (optional)
+ *            DMAMUX_CHCFG_ENBL       DMA Mux Channel Enable (required)
+ *
+ *            A value of zero will disable the DMAMUX channel.
  *
  * Returned Value:
  *   If a DMA channel is available, this function returns a non-NULL, void*
@@ -438,7 +514,7 @@ void weak_function up_dmainitialize(void)
  *
  ****************************************************************************/
 
-DMA_HANDLE imxrt_dmachannel(void)
+DMA_HANDLE imxrt_dmachannel(uint32_t dmamux)
 {
   struct imxrt_dmach_s *dmach;
   unsigned int chndx;
@@ -450,6 +526,8 @@ DMA_HANDLE imxrt_dmachannel(void)
   for (chndx = 0; chndx < SAM_NDMACHAN; chndx++)
     {
       struct imxrt_dmach_s *candidate = &g_edma.dmach[chndx];
+      uintptr_t regaddr;
+
       if (!candidate->inuse)
         {
           dmach        = candidate;
@@ -458,8 +536,19 @@ DMA_HANDLE imxrt_dmachannel(void)
 
           /* Clear any pending interrupts on the channel */
 
-          /* Disable the channel. */
+          DEBUASSERT(chndx == dmach->chan);
+          regaddr = IMXRT_EDMA_TCD_CSR(chndx);
+          putreg(0, regaddr);
 
+          /* Make sure that the channel is disabled. */
+
+          regval8 = EDMA_CERQ(chndx);
+          putreg8(reqval8, IMXRT_EDMA_CERQ);
+
+          /* Set the DMAMUX register associated with this channel */
+
+          regaddr = IMXRT_DMAMUX_CHCF(chndx);
+          putreg32(dmamux, regaddr);
           break;
         }
     }
@@ -496,6 +585,8 @@ DMA_HANDLE imxrt_dmachannel(void)
 void imxrt_dmafree(DMA_HANDLE handle)
 {
   struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
+  uintptr_t regaddr;
+  uint8_t regval8;
 
   dmainfo("dmach: %p\n", dmach);
   DEBUGASSERT(dmach != NULL && dmach->inuse && dmach->state != IMXRT_DMA_ACTIVE);
@@ -507,6 +598,16 @@ void imxrt_dmafree(DMA_HANDLE handle)
   dmach->flags = 0;
   dmach->inuse = false;                   /* No longer in use */
   dmach->state = IMXRT_DMA_IDLE;          /* Better not be active! */
+
+  /* Make sure that the channel is disabled. */
+
+  regval8 = EDMA_CERQ(chndx);
+  putreg8(reqval8, IMXRT_EDMA_CERQ);
+
+  /* Disable the associated DMAMUX */
+
+  regaddr = IMXRT_DMAMUX_CHCF(chndx);
+  putreg32(0, regaddr);
 }
 
 /************************************************************************************
@@ -535,6 +636,9 @@ int imxrt_dmasetup(DMA_HANDLE handle, uint32_t saddr, uint32_t daddr, size_t nby
   /* To initialize the eDMA:
    *
    *   1. Write to the CR if a configuration other than the default is desired.
+   *
+   *      We always use the global default setup by up_dmainitialize()
+   *
    *   2. Write the channel priority levels to the DCHPRIn registers if a
    *      configuration other than the default is desired.
    *   3. Enable error interrupts in the EEI register if so desired.
@@ -613,11 +717,21 @@ int imxrt_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg)
   dmach->arg      = arg;
   dmach->state    = IMXRT_DMA_ACTIVE;
 
-  /* Enable the DONE interrupt when the major interation count completes. */
-#warning Missing logic
-
   /* Enable channel ERROR interrupts */
-#warning Missing logic
+
+  regval8         = EDMA_SEEI(chan);
+  putreg8(regval8, IMXRT_EDMA_SEEI);
+
+  /* Enable the DONE interrupt when the major iteration count completes. */
+
+  regaddr         = IMXRT_EDMA_TCD_CSR(chan);
+  modifyreg16(regaddr, 0, EDMA_TCD_CSR_INTMAJOR);
+
+#if 0 /* Not yet controlled */
+  /* Enable the DONE interrupt when the half the major iteration count completes. */
+
+  modifyreg16(regaddr, 0, EDMA_TCD_CSR_INTHALF);
+#endif
 
   /* Enable the DMA request for this channel */
 
