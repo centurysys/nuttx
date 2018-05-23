@@ -4,6 +4,13 @@
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
+ * Portions of the eDMA logic derive from NXP sample code which has a compatible
+ * BSD 3-clause license:
+ *
+ *   Copyright (c) 2015, Freescale Semiconductor, Inc.
+ *   Copyright 2016-2017 NXP
+ *   All rights reserved
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -43,6 +50,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <semaphore.h>
+#include <queue.h>
 #include <debug.h>
 #include <errno.h>
 
@@ -66,6 +74,32 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* TCD Alignment.
+ *
+ * eDMA TCDs must be aligned with the D-Cache line boundaries to facilitate
+ * cache operations on the TCDs when the D-Cache is enabled.
+ *
+ * NOTE:  The TCDs are 32-bytes in length.  We implicitly assume that the
+ * D-Cache line size is also 32-bits.  Otherwise, padding would be required
+ * at the ends of the TCDS and buffers to protect data after the end of from
+ * invalidation.
+ */
+
+#ifdef CONFIG_ARMV7M_DCACHE
+/* Align to the cache line size which we assume is >= 8 */
+
+#  define EDMA_ALIGN        ARMV7M_DCACHE_LINESIZE
+#  define EDMA_ALIGN_MASK   (EDMA_ALIGN-1)
+#  define EDMA_ALIGN_UP(n)  (((n) + EDMA_ALIGN_MASK) & ~EDMA_ALIGN_MASK)
+
+#else
+/* Special alignment is not required in this case, but we will align to 8-bytes */
+
+#  define EDMA_ALIGN        8
+#  define EDMA_ALIGN_MASK   7
+#  define EDMA_ALIGN_UP(n)  (((n) + 7) & ~7)
+#endif
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -77,7 +111,7 @@ enum imxrt_dmastate_e
   IMXRT_DMA_IDLE = 0,             /* No DMA in progress */
   IMXRT_DMA_CONFIGURED,           /* DMA configured, but not yet started */
   IMXRT_DMA_ACTIVE                /* DMA has been started and is in progress */
-}
+};
 
 /* This structure describes one DMA channel */
 
@@ -88,10 +122,18 @@ struct imxrt_dmach_s
   uint8_t ttype;                  /* Transfer type: M2M, M2P, P2M, or P2P */
   uint8_t state;                  /* Channel state.  See enum imxrt_dmastate_e */
   uint32_t flags;                 /* DMA channel flags */
-  dma_callback_t callback;        /* Callback invoked when the DMA completes */
+  edma_callback_t callback;       /* Callback invoked when the DMA completes */
   void *arg;                      /* Argument passed to callback function */
-  uint32_t rxaddr;                /* RX memory address */
-  size_t rxsize;                  /* Size of RX memory region */
+
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+  /* That TCD list is linked through the DLAST SGA field.  The first transfer
+   * to be performed is at the head of the list.  Subsequent TCDs are added at
+   * the tail of the list.
+   */
+
+  struct imxrt_edmatcd_s *head;   /* First TCD in the list */
+  struct imxrt_edmatcd_s *tail;   /* Last TCD in the list */
+#endif
 };
 
 /* This structure describes the state of the eDMA controller */
@@ -101,7 +143,9 @@ struct imxrt_edma_s
   /* These semaphores protect the DMA channel and descriptor tables */
 
   sem_t chsem;                    /* Protects channel table */
-  sem_t dsem;                     /* Protects descriptor table */
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+  sem_t dsem;                     /* Supports wait for free descriptors */
+#endif
 
   /* This array describes each DMA channel */
 
@@ -116,6 +160,17 @@ struct imxrt_edma_s
 
 static struct imxrt_edma_s g_edma;
 
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+/* This is a singly-linked list of free TCDs */
+
+static sq_queue_t g_tcd_free;
+
+/* This is a pool of pre-allocated TCDs */
+
+static struct imxrt_edmatcd_s g_tcd_pool[CONFIG_IMXRT_EDMA_NTCD]
+              __attribute__((aligned(EDMA_ALIGN)));
+#endif
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -124,7 +179,8 @@ static struct imxrt_edma_s g_edma;
  * Name: imxrt_takechsem() and imxrt_givechsem()
  *
  * Description:
- *   Used to get exclusive access to the DMA channel table
+ *   Used to get exclusive access to the DMA channel table for channel
+ *   allocation.
  *
  ****************************************************************************/
 
@@ -160,6 +216,7 @@ static inline void imxrt_givechsem(void)
  *
  ****************************************************************************/
 
+#if CONFIG_IMXRT_EDMA_NTCD > 0
 static void imxrt_takedsem(void)
 {
   int ret;
@@ -183,34 +240,244 @@ static inline void imxrt_givedsem(void)
 {
   (void)nxsem_post(&g_edma.dsem);
 }
+#endif
 
 /****************************************************************************
- * Name: imxrt_getdmach
+ * Name: imxrt_tcd_alloc
  *
  * Description:
- *  Read a eDMA channel register
+ *   Allocate an in-memory, TCD
  *
  ****************************************************************************/
 
-static inline uint32_t imxrt_getdmach(struct imxrt_dmach_s *dmach,
-                                      unsigned int offset)
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+static struct imxrt_edmatcd_s *imxrt_tcd_alloc(void)
 {
-  return getreg32(IMXRT_EDMA_TCD_BASE(dmach->chan) + offset);
+  struct imxrt_edmatcd_s *tcd;
+  irqstate_t flags;
+
+  /* Take the 'dsem'.  When we hold the the 'dsem', then we know that one
+   * TCD is reserved for us in the free list.
+   *
+   * NOTE: We use a critical section here because we may block waiting for
+   * the 'dsem'.  The critical section will be suspended while we are
+   * waiting.
+   */
+
+  flags = enter_critical_section();
+  imxrt_takedsem();
+
+  /* Now there should be a TCD in the free list reserved just for us */
+
+  tcd = (struct imxrt_edmatcd_s *)sq_remfirst(&g_tcd_free);
+  DEBUGASSERT(tcd != NULL);
+
+  leave_critical_section(flags);
+  return tcd;
 }
+#endif
 
 /****************************************************************************
- * Name: imxrt_putdmach
+ * Name: imxrt_tcd_free
  *
  * Description:
- *  Write a value to a eDMA channel register
+ *   Free an in-memory, TCD
  *
  ****************************************************************************/
 
-static inline void imxrt_putdmach(struct imxrt_dmach_s *dmach, uint32_t value,
-                                  unsigned int offset)
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+static void imxrt_tcd_free(struct imxrt_edmatcd_s *tcd)
 {
-  putreg32(value, IMXRT_EDMA_TCD_BASE(dmach->chan) + offset);
+  irqstate_t flags;
+
+  /* Add the the TCD to the end of the free list and post the 'dsem',
+   * possibly waking up another thread that might be waiting for
+   * a TCD.
+   */
+
+  flags = spin_lock_irqsave();
+  sq_addlast((sq_entry_t *)tcd, &g_tcd_free);
+  (void)imxrt_givedsem();
+  spin_unlock_irqrestore(flags);
 }
+#endif
+
+/****************************************************************************
+ * Name: imxrt_tcd_initialize()
+ *
+ * Description:
+ *   Initialize the TCD free list from the pool of pre-allocated TCDs.
+ *
+ * Assumptions:
+ *   Called early in the initialization sequence so no special protection is
+ *   necessary.
+ *
+ ****************************************************************************/
+
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+static inline void imxrt_tcd_initialize(void)
+{
+  sq_entry_t *tcd;
+  int i;
+
+  /* Add each pre-allocated TCD to the tail of the TCD free list */
+
+  sq_init(&g_tcd_free);
+  for (i = 0; i < CONFIG_IMXRT_EDMA_NTCD; i++)
+    {
+      tcd = (sq_entry_t *)&g_tcd_pool[i];
+      sq_addlast(tcd, &g_tcd_free);
+    }
+}
+#endif
+
+/************************************************************************************
+ * Name: imxrt_tcd_chanlink
+ *
+ * Description:
+ *   This function configures either a minor link or a major link. The minor link
+ *   means the channel link is triggered every time CITER decreases by 1. The major
+ *   link means that the channel link  is triggered when the CITER is exhausted.
+ *
+ *   NOTE: Users should ensure that DONE flag is cleared before calling this
+ *   interface, or the configuration is invalid.
+ *
+ * Input Parameters:
+ *   tcd  - Point to the TCD structure.
+ *   type - Channel link type.
+ *   chan - The linked channel number.
+ *
+ * Returned Value:
+ *   None
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_IMXRT_EDMA_ELINK
+static inline void imxrt_tcd_chanlink(uint8_t flags, struct imxrt_dmach_s *linkch,
+                                      struct imxrt_edmatcd_s *tcd)
+{
+  uint16_t regval16;
+
+  flags &= EDMA_CONFIG_LINKTYPE_MASK;
+
+  if (linkch == NULL || flags == EDMA_CONFIG_LINKTYPE_LINKNONE)
+    {
+      /* No link or no link channel provided */
+      /* Disable minor links */
+
+      tcd->citer &= ~EDMA_TCD_CITER_ELINK;
+      tcd->biter &= ~EDMA_TCD_BITER_ELINK;
+
+      /* Disable major link */
+
+      tcd->csr   &= ~EDMA_TCD_CSR_MAJORELINK;
+    }
+  else if (flags == EDMA_CONFIG_LINKTYPE_MINORLINK) /* Minor link config */
+    {
+      /* Enable minor link */
+
+      tcd->citer |= EDMA_TCD_CITER_ELINK_ELINK;
+      tcd->biter |= EDMA_TCD_BITER_ELINK_ELINK;
+
+      /* Set linked channel */
+
+      regval16    = tcd->citer;
+      regval16   &= ~EDMA_TCD_CITER_ELINK_LINKCH_MASK;
+      regval16   |= EDMA_TCD_CITER_ELINK_LINKCH(linkch->chan);
+      tcd->citer  = regval16;
+
+      regval16    = tcd->biter;
+      regval16   &= ~EDMA_TCD_BITER_ELINK_LINKCH_MASK;
+      regval16   |= EDMA_TCD_BITER_ELINK_LINKCH(linkch->chan);
+      tcd->biter  = regval16;
+    }
+  else /* if (flags == EDMA_CONFIG_LINKTYPE_MAJORLINK)  Major link config */
+    {
+      /* Enable major link */
+
+      regval16    = tcd->csr;
+      regval16   |= EDMA_TCD_CSR_MAJORELINK;
+      tcd->csr    = regval16;
+
+      /* Set major linked channel */
+
+      regval16   &= ~EDMA_TCD_CSR_MAJORLINKCH_MASK;
+      regval16   |=  EDMA_TCD_CSR_MAJORLINKCH(linkch->chan);
+      tcd->csr    = regval16;
+    }
+}
+#endif
+
+/****************************************************************************
+ * Name: imxrt_tcd_configure
+ *
+ * Description:
+ *  Configure all TCD registers to the specified values.  'tcd' is an
+ *  'overlay' that may refer either to either the TCD register set or to an
+ *  in-memory TCD structure.
+ *
+ ****************************************************************************/
+
+static inline void imxrt_tcd_configure(struct imxrt_edmatcd_s *tcd,
+                                       const struct imxrt_edma_xfrconfig_s *config)
+{
+  tcd->saddr    = config->saddr;
+  tcd->soff     = config->soff;
+  tcd->attr     = EDMA_TCD_ATTR_SSIZE(config->ssize) |  /* Transfer Attributes */
+                  EDMA_TCD_ATTR_DSIZE(config->dsize);
+  tcd->nbytes   = config->nbytes;
+  tcd->slast    = tcd->slast;
+  tcd->daddr    = config->daddr;
+  tcd->doff     = config->doff;
+  tcd->citer    = config->iter & EDMA_TCD_CITER_CITER_MASK;
+  tcd->biter    = config->iter & EDMA_TCD_BITER_BITER_MASK;
+  tcd->csr      = EDMA_TCD_CSR_DREQ; /* Assume last transfer */
+  tcd->dlastsga = 0;
+
+  /* And special case flags */
+
+#ifdef CONFIG_IMXRT_EDMA_ELINK
+  /* Configure major/minor link mapping */
+
+  imxrt_tcd_chanlink(config->flags, (struct imxrt_dmach_s *)config->linkch,
+                     tcd);
+#endif
+}
+
+/****************************************************************************
+ * Name: imxrt_tcd_instantiate
+ *
+ * Description:
+ *   Copy an in-memory TCD into eDMA channel TCD registers
+ *
+ ****************************************************************************/
+
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+static void imxrt_tcd_instantiate(struct imxrt_dmach_s *dmach,
+                                  const struct imxrt_edmatcd_s *tcd)
+{
+  uintptr_t base = IMXRT_EDMA_TCD_BASE(dmach->chan);
+
+  /* Push tcd into hardware TCD register */
+
+  putreg32(tcd->saddr,    base + IMXRT_EDMA_TCD_SADDR_OFFSET);
+  putreg16(tcd->soff,     base + IMXRT_EDMA_TCD_SOFF_OFFSET);
+  putreg16(tcd->attr,     base + IMXRT_EDMA_TCD_ATTR_OFFSET);
+  putreg32(tcd->nbytes,   base + IMXRT_EDMA_TCD_NBYTES_ML_OFFSET);
+  putreg32(tcd->slast,    base + IMXRT_EDMA_TCD_SLAST_OFFSET);
+  putreg32(tcd->daddr,    base + IMXRT_EDMA_TCD_DADDR_OFFSET);
+  putreg16(tcd->doff,     base + IMXRT_EDMA_TCD_DOFF_OFFSET);
+  putreg16(tcd->citer,    base + IMXRT_EDMA_TCD_CITER_ELINK_OFFSET);
+  putreg32(tcd->dlastsga, base + IMXRT_EDMA_TCD_DLASTSGA_OFFSET);
+
+  /* Clear DONE bit first, otherwise ESG cannot be set */
+
+  putreg16(0,             base + IMXRT_EDMA_TCD_CSR_OFFSET);
+  putreg16(tcd->csr,      base + IMXRT_EDMA_TCD_CSR_OFFSET);
+
+  putreg16(tcd->biter,    base + IMXRT_EDMA_TCD_BITER_ELINK_OFFSET);
+}
+#endif
 
 /****************************************************************************
  * Name: imxrt_dmaterminate
@@ -222,36 +489,64 @@ static inline void imxrt_putdmach(struct imxrt_dmach_s *dmach, uint32_t value,
 
 static void imxrt_dmaterminate(struct imxrt_dmach_s *dmach, int result)
 {
-  struct imxrt_edma_s *dmac = imxrt_controller(dmach);
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+  struct imxrt_edmatcd_s *tcd;
+  struct imxrt_edmatcd_s *next;
+#endif
+  uintptr_t regaddr;
+  uint8_t regval8;
+  uint8_t chan;
 
-  /* Disable all channel interrupts */
   /* Disable channel ERROR interrupts */
 
+  chan            = dmach->chan;
   regval8         = EDMA_CEEI(chan);
   putreg8(regval8, IMXRT_EDMA_CEEI);
 
-  /* Disable the DONE interrupt when the major iteration count completes. */
+  /* Disable channel IRQ requests */
 
-  regaddr         = IMXRT_EDMA_TCD_CSR(chan);
-  modifyreg16(regaddr, EDMA_TCD_CSR_INTMAJOR | EDMA_TCD_CSR_INTHALF, 0);
+  regval8         = EDMA_CERQ(chan);
+  putreg8(regval8, IMXRT_EDMA_CERQ);
 
-  /* Disable the channel. */
-#warning Missing logic
-
-  /* If this was an RX DMA (peripheral-to-memory), then invalidate the cache
-   * to force reloads from memory.
+  /* Clear CSR to disable channel. Because if the given channel started,
+   * transfer CSR will be not zero. Because if it is the last transfer, DREQ
+   * will be set.  If not, ESG will be set.
    */
 
-  if ((dmach->ttype & TTYPE_2P_MASK) == 0)
+  regaddr         = IMXRT_EDMA_TCD_CSR(chan);
+  putreg16(0, regaddr);
+
+  /* Cancel all next TCD transfer. */
+
+  regaddr         = IMXRT_EDMA_TCD_DLASTSGA(chan);
+  putreg16(0, regaddr);
+
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+  /* Return all allocated TCDs to the free list */
+
+  for (tcd = dmach->head; tcd != NULL; tcd = next)
     {
-      arch_invalidate_dcache(dmach->rxaddr, dmach->rxaddr + dmach->rxsize);
+      next = (struct imxrt_edmatcd_s *)tcd->dlastsga;
+      imxrt_tcd_free(tcd);
+    }
+
+  dmach->head = NULL;
+  dmach->tail = NULL;
+#endif
+
+  /* Check for an Rx (memory-to-peripheral/memory-to-memory) DMA transfer */
+
+  if (dmach->ttype == eDMA_MEM2MEM || dmach->ttype == eDMA_PERIPH2MEM)
+    {
+      /* Invalidate the cache to force reloads from memory. */
+#warning Missing logic
     }
 
   /* Perform the DMA complete callback */
 
   if (dmach->callback)
     {
-      dmach->callback((DMA_HANDLE)dmach, dmach->arg, result);
+      dmach->callback((DMACH_HANDLE)dmach, dmach->arg, true, result);
     }
 
   dmach->callback = NULL;
@@ -263,7 +558,16 @@ static void imxrt_dmaterminate(struct imxrt_dmach_s *dmach, int result)
  * Name: imxrt_dmach_interrupt
  *
  * Description:
- *  DMA interrupt handler
+ *   DMA interrupt handler.  This function clears the channel major
+ *   interrupt flag and calls the callback function if it is not NULL.
+ *
+ *   NOTE:  For the case using TCD queue, when the major iteration count is
+ *   exhausted, additional operations are performed.  These include the
+ *   final address adjustments and reloading of the BITER field into the
+ *   CITER.  Assertion of an optional interrupt request also occurs at this
+ *   time, as does a possible fetch of a new TCD from memory using the
+ *   scatter/gather address pointer included in the descriptor (if scatter/
+ *   gather is enabled).
  *
  ****************************************************************************/
 
@@ -273,10 +577,10 @@ static void imxrt_dmach_interrupt(struct imxrt_dmach_s *dmach)
   uint32_t regval32;
   uint16_t regval16;
   uint8_t regval8;
-  unsigned int chan;
+  uint8_t chan;
   int result;
 
-  /* Check for a pending interrupt on this channel */
+  /* Check for an eDMA pending interrupt on this channel */
 
   chan     = dmach->chan;
   regval32 = getreg32(IMXRT_EDMA_INT);
@@ -289,45 +593,62 @@ static void imxrt_dmach_interrupt(struct imxrt_dmach_s *dmach)
 
       DEBUGASSERT(dmach->state == IMXRT_DMA_ACTIVE);
 
-      /* Yes.. Get the eDMA TCD Control and Status register value. */
-
-      regaddr = IMXRT_EDMA_TCD_CSR(chan);
-
-      /* Check if the transfer is done */
-
-      if ((regaddr & EDMA_TCD_CSR_DONE) != 0)
-        {
-          /* Clear the pending DONE interrupt status. */
-
-          regval8 = EDMA_CDNE(chan);
-          putreg8(regval8, IMXRT_EDMA_CDNE);
-          result   = OK;
-        }
-      else
-        {
-          /* Check if any errors have occurred. */
-
-          regval32 = getreg32(IMXRT_EDMA_ERR);
-          if ((regval32 & EDMA_ERR(n)(chan)) != 0)
-            {
-              dmaerr("ERROR: eDMA ES=%08lx\n",
-                     (unsigned long)getreg32(IMXRT_EDMA_ES));
-
-              /* Clear the pending error interrupt status. */
-
-              regval8 = EDMA_CERR(chan);
-              putreg32(regval8, IMXRT_EDMA_CERR);
-              result = -EIO;
-            }
-        }
-
-      /* Clear the pending interrupt */
+      /* Clear the pending eDMA channel interrupt */
 
       regval8 = EDMA_CINT(chan);
       putreg32(regval8, IMXRT_EDMA_CINT);
-      result = -EIO;
 
-      /* Terminate the transfer */
+      /* Check if an error occurred. */
+
+      regval32 = getreg32(IMXRT_EDMA_ERR);
+      if ((regval32 & EDMA_ERR(chan)) != 0)
+        {
+          dmaerr("ERROR: eDMA ES=%08lx\n",
+                 (unsigned long)getreg32(IMXRT_EDMA_ES));
+
+          /* Clear the pending error interrupt status. */
+
+          regval8 = EDMA_CERR(chan);
+          putreg32(regval8, IMXRT_EDMA_CERR);
+          result = -EIO;
+        }
+      else
+        {
+          /* Yes.. Get the eDMA TCD Control and Status register value. */
+
+          regaddr  = IMXRT_EDMA_TCD_CSR(chan);
+          regval16 = getreg16(regaddr);
+
+          /* Check if transfer has finished. */
+
+          if ((regval16 & EDMA_TCD_CSR_DONE) != 0)
+            {
+              /* Clear the pending DONE interrupt status. */
+
+              regval8 = EDMA_CDNE(chan);
+              putreg8(regval8, IMXRT_EDMA_CDNE);
+              result = OK;
+            }
+          else
+            {
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+              if (dmach->callback != NULL)
+                {
+                  dmach->callback((DMACH_HANDLE)dmach, dmach->arg,
+                                  false, OK);
+                }
+
+              return;
+#else
+              /* Otherwise the interrupt was not expected! */
+
+              DEBUGPANIC();
+              result = -EPIPE;
+#endif
+            }
+        }
+
+      /* Terminate the transfer when it is done. */
 
       imxrt_dmaterminate(dmach, result);
     }
@@ -434,7 +755,19 @@ void weak_function up_dmainitialize(void)
   /* Initialize semaphores */
 
   nxsem_init(&g_edma.chsem, 0, 1);
-  nxsem_init(&g_edma.dsem, 0, SAM_NDMACHAN);
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+  nxsem_init(&g_edma.dsem, 0, CONFIG_IMXRT_EDMA_NTCD);
+
+  /* The 'dsem' is used for signaling rather than mutual exclusion and,
+   * hence, should not have priority inheritance enabled.
+   */
+
+  nxsem_setprotocol(&g_edma.dsem, SEM_PRIO_NONE);
+
+  /* Initialize the list of of free TCDs from the pool of pre-allocated TCDs. */
+
+  imxrt_tcd_initialize();
+#endif
 
   /* Attach DMA interrupt vectors.
    *
@@ -460,14 +793,14 @@ void weak_function up_dmainitialize(void)
 
   /* Disable all DMA interrupts at the eDMA controller */
 
-  putreg32(0, IMXRT_EDMA_EEEI); /* Disable error interrupts */
+  putreg32(0, IMXRT_EDMA_EEI); /* Disable error interrupts */
 
   for (i = 0; i < IMXRT_EDMA_NCHANNELS; i++)
     {
       /* Disable all DMA channels and DMA channel interrupts */
 
       regaddr = IMXRT_EDMA_TCD_CSR(i);
-      putreg(0, regaddr);
+      putreg16(0, regaddr);
     }
 
   /* Enable the IRQ at the NVIC (still disabled at the eDMA controller) */
@@ -491,7 +824,7 @@ void weak_function up_dmainitialize(void)
 }
 
 /****************************************************************************
- * Name: imxrt_dmachannel
+ * Name: imxrt_dmach_alloc
  *
  *   Allocate a DMA channel.  This function sets aside a DMA channel,
  *   initializes the DMAMUX for the channel, then gives the caller exclusive
@@ -507,6 +840,15 @@ void weak_function up_dmainitialize(void)
  *            DMAMUX_CHCFG_ENBL       DMA Mux Channel Enable (required)
  *
  *            A value of zero will disable the DMAMUX channel.
+ *   dchpri - DCHPRI channel priority configuration.  See DCHPRI channel
+ *            configuration register bit-field definitions in
+ *            chip/imxrt_edma.h.  Meaningful settings include:
+ *
+ *            EDMA_DCHPRI_CHPRI       Channel Arbitration Priority
+ *            DCHPRI_DPA              Disable Preempt Ability
+ *            DCHPRI_ECP              Enable Channel Preemption
+ *
+ *            The power-on default, 0x05, is a reasonable choice.
  *
  * Returned Value:
  *   If a DMA channel is available, this function returns a non-NULL, void*
@@ -514,7 +856,7 @@ void weak_function up_dmainitialize(void)
  *
  ****************************************************************************/
 
-DMA_HANDLE imxrt_dmachannel(uint32_t dmamux)
+DMACH_HANDLE imxrt_dmach_alloc(uint32_t dmamux, uint8_t dchpri)
 {
   struct imxrt_dmach_s *dmach;
   unsigned int chndx;
@@ -523,10 +865,11 @@ DMA_HANDLE imxrt_dmachannel(uint32_t dmamux)
 
   dmach = NULL;
   imxrt_takechsem();
-  for (chndx = 0; chndx < SAM_NDMACHAN; chndx++)
+  for (chndx = 0; chndx < IMXRT_EDMA_NCHANNELS; chndx++)
     {
       struct imxrt_dmach_s *candidate = &g_edma.dmach[chndx];
       uintptr_t regaddr;
+      uint8_t regval8;
 
       if (!candidate->inuse)
         {
@@ -536,14 +879,14 @@ DMA_HANDLE imxrt_dmachannel(uint32_t dmamux)
 
           /* Clear any pending interrupts on the channel */
 
-          DEBUASSERT(chndx == dmach->chan);
+          DEBUGASSERT(chndx == dmach->chan);
           regaddr = IMXRT_EDMA_TCD_CSR(chndx);
-          putreg(0, regaddr);
+          putreg16(0, regaddr);
 
           /* Make sure that the channel is disabled. */
 
           regval8 = EDMA_CERQ(chndx);
-          putreg8(reqval8, IMXRT_EDMA_CERQ);
+          putreg8(regval8, IMXRT_EDMA_CERQ);
 
           /* Set the DMAMUX register associated with this channel */
 
@@ -566,15 +909,15 @@ DMA_HANDLE imxrt_dmachannel(uint32_t dmamux)
       dmaerr("ERROR: Failed allocate eDMA channel\n");
     }
 
-  return (DMA_HANDLE)dmach;
+  return (DMACH_HANDLE)dmach;
 }
 
 /****************************************************************************
- * Name: imxrt_dmafree
+ * Name: imxrt_dmach_free
  *
  * Description:
  *   Release a DMA channel.  NOTE:  The 'handle' used in this argument must
- *   NEVER be used again until imxrt_dmachannel() is called again to re-gain
+ *   NEVER be used again until imxrt_dmach_alloc() is called again to re-gain
  *   a valid handle.
  *
  * Returned Value:
@@ -582,7 +925,7 @@ DMA_HANDLE imxrt_dmachannel(uint32_t dmamux)
  *
  ****************************************************************************/
 
-void imxrt_dmafree(DMA_HANDLE handle)
+void imxrt_dmach_free(DMACH_HANDLE handle)
 {
   struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
   uintptr_t regaddr;
@@ -601,108 +944,210 @@ void imxrt_dmafree(DMA_HANDLE handle)
 
   /* Make sure that the channel is disabled. */
 
-  regval8 = EDMA_CERQ(chndx);
-  putreg8(reqval8, IMXRT_EDMA_CERQ);
+  regval8 = EDMA_CERQ(dmach->chan);
+  putreg8(regval8, IMXRT_EDMA_CERQ);
 
   /* Disable the associated DMAMUX */
 
-  regaddr = IMXRT_DMAMUX_CHCF(chndx);
+  regaddr = IMXRT_DMAMUX_CHCF(dmach->chan);
   putreg32(0, regaddr);
 }
 
-/************************************************************************************
- * Name: imxrt_dmasetup
- *
- * Description:
- *   Configure DMA for one Rx (peripheral-to-memory) or Rx (memory-to-peripheral)
- *   transfer of one buffer.
- *
- *   TODO:  This function needs to be called multiple times to handle multiple,
- *   discontinuous transfers.
- *
- ************************************************************************************/
-
-int imxrt_dmasetup(DMA_HANDLE handle, uint32_t saddr, uint32_t daddr, size_t nbytes,
-                   uint32_t chflags);
-{
-  struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
-  int ret = OK;
-
-  DEBUGASSERT(dmach != NULL);
-  dmainfo("dmach%u: %p saddr: %08lx maddr: %08lx nbytes: %lu chflags %08x\n",
-          dmach, dmach->chan, (unsigned long)pchan, (unsigned long)maddr,
-          (unsigned long)nbytes, (unsigned int)chflags);
-
-  /* To initialize the eDMA:
-   *
-   *   1. Write to the CR if a configuration other than the default is desired.
-   *
-   *      We always use the global default setup by up_dmainitialize()
-   *
-   *   2. Write the channel priority levels to the DCHPRIn registers if a
-   *      configuration other than the default is desired.
-   *   3. Enable error interrupts in the EEI register if so desired.
-   *   4. Write the 32-byte TCD for each channel that may request service.
-   *
-   *      To perform a simple transfer of n bytes of data with one activation, set
-   *      the major loop to one (TCDn_CITER = TCDn_BITER = 1). The data transfer
-   *      begins after the channel service request is acknowledged and the channel
-   *      is selected to execute. After the transfer is complete, the TCDn_CSR[DONE]
-   *      bit is set and an interrupt generates if properly enabled.
-   *
-   *   5. Enable any hardware service requests via the ERQ register.
-   *   6. Request channel service via either:
-   *      - Software: setting the TCDn_CSR[START]
-   *      - Hardware: slave device asserting its eDMA peripheral request signal
-   *
-   * This function performs steps 1-5.  Step 6 is performed separately by
-   * imxrt_dmastart().
-   */
-#warning Missing logic
-
-  /* Check for an Rx (memory-to-peripheral) DMA transfer */
-
-  dmach->ttype = (chflags & DMACH_FLAG_TTYPE_MASK) >> DMACH_FLAG_TTYPE_SHIFT;
-  if (dmach->ttype == TTYPE_P2M)
-    {
-      /* Save an information so that the DMA interrupt completion logic will
-       * will be able to invalidate the cache after the Rx DMA.
-       */
-
-      dmach->rxaddr = maddr;
-      dmach->rxsize = nbytes;
-    }
-
-  /* Check for an Tx (peripheral-to-memory) DMA transfer */
-
-  else if (dmach->ttype != TTYPE_M2P)
-    {
-      dmaerr("ERROR: Unsupported ttype: %u\n", dmach->ttype);
-      return -ENOSYS;
-    }
-
-  dmach->state = IMXRT_DMA_CONFIGURED;
-
-  /* Clean caches associated with the DMA memory */
-
-  arch_clean_dcache(maddr, maddr + nbytes);
-  return ret;
-}
-
 /****************************************************************************
- * Name: imxrt_dmastart
+ * Name: imxrt_dmach_xfrsetup
  *
  * Description:
- *   Start the DMA transfer
+ *   This function adds the eDMA transfer to the DMA sequence.  The request
+ *   is setup according to the content of the transfer configuration
+ *   structure.  For "normal" DMA, imxrt_dmach_xfrsetup is called only once.
+ *   Scatter/gather DMA is accomplished by calling this function repeatedly,
+ *   once for each transfer in the sequence.  Scatter/gather DMA processing
+ *   is enabled automatically when the second transfer configuration is received.
+ *
+ *   This function may be called multiple times to handle multiple,
+ *   discontinuous transfers (scatter-gather)
+ *
+ * Input Parameters:
+ *   handle - DMA channel handle created by imxrt_dmach_alloc()
+ *   config - A DMA transfer configuration instance, populated by the
+ *            The content of 'config' describes the transfer
+ *
+ * Returned Value
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   any failure.
  *
  ****************************************************************************/
 
-int imxrt_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg)
+int imxrt_dmach_xfrsetup(DMACH_HANDLE *handle,
+                         const struct imxrt_edma_xfrconfig_s *config)
+{
+  struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+  struct imxrt_edmatcd_s *tcd;
+  struct imxrt_edmatcd_s *prev;
+#endif
+  uintptr_t regaddr;
+  uint16_t regval16;
+
+  DEBUGASSERT(dmach != NULL);
+  dmainfo("dmach%u: %p config: %p\n", dmach, config);
+
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+  /* Scatter/gather DMA is supported */
+  /* Allocate a TCD, waiting if necessary */
+
+  tcd = imxrt_tcd_alloc();
+
+  /* Configure current TCD block transfer. */
+
+  imxrt_tcd_configure(tcd, config);
+
+  /* Enable the DONE interrupt when the major iteration count completes
+   * for this TCD.
+   */
+
+  tcd->csr |= EDMA_TCD_CSR_INTMAJOR;
+
+  /* Is this the first descriptor in the list? */
+
+  if (dmach->head == NULL)
+    {
+      /* Yes.. add it to the list */
+
+      dmach->head  = tcd;
+      dmach->tail  = tcd;
+      dmach->ttype = config->ttype;
+
+      /* And instantiate the first TCD in the DMA channel TCD registers. */
+
+      imxrt_tcd_instantiate(dmach, tcd);
+    }
+  else
+    {
+      /* Cannot mix transfer types (only because of cache-related operations.
+       * this restriction could be removed with some effort).
+       */
+
+      if (dmach->ttype != config->ttype)
+        {
+          imxrt_tcd_free(tcd);
+          return -EINVAL;
+        }
+
+      /* Chain from previous descriptor in the list. */
+      /* Enable scatter/gather feature in the previous TCD. */
+
+      prev           = dmach->tail;
+      regval16       = prev->csr;
+      regval16      &= ~EDMA_TCD_CSR_DREQ;
+      regval16      |= EDMA_TCD_CSR_ESG;
+      prev->csr      = regval16;
+
+      prev->dlastsga = (uint32_t)tcd;
+
+      /* Check if the TCD block in the DMA channel registers is the same as
+       * the previous previous TCD.  This can happen if the previous TCD was
+       * the first TCD and has already be loaded into the TCD registers.
+       */
+
+      if (dmach->head == prev)
+        {
+          /* Enable scatter/gather also in the TCD registers. */
+
+          regaddr   = IMXRT_EDMA_TCD_CSR(dmach->chan);
+          regval16  = getreg16(regaddr);
+          regval16 &= ~EDMA_TCD_CSR_DREQ;
+          regval16 |= EDMA_TCD_CSR_ESG;
+          putreg16(regval16, regaddr);
+
+          regaddr   = IMXRT_EDMA_TCD_DLASTSGA(dmach->chan);
+          putreg32((uint32_t)tcd, regaddr);
+        }
+    }
+
+  /* Clean cache associated with the TCD memory */
+
+  arch_clean_dcache(tcd, sizeof(struct imxrt_edmatcd_s));
+#else
+  /* Scatter/gather DMA is NOT supported */
+
+  /* Check if eDMA is busy: if the channel has started transfer, CSR will be non-zero. */
+
+  regaddr  = IMXRT_EDMA_TCD_CSR(dmach->chan);
+  regval16 = getreg16(regaddr);
+
+  if (regval16 != 0 && (regval16 & EDMA_TCD_CSR_DONE) == 0)
+    {
+      return -EBUSY;
+    }
+
+  /* Configure channel TCD registers to the values specified in config. */
+
+  imxrt_tcd_configure((struct imxrt_edmatcd_s *)IMXRT_EDMA_TCD_BASE(dmach->chan),
+                      config);
+
+  /* Enable the DONE interrupt when the major iteration count completes. */
+
+  regaddr         = IMXRT_EDMA_TCD_CSR(dmach->chan);
+  modifyreg16(regaddr, 0, EDMA_TCD_CSR_INTMAJOR);
+#endif
+
+  /* Check for an Rx (memory-to-peripheral/memory-to-memory) DMA transfer */
+
+  if (dmach->ttype == eDMA_MEM2MEM || dmach->ttype == eDMA_PERIPH2MEM)
+    {
+      /* Invalidate caches associated with the destination DMA memory.
+       * REVISIT:  nbytes is the number of bytes transferred on each
+       * minor loop.  The following is only valid when the major loop
+       * is one.
+       */
+
+      arch_invalidate_dcache(config->daddr, config->nbytes);
+    }
+
+  /* Check for an Tx (peripheral-to-memory/memory-to-memory) DMA transfer */
+
+  if (dmach->ttype == eDMA_MEM2MEM || dmach->ttype == eDMA_MEM2PERIPH)
+    {
+      /* Clean caches associated with the source DMA memory.
+       * REVISIT:  nbytes is the number of bytes transferred on each
+       * minor loop.  The following is only valid when the major loop
+       * is one.
+       */
+#warning Missing logic
+
+      arch_clean_dcache(config->saddr, config->nbytes);
+    }
+
+  dmach->state = IMXRT_DMA_CONFIGURED;
+  return OK;
+}
+
+/************************************************************************************
+ * Name: imxrt_dmach_start
+ *
+ * Description:
+ *   Start the DMA transfer.  This function should be called after the final call
+ *   to imxrt_dmach_xfrsetup() in order to avoid race conditions.
+ *
+ *   At the conclusion of the DMA, the DMA channel is reset, all TCDs are freed, and
+ *   the callback function is called with the the success/fail result of the DMA.
+ *
+ * Input Parameters:
+ *   handle   - DMA channel handle created by imxrt_dmach_alloc()
+ *   callback - The callback to be invoked when the DMA is completes or is aborted.
+ *   arg      - An argument that accompanies the callback
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   any failure.
+ *
+ ************************************************************************************/
+
+int imxrt_dmach_start(DMACH_HANDLE handle, edma_callback_t callback, void *arg)
 {
   struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
   irqstate_t flags;
-  uintptr_t regaddr;
-  uint16_t regval16;
   uint8_t regval8;
   uint8_t chan;
 
@@ -710,61 +1155,52 @@ int imxrt_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg)
   chan            = dmach->chan;
   dmainfo("dmach%u: %p callback: %p arg: %p\n", dmach, chan, callback, arg);
 
-  /* Save the callback info.  This will be invoked whent the DMA commpletes */
+  /* Save the callback info.  This will be invoked when the DMA completes */
 
   flags           = spin_lock_irqsave();
   dmach->callback = callback;
   dmach->arg      = arg;
   dmach->state    = IMXRT_DMA_ACTIVE;
 
-  /* Enable channel ERROR interrupts */
-
-  regval8         = EDMA_SEEI(chan);
-  putreg8(regval8, IMXRT_EDMA_SEEI);
-
-  /* Enable the DONE interrupt when the major iteration count completes. */
-
-  regaddr         = IMXRT_EDMA_TCD_CSR(chan);
-  modifyreg16(regaddr, 0, EDMA_TCD_CSR_INTMAJOR);
-
-#if 0 /* Not yet controlled */
-  /* Enable the DONE interrupt when the half the major iteration count completes. */
-
-  modifyreg16(regaddr, 0, EDMA_TCD_CSR_INTHALF);
-#endif
-
-  /* Enable the DMA request for this channel */
-
-  regval8         = EDMA_SERQ(chan);
-  putreg8(regval8, IMXRT_EDMA_SERQ_OFFSET);
-
-  /* Request channel service via either:
-   *   - Software: setting the TCDn_CSR[START]
-   *   - Hardware: slave device asserting its eDMA peripheral request signal
-   *
-   * REVISIT: Which case do we need to do the software interrupt?
+#if CONFIG_IMXRT_EDMA_NTCD > 0
+  /* Although it is not recommended, it might be possible to call this function multiple times
+   * while adding TCDs on the fly.
    */
+  if (dmach->state != IMXRT_DMA_ACTIVE)
+#endif
+    {
+      /* Enable channel ERROR interrupts */
 
-  regaddr         = IMXRT_EDMA_TCD_CSR(chan);
-  regval16        = getreg16(regaddr);
-  regval16       |= EDMA_TCD_CSR_START;
-  putreg16(regval16, regaddr);
+      regval8         = EDMA_SEEI(chan);
+      putreg8(regval8, IMXRT_EDMA_SEEI);
+
+      /* Enable the DMA request for this channel */
+
+      regval8         = EDMA_SERQ(chan);
+      putreg8(regval8, IMXRT_EDMA_SERQ_OFFSET);
+    }
 
   spin_unlock_irqrestore(flags);
   return OK;
 }
 
-/****************************************************************************
- * Name: imxrt_dmastop
+/************************************************************************************
+ * Name: imxrt_dmach_stop
  *
  * Description:
- *   Cancel the DMA.  After imxrt_dmastop() is called, the DMA channel is
- *   reset and imxrt_dmarx/txsetup() must be called before imxrt_dmastart()
- *   can be called again
+ *   Cancel the DMA.  After imxrt_dmach_stop() is called, the DMA channel is reset,
+ *   all TCDs are freed, and imxrt_dmarx/txsetup() must be called before
+ *   imxrt_dmach_start() can be called again
  *
- ****************************************************************************/
+ * Input Parameters:
+ *   handle   - DMA channel handle created by imxrt_dmach_alloc()
+ *
+ * Returned Value:
+ *   None.
+ *
+ ************************************************************************************/
 
-void imxrt_dmastop(DMA_HANDLE handle)
+void imxrt_dmach_stop(DMACH_HANDLE handle)
 {
   struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
   irqstate_t flags;
@@ -778,18 +1214,87 @@ void imxrt_dmastop(DMA_HANDLE handle)
 }
 
 /****************************************************************************
+ * Name: imxrt_dmach_getcount
+ *
+ * Description:
+ *   This function checks the TCD (Task Control Descriptor) status for a
+ *   specified eDMA channel and returns the the number of major loop counts
+ *   that have not finished.
+ *
+ *   NOTES:
+ *   1. This function can only be used to get unfinished major loop count of
+ *      transfer without the next TCD, or it might be inaccuracy.
+ *   2. The unfinished/remaining transfer bytes cannot be obtained directly
+ *      from registers while the channel is running.
+ *
+ *   Because to calculate the remaining bytes, the initial NBYTES configured
+ *   in DMA_TCDn_NBYTES_MLNO register is needed while the eDMA IP does not
+ *   support getting it while a channel is active.  In another words, the
+ *   NBYTES value reading is always the actual (decrementing) NBYTES value
+ *   the dma_engine is working with while a channel is running.
+ *   Consequently, to get the remaining transfer bytes, a software-saved
+ *   initial value of NBYTES (for example copied before enabling the channel)
+ *   is needed. The formula to calculate it is shown below:
+ *
+ *     RemainingBytes = RemainingMajorLoopCount * NBYTES(initially configured)
+ *
+ * Input Parameters:
+ *   handle  - DMA channel handle created by imxrt_dmach_alloc()
+ *
+ * Returned Value:
+ *   Major loop count which has not been transferred yet for the current TCD.
+ *
+ ****************************************************************************/
+
+unsigned int imxrt_dmach_getcount(DMACH_HANDLE *handle)
+{
+  struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
+  unsigned int remaining = 0;
+  uintptr_t regaddr;
+  uint16_t regval16;
+
+  DEBUGASSERT(dmach != NULL);
+
+  /* If the DMA is done, then the remaining count is zero */
+
+  regaddr  = IMXRT_EDMA_TCD_CSR(dmach->chan);
+  regval16 = getreg16(regaddr);
+
+  if ((regval16 & EDMA_TCD_CSR_DONE) == 0)
+    {
+      /* Calculate the unfinished bytes */
+
+      regaddr  = IMXRT_EDMA_TCD_CITER_ELINK(dmach->chan);
+      regval16 = getreg16(regaddr);
+
+      if ((regval16 & EDMA_TCD_CITER_ELINK) != 0)
+        {
+          remaining = (regval16 & EDMA_TCD_CITER_ELINK_CITER_MASK) >>
+                      EDMA_TCD_CITER_ELINK_CITER_SHIFT;
+        }
+      else
+        {
+          remaining = (regval16 & EDMA_TCD_CITER_CITER_MASK) >>
+                      EDMA_TCD_CITER_CITER_SHIFT;
+        }
+    }
+
+  return remaining;
+}
+
+/****************************************************************************
  * Name: imxrt_dmasample
  *
  * Description:
  *   Sample DMA register contents
  *
  * Assumptions:
- *   - DMA handle allocated by imxrt_dmachannel()
+ *   - DMA handle allocated by imxrt_dmach_alloc()
  *
  ****************************************************************************/
 
 #ifdef CONFIG_DEBUG_DMA
-void imxrt_dmasample(DMA_HANDLE handle, struct imxrt_dmaregs_s *regs)
+void imxrt_dmasample(DMACH_HANDLE handle, struct imxrt_dmaregs_s *regs)
 {
   struct imxrt_dmach_s *dmach = (struct imxrt_dmach_s *)handle;
   uintptr_t regaddr;
@@ -848,7 +1353,7 @@ void imxrt_dmasample(DMA_HANDLE handle, struct imxrt_dmaregs_s *regs)
  *   Dump previously sampled DMA register contents
  *
  * Assumptions:
- *   - DMA handle allocated by imxrt_dmachannel()
+ *   - DMA handle allocated by imxrt_dmach_alloc()
  *
  ****************************************************************************/
 
