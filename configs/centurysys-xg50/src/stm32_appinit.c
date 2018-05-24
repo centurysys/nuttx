@@ -237,6 +237,7 @@ int board_app_initialize(uintptr_t arg)
 
 #ifdef CONFIG_BOARDCTL_IOCTL
   board_ioctl(BIOC_CONFIG_GPIO, 0);
+  board_ioctl(BIOC_ENABLE_B2B, 0);
 #endif
 
   UNUSED(ret);
@@ -271,13 +272,13 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
 
       stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
       stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
-      stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
+      stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
       break;
 
     case BIOC_DISABLE_B2B:
       stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
-      stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
-      stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
+      stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
+      stm32l4_gpiowrite(GPIO_B2B_DCDC, 1);
       break;
 
     case BIOC_RESET_B2B:
