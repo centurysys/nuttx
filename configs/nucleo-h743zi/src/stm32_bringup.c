@@ -1,7 +1,7 @@
 /****************************************************************************
- * syscall/syscall_clock_systimer.c
+ * configs/nucleo-h743zi/src/stm32_bringup.c
  *
- *   Copyright (C) 2011-2012, 2014, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,42 +39,78 @@
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
+#include <sys/types.h>
+#include <sys/mount.h>
+#include <syslog.h>
+#include <errno.h>
 
-#include <nuttx/clock.h>
+#include "nucleo-h743zi.h"
 
-/****************************************************************************
- * Pre-processor definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+#ifdef CONFIG_BUTTONS
+#  include <nuttx/input/buttons.h>
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: syscall_clock_systimer
+ * Name: stm32_bringup
  *
  * Description:
- *   In the kernel build, proxying for clock_systimer() must be handled
- *   specially.  In the kernel phase of the build, clock_systimer() is
- *   macro that simply accesses a global variable.  In the user phase of
- *   the kernel build, clock_systimer() is a proxy function.
+ *   Perform architecture-specific initialization
  *
- *   In order to fill out the table g_funclookup[], this function will stand
- *   in during the kernel phase of the build so that clock_systemer() will
- *   have an address that can be included in the g_funclookup[] table.
+ *   CONFIG_BOARD_INITIALIZE=y :
+ *     Called from board_initialize().
+ *
+ *   CONFIG_BOARD_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
+ *     Called from the NSH library
  *
  ****************************************************************************/
 
-systime_t syscall_clock_systimer(void)
+int stm32_bringup(void)
 {
-  return clock_systimer();
+#ifdef CONFIG_FS_PROCFS
+  int ret;
+
+#ifdef CONFIG_STM32_CCM_PROCFS
+  /* Register the CCM procfs entry.  This must be done before the procfs is
+   * mounted.
+   */
+
+  (void)ccm_procfs_register();
+#endif
+
+  /* Mount the procfs file system */
+
+  ret = mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR,
+             "ERROR: Failed to mount the PROC filesystem: %d (%d)\n",
+             ret, errno);
+    }
+#endif
+
+#ifdef CONFIG_BUTTONS
+  /* Register the BUTTON driver */
+
+  ret = btn_lower_initialize("/dev/buttons");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: btn_lower_initialize() failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ADC
+  /* Initialize ADC and register the ADC driver. */
+
+  ret = stm32_adc_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_adc_setup failed: %d\n", ret);
+    }
+#endif
+
+  return OK;
 }

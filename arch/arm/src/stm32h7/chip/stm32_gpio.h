@@ -1,8 +1,8 @@
-/****************************************************************************
- * libs/libc/time/lib_clock.c
+/************************************************************************************
+ * arch/arm/src/stm32h7/chip/stm32_gpio.h
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,44 +31,22 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ************************************************************************************/
 
-/****************************************************************************
+#ifndef __ARCH_ARM_SRC_STM32H7_CHIP_STM32_GPIO_H
+#define __ARCH_ARM_SRC_STM32H7_CHIP_STM32_GPIO_H
+
+/************************************************************************************
  * Included Files
- ****************************************************************************/
+ ************************************************************************************/
 
 #include <nuttx/config.h>
+#include "chip.h"
 
-#include <time.h>
+#if defined(CONFIG_STM32H7_STM32H7X3XX)
+#  include "chip/stm32h7x3xx_gpio.h"
+#else
+#  error "Unsupported STM32 H7 part"
+#endif
 
-#include <nuttx/clock.h>
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name:  clock
- *
- * Description:
- *   The clock() function returns the implementation's best approximation to
- *   the processor time used by the process since the beginning of a
- *   implementation-defined era related only to the process invocation.
- *
- *   To determine the time in seconds, the value returned by clock() should
- *   be divided by the value of the macro CLOCKS_PER_SEC as defined in <time.h>.
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   The system time in units of clock ticks is returend.  If the processor
- *   time used is not available or its value cannot be represented, the
- *   function will return the value (clock_t)-1.
- *
- ****************************************************************************/
-
-clock_t clock(void)
-{
-  return (clock_t)clock_systimer();
-}
+#endif /* __ARCH_ARM_SRC_STM32H7_CHIP_STM32_GPIO_H */
