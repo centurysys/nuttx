@@ -1,7 +1,7 @@
 /************************************************************************************
- * arch/arm/src/tiva/chip/tiva_vectors.h
+ * arch/arm/src/lc823450/lc823450_start.h
  *
- *   Copyright (C) 2013-2014 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,34 +33,33 @@
  *
  ************************************************************************************/
 
+#ifndef __ARCH_ARM_SRC_LC823450_LC823450_H
+#define __ARCH_ARM_SRC_LC823450_LC823450_H
+
 /************************************************************************************
  * Included Files
  ************************************************************************************/
 
-/* Include the vector file for the specific Tiva/Stellaris chip */
-
-#if defined(CONFIG_ARCH_CHIP_LM3S)
-#  include "chip/lm3s_vectors.h"
-#elif defined(CONFIG_ARCH_CHIP_LM4F)
-#  include "chip/lm4f_vectors.h"
-#elif defined(CONFIG_ARCH_CHIP_TM4C)
-#  include "chip/tm4c_vectors.h"
-#else
-#  error "Unsupported Tiva/Stellaris vector file"
-#endif
-
-/************************************************************************************
- * Pre-processor Definitions
- ************************************************************************************/
-
-/************************************************************************************
- * Public Types
- ************************************************************************************/
+#include <nuttx/config.h>
 
 /************************************************************************************
  * Public Data
  ************************************************************************************/
 
+/* g_idle_topstack: _sbss is the start of the BSS region as defined by the
+ * linker script. _ebss lies at the end of the BSS region. The idle task
+ * stack starts at the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.
+ * The IDLE thread is the thread that the system boots on and, eventually,
+ * becomes the IDLE, do nothing task that runs only when there is nothing
+ * else to run.  The heap continues from there until the end of memory.
+ * g_idle_topstack is a read-only variable the provides this computed
+ * address.
+ */
+
+extern const uintptr_t g_idle_topstack;
+
 /************************************************************************************
  * Public Function Prototypes
  ************************************************************************************/
+
+#endif /* __ARCH_ARM_SRC_LC823450_LC823450_H */

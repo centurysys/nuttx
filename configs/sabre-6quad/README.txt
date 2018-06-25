@@ -158,10 +158,16 @@ Status
   writing.  Insufficient stress testing has been done to prove that the
   solution is stable.
 
-2018:  Again revisited SMP.  There appears to be a memory corruption problem.
+2018-06-08:  Again revisited SMP.  There appears to be a memory corruption problem.
   This is rarely seen with the SMP test but you enable the OS test in the smp
   configuration, you will see a crash due to memory corruption consistently,
   specially in the nested signal test (apps/examples/ostest/signest.c).
+
+2018-06-20:  There is a problem with the Interrupt Stack for SMP in
+  arch/arm/src/armv7-a/arm_vectors.S:  There is only one interrupt stack for
+  all CPUs!  A fix for this was put in place on 2018-06-21.  Big Improvement!
+  Bit this does not completely eliminate instabilities which seem to be
+  related to memory corruption -- mm_mallinfo() asserts.
 
 Platform Features
 =================
