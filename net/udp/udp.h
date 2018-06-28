@@ -112,6 +112,11 @@ struct udp_conn_s
   uint8_t  ttl;           /* Default time-to-live */
   uint8_t  crefs;         /* Reference counts on this instance */
 
+#ifdef CONFIG_NET_UDP_BINDTODEVICE
+  uint8_t  boundto;       /* Index of the interface we are bound to.
+                           * Unbound: 0, Bound: 1-MAX_IFINDEX */
+#endif
+
 #ifdef CONFIG_NET_UDP_READAHEAD
   /* Read-ahead buffering.
    *
@@ -344,6 +349,35 @@ void udp_poll(FAR struct net_driver_s *dev, FAR struct udp_conn_s *conn);
  ****************************************************************************/
 
 void udp_send(FAR struct net_driver_s *dev, FAR struct udp_conn_s *conn);
+
+/****************************************************************************
+ * Name: udp_setsockopt
+ *
+ * Description:
+ *   udp_setsockopt() sets the UDP-protocol option specified by the
+ *   'option' argument to the value pointed to by the 'value' argument for
+ *   the socket specified by the 'psock' argument.
+ *
+ *   See <netinet/udp.h> for the a complete list of values of UDP protocol
+ *   options.
+ *
+ * Input Parameters:
+ *   psock     Socket structure of socket to operate on
+ *   option    identifies the option to set
+ *   value     Points to the argument value
+ *   value_len The length of the argument value
+ *
+ * Returned Value:
+ *   Returns zero (OK) on success.  On failure, it returns a negated errno
+ *   value to indicate the nature of the error.  See psock_setcockopt() for
+ *   the list of possible error values.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_UDPPROTO_OPTIONS
+int udp_setsockopt(FAR struct socket *psock, int option,
+                   FAR const void *value, socklen_t value_len);
+#endif
 
 /****************************************************************************
  * Name: udp_wrbuffer_initialize

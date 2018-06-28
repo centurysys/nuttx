@@ -1,7 +1,7 @@
 /****************************************************************************
- * net/netdev/netdev_findbyname.c
+ * arch/arm/src/imxrt/imxrt_lpsrtc.h
  *
- *   Copyright (C) 2007, 2008, 2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,56 +37,91 @@
  * Included Files
  ****************************************************************************/
 
+#ifndef __ARCH_ARM_SRC_IMXRT_IMXRT_LPSRTC_H
+#define __ARCH_ARM_SRC_IMXRT_IMXRT_LPSRTC_H
+
 #include <nuttx/config.h>
-#if defined(CONFIG_NET) && CONFIG_NSOCKET_DESCRIPTORS > 0
 
-#include <string.h>
-#include <errno.h>
+#include "chip.h"
 
-#include <nuttx/net/netdev.h>
-
-#include "utils/utils.h"
-#include "netdev/netdev.h"
+#ifdef CONFIG_IMXRT_SNVS_LPSRTC
 
 /****************************************************************************
- * Public Functions
+ * Preprocessor Definitions
  ****************************************************************************/
 
+#  ifdef CONFIG_RTC_DATETIME
+#    error CONFIG_RTC_DATETIME should not be selected with this driver
+#  endif
+
+#  ifdef CONFIG_RTC_PERIODIC
+#    error CONFIG_RTC_PERIODIC should not be selected with this driver
+#  endif
+
+/* REVISIT: This is probably supportable.  The 47 bit timer does have
+ * accuracy greater than 1 second.
+ */
+
+#  ifdef CONFIG_RTC_HIRES
+#    error CONFIG_RTC_PERIODIC should not be selected with this driver
+#  endif
+
 /****************************************************************************
- * Name: netdev_findbyname
+ * Public Function Prototypes
+ ****************************************************************************/
+
+#ifndef __ASSEMBLY__
+
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+/************************************************************************************
+ * Name: imxrt_lpsrtc_initialize
  *
  * Description:
- *   Find a previously registered network device using its assigned
- *   network interface name
+ *   Initialize the LPSRTC per the selected configuration.  This function is called
+ *   via up_rtc_initialize (see imxrt_hprtc.c).
+ *
+ *   NOTE that the LPSRTC is always configured synchronized with the HPRTC.  This
+ *   means that the time is set via the LPSRTC but read via the HPRTC.  Also, only
+ *   the alarms from the HPRTC are used.
  *
  * Input Parameters:
- *   ifname The interface name of the device of interest
+ *   None
  *
  * Returned Value:
- *  Pointer to driver on success; null on failure
+ *   Zero (OK) on success; a negated errno on failure
+ *
+ ************************************************************************************/
+
+int imxrt_lpsrtc_initialize(void);
+
+/****************************************************************************
+ * Name: imxrt_lpsrtc_havesettime
+ *
+ * Description:
+ *   Check if the LPSRTC time has been set
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Returns true if RTC date-time have been previously set.
  *
  ****************************************************************************/
 
-FAR struct net_driver_s *netdev_findbyname(FAR const char *ifname)
-{
-  FAR struct net_driver_s *dev;
+bool imxrt_lpsrtc_havesettime(void);
 
-  if (ifname)
-    {
-      net_lock();
-      for (dev = g_netdevices; dev; dev = dev->flink)
-        {
-          if (strcmp(ifname, dev->d_ifname) == 0)
-            {
-              net_unlock();
-              return dev;
-            }
-        }
-
-      net_unlock();
-    }
-
-  return NULL;
+#undef EXTERN
+#if defined(__cplusplus)
 }
-
-#endif /* CONFIG_NET && CONFIG_NSOCKET_DESCRIPTORS */
+#endif
+#endif /* __ASSEMBLY__ */
+#endif /* CONFIG_IMXRT_SNVS_LPSRTC */
+#endif /* __ARCH_ARM_SRC_IMXRT_IMXRT_LPSRTC_H */

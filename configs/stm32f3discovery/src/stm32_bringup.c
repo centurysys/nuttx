@@ -1,7 +1,7 @@
 /****************************************************************************
- * net/netdev/netdev_findbyname.c
+ * config/stm32f3discovery/src/stm32_bringup.c
  *
- *   Copyright (C) 2007, 2008, 2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013, 2016, 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,55 +38,106 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#if defined(CONFIG_NET) && CONFIG_NSOCKET_DESCRIPTORS > 0
 
-#include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <syslog.h>
 #include <errno.h>
 
-#include <nuttx/net/netdev.h>
+#include <nuttx/board.h>
 
-#include "utils/utils.h"
-#include "netdev/netdev.h"
+#ifdef CONFIG_USBMONITOR
+#  include <nuttx/usb/usbmonitor.h>
+#endif
+
+#include "stm32.h"
+#include "stm32f3discovery.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
+
+#define HAVE_USBDEV     1
+#define HAVE_USBMONITOR 1
+
+/* Can't support USB device features if the STM32 USB peripheral is not
+ * enabled.
+ */
+
+#ifndef CONFIG_STM32_USB
+#  undef HAVE_USBDEV
+#  undef HAVE_USBMONITOR
+#endif
+
+/* Can't support USB device is USB device is not enabled */
+
+#ifndef CONFIG_USBDEV
+#  undef HAVE_USBDEV
+#  undef HAVE_USBMONITOR
+#endif
+
+/* Check if we should enable the USB monitor before starting NSH */
+
+#if !defined(CONFIG_USBDEV_TRACE) || !defined(CONFIG_USBMONITOR)
+#  undef HAVE_USBMONITOR
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: netdev_findbyname
+ * Name: stm32_bringup
  *
  * Description:
- *   Find a previously registered network device using its assigned
- *   network interface name
+ *   Perform architecture-specific initialization
  *
- * Input Parameters:
- *   ifname The interface name of the device of interest
+ *   CONFIG_BOARD_INITIALIZE=y :
+ *     Called from board_initialize().
  *
- * Returned Value:
- *  Pointer to driver on success; null on failure
+ *   CONFIG_BOARD_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
+ *     Called from the NSH library
  *
  ****************************************************************************/
 
-FAR struct net_driver_s *netdev_findbyname(FAR const char *ifname)
+int stm32_bringup(void)
 {
-  FAR struct net_driver_s *dev;
+  int ret = OK;
 
-  if (ifname)
+#ifdef HAVE_USBMONITOR
+  /* Start the USB Monitor */
+
+  ret = usbmonitor_start();
+  if (ret != OK)
     {
-      net_lock();
-      for (dev = g_netdevices; dev; dev = dev->flink)
-        {
-          if (strcmp(ifname, dev->d_ifname) == 0)
-            {
-              net_unlock();
-              return dev;
-            }
-        }
-
-      net_unlock();
+      syslog(LOG_ERR, "ERROR: Failed to start USB monitor: %d\n", ret);
     }
+#endif
 
-  return NULL;
+#ifdef CONFIG_PWM
+  /* Initialize PWM and register the PWM device. */
+
+  ret = stm32_pwm_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_pwm_setup() failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_SENSORS_QENCODER
+  /* Initialize and register the qencoder driver */
+
+  ret = stm32_qencoder_initialize("/dev/qe0", CONFIG_STM32F3DISCO_QETIMER);
+  if (ret != OK)
+    {
+      syslog(LOG_ERR,
+             "ERROR: Failed to register the qencoder: %d\n",
+             ret);
+      return ret;
+    }
+#endif
+
+  return ret;
 }
-
-#endif /* CONFIG_NET && CONFIG_NSOCKET_DESCRIPTORS */

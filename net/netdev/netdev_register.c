@@ -95,6 +95,25 @@
 
 struct net_driver_s *g_netdevices = NULL;
 
+#ifdef CONFIG_NETDEV_IFINDEX
+/* The set of network devices that have been registered.  This is used to
+ * assign a unique device index to the newly registered device.
+ *
+ * REVISIT:  The width of g_nassigned limits the number of registered
+ * devices to 32 (MAX_IFINDEX).
+ */
+
+uint32_t g_devset;
+
+/* The set of network devices that have been freed.  The purpose of this
+ * set is to postpone reuse of a interface index for as long as possible,
+ * i.e., don't reuse an interface index until all of the possible indices
+ * have been used.
+ */
+
+uint32_t g_devfreed;
+#endif
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -147,6 +166,61 @@ static int find_devnum(FAR const char *devfmt)
 }
 
 /****************************************************************************
+ * Name: get_ifindex
+ *
+ * Description:
+ *   Assign a unique interface index to the device.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   The interface index assigned to the device.  -ENOSPC is returned if
+ *   more the MAX_IFINDEX names have been assigned.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NETDEV_IFINDEX
+static int get_ifindex(void)
+{
+  uint32_t devset;
+  int ndx;
+
+  /* Try to postpone re-using interface indices as long as possible */
+
+  devset = g_devset | g_devfreed;
+  if (devset == 0xffffffff)
+    {
+      /* Time start re-using interface indices */
+
+      devset     = g_devset;
+      g_devfreed = 0;
+    }
+
+  /* Search for an unused index */
+
+  for (ndx = 0; ndx < MAX_IFINDEX; ndx++)
+    {
+      uint32_t bit = 1L << ndx;
+      if ((devset & bit) == 0)
+        {
+          /* Indicate that this index is in use */
+
+          g_devset |= bit;
+
+          /* NOTE that the index + 1 is returned.  Zero is reserved to
+           * mean no-index in the POSIX standards.
+           */
+
+          return ndx + 1;
+        }
+    }
+
+  return -ENOSPC;
+}
+#endif
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -166,7 +240,8 @@ static int find_devnum(FAR const char *devfmt)
  *   0:Success; negated errno on failure
  *
  * Assumptions:
- *   Called during system initialization from normal user mode
+ *   Called during system bring-up, but also when a removable network
+ *   device is installed.
  *
  ****************************************************************************/
 
@@ -177,6 +252,9 @@ int netdev_register(FAR struct net_driver_s *dev, enum net_lltype_e lltype)
   FAR const char devfmt_str[IFNAMSIZ];
 #endif
   int devnum;
+#ifdef CONFIG_NETDEV_IFINDEX
+  int ifindex;
+#endif
 
   if (dev != NULL)
     {
@@ -285,11 +363,23 @@ int netdev_register(FAR struct net_driver_s *dev, enum net_lltype_e lltype)
       dev->d_conncb = NULL;
       dev->d_devcb = NULL;
 
+      /* We need exclusive access for the following operations */
+
+      net_lock();
+
+#ifdef CONFIG_NETDEV_IFINDEX
+      ifindex = get_ifindex();
+      if (ifindex < 0)
+        {
+          return ifindex;
+        }
+
+      dev->d_ifindex = (uint8_t)ifindex;
+#endif
+
       /* Get the next available device number and assign a device name to
        * the interface
        */
-
-      net_lock();
 
 #ifdef CONFIG_NET_LOOPBACK
       /* The local loopback device is a special case:  There can be only one
