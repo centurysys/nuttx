@@ -1426,7 +1426,7 @@ config STM32L4_HAVE_RTC_SUBSECONDS
 	select ARCH_HAVE_RTC_SUBSECONDS
 	default y
 
-config STM32F4_RTC_MAGIC_REG
+config STM32L4_RTC_MAGIC_REG
 	int "BKP register"
 	default 0
 	range  0 31
@@ -1434,13 +1434,13 @@ config STM32F4_RTC_MAGIC_REG
 		The BKP register used to store/check the Magic value to determine if
 		RTC is already setup
 
-config STM32F4_RTC_MAGIC
+config STM32L4_RTC_MAGIC
 	hex "RTC Magic 1"
 	default 0xfacefeed
 	---help---
 		Value used as Magic to determine if the RTC is already setup
 
-config STM32F4_RTC_MAGIC_TIME_SET
+config STM32L4_RTC_MAGIC_TIME_SET
 	hex "RTC Magic 2"
 	default 0xf00dface
 	---help---
@@ -2684,21 +2684,21 @@ choice
 config STM32L4_TIM1_ADC1
 	bool "TIM1 ADC channel 1"
 	depends on STM32L4_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32L4_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM1 to trigger ADC1
 
 config STM32L4_TIM1_ADC2
 	bool "TIM1 ADC channel 2"
 	depends on STM32L4_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32L4_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM1 to trigger ADC2
 
 config STM32L4_TIM1_ADC3
 	bool "TIM1 ADC channel 3"
 	depends on STM32L4_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32L4_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM1 to trigger ADC3
 
@@ -2726,21 +2726,21 @@ choice
 config STM32L4_TIM2_ADC1
 	bool "TIM2 ADC channel 1"
 	depends on STM32L4_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32L4_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM2 to trigger ADC1
 
 config STM32L4_TIM2_ADC2
 	bool "TIM2 ADC channel 2"
 	depends on STM32L4_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32L4_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM2 to trigger ADC2
 
 config STM32L4_TIM2_ADC3
 	bool "TIM2 ADC channel 3"
 	depends on STM32L4_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32L4_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM2 to trigger ADC3
 
@@ -2768,21 +2768,21 @@ choice
 config STM32L4_TIM3_ADC1
 	bool "TIM3 ADC channel 1"
 	depends on STM32L4_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32L4_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM3 to trigger ADC1
 
 config STM32L4_TIM3_ADC2
 	bool "TIM3 ADC channel 2"
 	depends on STM32L4_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32L4_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM3 to trigger ADC2
 
 config STM32L4_TIM3_ADC3
 	bool "TIM3 ADC channel 3"
 	depends on STM32L4_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32L4_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM3 to trigger ADC3
 
@@ -2810,21 +2810,21 @@ choice
 config STM32L4_TIM4_ADC1
 	bool "TIM4 ADC channel 1"
 	depends on STM32L4_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32L4_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM4 to trigger ADC1
 
 config STM32L4_TIM4_ADC2
 	bool "TIM4 ADC channel 2"
 	depends on STM32L4_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32L4_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM4 to trigger ADC2
 
 config STM32L4_TIM4_ADC3
 	bool "TIM4 ADC channel 3"
 	depends on STM32L4_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32L4_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM4 to trigger ADC3
 
@@ -2852,21 +2852,21 @@ choice
 config STM32L4_TIM6_ADC1
 	bool "TIM6 ADC channel 1"
 	depends on STM32L4_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32L4_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM6 to trigger ADC1
 
 config STM32L4_TIM6_ADC2
 	bool "TIM6 ADC channel 2"
 	depends on STM32L4_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32L4_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM6 to trigger ADC2
 
 config STM32L4_TIM6_ADC3
 	bool "TIM6 ADC channel 3"
 	depends on STM32L4_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32L4_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM6 to trigger ADC3
 
@@ -2894,21 +2894,21 @@ choice
 config STM32L4_TIM8_ADC1
 	bool "TIM8 ADC channel 1"
 	depends on STM32L4_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32L4_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM8 to trigger ADC1
 
 config STM32L4_TIM8_ADC2
 	bool "TIM8 ADC channel 2"
 	depends on STM32L4_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32L4_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM8 to trigger ADC2
 
 config STM32L4_TIM8_ADC3
 	bool "TIM8 ADC channel 3"
 	depends on STM32L4_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32L4_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM8 to trigger ADC3
 
@@ -2936,39 +2936,39 @@ choice
 config STM32L4_TIM15_ADC1
 	bool "TIM15 ADC channel 1"
 	depends on STM32L4_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32L4_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM15 to trigger ADC1
 
 config STM32L4_TIM15_ADC2
 	bool "TIM15 ADC channel 2"
 	depends on STM32L4_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32L4_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM15 to trigger ADC2
 
 config STM32L4_TIM15_ADC3
 	bool "TIM15 ADC channel 3"
 	depends on STM32L4_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32L4_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM15 to trigger ADC3
 
 endchoice
 
-config HAVE_ADC1_TIMER
+config STM32L4_HAVE_ADC1_TIMER
 	bool
 
-config HAVE_ADC2_TIMER
+config STM32L4_HAVE_ADC2_TIMER
 	bool
 
-config HAVE_ADC3_TIMER
+config STM32L4_HAVE_ADC3_TIMER
 	bool
 
 config STM32L4_ADC1_SAMPLE_FREQUENCY
 	int "ADC1 Sampling Frequency"
 	default 100
-	depends on HAVE_ADC1_TIMER
+	depends on STM32L4_HAVE_ADC1_TIMER
 	---help---
 		ADC1 sampling frequency.  Default:  100Hz
 
@@ -2976,14 +2976,14 @@ config STM32L4_ADC1_TIMTRIG
 	int "ADC1 Timer Trigger"
 	default 0
 	range 0 4
-	depends on HAVE_ADC1_TIMER
+	depends on STM32L4_HAVE_ADC1_TIMER
 	---help---
 		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
 
 config STM32L4_ADC2_SAMPLE_FREQUENCY
 	int "ADC2 Sampling Frequency"
 	default 100
-	depends on HAVE_ADC2_TIMER
+	depends on STM32L4_HAVE_ADC2_TIMER
 	---help---
 		ADC2 sampling frequency.  Default:  100Hz
 
@@ -2991,14 +2991,14 @@ config STM32L4_ADC2_TIMTRIG
 	int "ADC2 Timer Trigger"
 	default 0
 	range 0 4
-	depends on HAVE_ADC2_TIMER
+	depends on STM32L4_HAVE_ADC2_TIMER
 	---help---
 		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
 
 config STM32L4_ADC3_SAMPLE_FREQUENCY
 	int "ADC3 Sampling Frequency"
 	default 100
-	depends on HAVE_ADC3_TIMER
+	depends on STM32L4_HAVE_ADC3_TIMER
 	---help---
 		ADC3 sampling frequency.  Default:  100Hz
 
@@ -3006,7 +3006,7 @@ config STM32L4_ADC3_TIMTRIG
 	int "ADC3 Timer Trigger"
 	default 0
 	range 0 4
-	depends on HAVE_ADC3_TIMER
+	depends on STM32L4_HAVE_ADC3_TIMER
 	---help---
 		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
 
@@ -3741,7 +3741,7 @@ config STM32L4_SERIAL_RXDMA_BUFFER_SIZE
 
 		Value given here will be rounded up to next multiple of 32 bytes.
 
-config SERIAL_DISABLE_REORDERING
+config STM32L4_SERIAL_DISABLE_REORDERING
 	bool "Disable reordering of ttySx devices."
 	depends on STM32L4_USART1 || STM32L4_USART2 || STM32L4_USART3 || STM32L4_UART4 || STM32L4_UART5
 	default n
@@ -3794,14 +3794,15 @@ config STM32L4_USART_SINGLEWIRE
 		TIOCSSINGLEWIRE ioctl in the STM32 serial driver.
 
 if PM
-config PM_SERIAL_ACTIVITY
+
+config STM32L4_PM_SERIAL_ACTIVITY
 	int "PM serial activity"
 	default 10
 	---help---
 		PM activity reported to power management logic on every serial
 		interrupt.
-endif
 
+endif
 endif # STM32L4_SERIALDRIVER
 
 endmenu # U[S]ART Configuration
@@ -3914,27 +3915,27 @@ endmenu # SD/MMC Configuration
 menu "CAN driver configuration"
 	depends on STM32L4_CAN1 || STM32L4_CAN2
 
-config CAN1_BAUD
+config STM32L4_CAN1_BAUD
 	int "CAN1 BAUD"
 	default 250000
 	depends on STM32L4_CAN1
 	---help---
 		CAN1 BAUD rate.  Required if CONFIG_STM32L4_CAN1 is defined.
 
-config CAN2_BAUD
+config STM32L4_CAN2_BAUD
 	int "CAN2 BAUD"
 	default 250000
 	depends on STM32L4_CAN2
 	---help---
 		CAN2 BAUD rate.  Required if CONFIG_STM32L4_CAN2 is defined.
 
-config CAN_TSEG1
+config STM32L4_CAN_TSEG1
 	int "TSEG1 quanta"
 	default 6
 	---help---
 		The number of CAN time quanta in segment 1. Default: 6
 
-config CAN_TSEG2
+config STM32L4_CAN_TSEG2
 	int "TSEG2 quanta"
 	default 7
 	---help---

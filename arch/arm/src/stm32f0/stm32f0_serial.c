@@ -174,8 +174,8 @@
 
 /* Power management definitions */
 
-#if defined(CONFIG_PM) && !defined(CONFIG_PM_SERIAL_ACTIVITY)
-#  define CONFIG_PM_SERIAL_ACTIVITY 10
+#if defined(CONFIG_PM) && !defined(CONFIG_STM32F0_PM_SERIAL_ACTIVITY)
+#  define CONFIG_STM32F0_PM_SERIAL_ACTIVITY 10
 #endif
 #if defined(CONFIG_PM)
 #  define PM_IDLE_DOMAIN             0 /* Revisit */
@@ -1461,8 +1461,8 @@ static int up_interrupt(int irq, FAR void *context, FAR void *arg)
 
   /* Report serial activity to the power management logic */
 
-#if defined(CONFIG_PM) && CONFIG_PM_SERIAL_ACTIVITY > 0
-  pm_activity(PM_IDLE_DOMAIN, CONFIG_PM_SERIAL_ACTIVITY);
+#if defined(CONFIG_PM) && CONFIG_STM32F0_PM_SERIAL_ACTIVITY > 0
+  pm_activity(PM_IDLE_DOMAIN, CONFIG_STM32F0_PM_SERIAL_ACTIVITY);
 #endif
 
   /* Loop until there are no characters to be transferred or,
@@ -2427,7 +2427,7 @@ void up_serialinit(void)
 #if CONSOLE_USART > 0
   (void)uart_register("/dev/console", &uart_devs[CONSOLE_USART - 1]->dev);
 
-#ifndef CONFIG_SERIAL_DISABLE_REORDERING
+#ifndef CONFIG_STM32F0_SERIAL_DISABLE_REORDERING
   /* If not disabled, register the console USART to ttyS0 and exclude
    * it from initializing it further down
    */
@@ -2456,7 +2456,7 @@ void up_serialinit(void)
           continue;
         }
 
-#ifndef CONFIG_SERIAL_DISABLE_REORDERING
+#ifndef CONFIG_STM32F0_SERIAL_DISABLE_REORDERING
       /* Don't create a device for the console - we did that above */
 
       if (uart_devs[i]->dev.isconsole)

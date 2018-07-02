@@ -273,6 +273,7 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
       stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
       stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
       stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
+
       break;
 
     case BIOC_DISABLE_B2B:

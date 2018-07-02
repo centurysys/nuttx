@@ -463,12 +463,12 @@
 
 /* Calculate the size of the layers clut table */
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
 #  if defined(CONFIG_STM32_DMA2D) && !defined(CONFIG_STM32_DMA2D_L8)
 #    error "DMA2D must also support L8 CLUT pixel format if supported by LTDC"
 #  endif
 #  ifdef STM32_LTDC_L1CMAP
-#    ifdef CONFIG_FB_TRANSPARENCY
+#    ifdef CONFIG_STM32_FB_TRANSPARENCY
 #      define STM32_LAYER_CLUT_SIZE STM32_LTDC_NCLUT * sizeof(uint32_t)
 #    else
 #      define STM32_LAYER_CLUT_SIZE STM32_LTDC_NCLUT * 3 * sizeof(uint8_t)
@@ -476,7 +476,7 @@
 #  endif
 #  ifdef STM32_LTDC_L2CMAP
 #    undef  STM32_LAYER_CLUT_SIZE
-#    ifdef CONFIG_FB_TRANSPARENCY
+#    ifdef CONFIG_STM32_FB_TRANSPARENCY
 #      define STM32_LAYER_CLUT_SIZE STM32_LTDC_NCLUT * sizeof(uint32_t) * 2
 #    else
 #      define STM32_LAYER_CLUT_SIZE STM32_LTDC_NCLUT * 3 * sizeof(uint8_t) * 2
@@ -484,7 +484,7 @@
 #  endif
 #endif
 
-#ifndef CONFIG_FB_CMAP
+#ifndef CONFIG_STM32_FB_CMAP
 #  if defined(STM32_LTDC_L1CMAP) || defined(STM32_LTDC_L2CMAP)
 #    undef STM32_LTDC_L1CMAP
 #    undef STM32_LTDC_L2CMAP
@@ -543,20 +543,20 @@
 
 #ifdef CONFIG_STM32_DMA2D
 #  ifdef CONFIG_FB_OVERLAY_BLIT
-#    ifdef CONFIG_FB_CMAP
+#    ifdef CONFIG_STM32_FB_CMAP
 #      define LTDC_BLIT_ACCL        FB_ACCL_BLIT
 #    else
 #      define LTDC_BLIT_ACCL        FB_ACCL_BLIT | FB_ACCL_BLEND
-#    endif /* CONFIG_FB_CMAP */
+#    endif /* CONFIG_STM32_FB_CMAP */
 #  else
 #    define LTDC_BLIT_ACCL          0
 #  endif /* CONFIG_FB_OVERLAY_BLIT */
 
-#  ifdef CONFIG_FB_CMAP
+#  ifdef CONFIG_STM32_FB_CMAP
 #    define LTDC_DMA2D_ACCL         LTDC_BLIT_ACCL
 #  else
 #    define LTDC_DMA2D_ACCL         FB_ACCL_COLOR | LTDC_BLIT_ACCL
-#  endif /* CONFIG_FB_CMAP */
+#  endif /* CONFIG_STM32_FB_CMAP */
 #else
 #  define LTDC_DMA2D_ACCL           0
 #endif /* CONFIG_STM32_DMA2D */
@@ -568,7 +568,7 @@
 
 /* Acceleration support for DMA2D overlays */
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
 #  ifdef CONFIG_FB_OVERLAY_BLIT
 #    define DMA2D_ACCL              FB_ACCL_BLIT | FB_ACCL_AREA
 #  else
@@ -652,7 +652,7 @@ struct stm32_ltdcdev_s
 
   /* Cmap information */
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
   struct fb_cmap_s cmap;
 #endif
 
@@ -716,7 +716,7 @@ static bool stm32_ltdc_lvalidate(FAR const struct stm32_ltdc_s *layer,
 #  endif
 #endif
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
 static void stm32_ltdc_lputclut(FAR struct stm32_ltdc_s * layer,
                                 FAR const struct fb_cmap_s *cmap);
 static void stm32_ltdc_lgetclut(FAR struct stm32_ltdc_s * layer,
@@ -739,7 +739,7 @@ static int stm32_getplaneinfo(FAR struct fb_vtable_s *vtable,
  * mapping
  */
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
 static int stm32_getcmap(FAR struct fb_vtable_s *vtable,
                          FAR struct fb_cmap_s *cmap);
 static int stm32_putcmap(FAR struct fb_vtable_s *vtable,
@@ -809,16 +809,16 @@ static const uint32_t g_ltdcpins[] =
 
 #define STM32_LTDC_NPINCONFIGS (sizeof(g_ltdcpins) / sizeof(uint32_t))
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
 /* The layers clut table entries */
 
 static uint8_t g_redclut[STM32_LTDC_NCLUT];
 static uint8_t g_greenclut[STM32_LTDC_NCLUT];
 static uint8_t g_blueclut[STM32_LTDC_NCLUT];
-#  ifdef CONFIG_FB_TRANSPARENCY
+#  ifdef CONFIG_STM32_FB_TRANSPARENCY
 static uint8_t g_transpclut[STM32_LTDC_NCLUT];
 #  endif
-#endif /* CONFIG_FB_CMAP */
+#endif /* CONFIG_STM32_FB_CMAP */
 
 /* The LTDC semaphore that enforces mutually exclusive access */
 
@@ -850,7 +850,7 @@ static struct stm32_ltdcdev_s g_vtable =
       .waitforvsync    = stm32_waitforvsync
 #endif
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
       ,
       .getcmap         = stm32_getcmap,
       .putcmap         = stm32_putcmap
@@ -911,7 +911,7 @@ static struct stm32_ltdcdev_s g_vtable =
     }
 #endif /* CONFIG_STM32_LTDC_L2 */
   ,
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
   .cmap =
     {
       .first           = 0,
@@ -919,7 +919,7 @@ static struct stm32_ltdcdev_s g_vtable =
       .red             = g_redclut,
       .green           = g_greenclut,
       .blue            = g_blueclut,
-#  ifdef CONFIG_FB_TRANSPARENCY
+#  ifdef CONFIG_STM32_FB_TRANSPARENCY
       .transp          = g_transpclut
 #  endif
     }
@@ -1230,7 +1230,7 @@ static const uintptr_t stm32_cfblnr_layer_t[LTDC_NLAYERS] =
 
 /* LTDC_LxCLUTWR */
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
 static const uintptr_t stm32_clutwr_layer_t[LTDC_NLAYERS] =
 {
   STM32_LTDC_L1CLUTWR
@@ -1238,7 +1238,7 @@ static const uintptr_t stm32_clutwr_layer_t[LTDC_NLAYERS] =
   , STM32_LTDC_L2CLUTWR
 #  endif
 };
-#endif /* CONFIG_FB_CMAP */
+#endif /* CONFIG_STM32_FB_CMAP */
 
 /* The initialized state of the driver */
 
@@ -1938,7 +1938,7 @@ static void stm32_ltdc_lchromakey(FAR struct stm32_ltdc_s *layer,
 
   /* Set chromakey */
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
   uint8_t r = g_vtable.cmap.red[chroma];
   uint8_t g = g_vtable.cmap.green[chroma];
   uint8_t b = g_vtable.cmap.blue[chroma];
@@ -2008,7 +2008,7 @@ static void stm32_ltdc_lchromakeyenable(FAR struct stm32_ltdc_s *layer,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
 static void stm32_ltdc_lclutenable(FAR struct stm32_ltdc_s *layer, bool enable)
 {
   uint32_t    regval;
@@ -2112,7 +2112,7 @@ static void stm32_ltdc_lgetclut(FAR struct stm32_ltdc_s * layer,
   for (n = cmap->first; n < cmap->len && n < STM32_LTDC_NCLUT; n++)
     {
 
-#  ifdef CONFIG_FB_TRANSPARENCY
+#  ifdef CONFIG_STM32_FB_TRANSPARENCY
       cmap->transp[n] = priv_cmap->transp[n];
 #  endif
       cmap->red[n]    = priv_cmap->red[n];
@@ -2120,7 +2120,7 @@ static void stm32_ltdc_lgetclut(FAR struct stm32_ltdc_s * layer,
       cmap->blue[n]   = priv_cmap->blue[n];
 
       reginfo("color = %d, transp=%02x, red=%02x, green=%02x, blue=%02x\n", n,
-#  ifdef CONFIG_FB_TRANSPARENCY
+#  ifdef CONFIG_STM32_FB_TRANSPARENCY
               cmap->transp[n],
 #  endif
               cmap->red[n],
@@ -2128,7 +2128,7 @@ static void stm32_ltdc_lgetclut(FAR struct stm32_ltdc_s * layer,
               cmap->blue[n]);
     }
 }
-#endif /* CONFIG_FB_CMAP */
+#endif /* CONFIG_STM32_FB_CMAP */
 
 /****************************************************************************
  * Name: stm32_ltdc_lclear
@@ -2231,7 +2231,7 @@ static void stm32_ltdc_linit(uint8_t overlay)
 
   stm32_ltdc_lchromakeyenable(layer, stm32_chromakeyen_layer_t[overlay]);
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
   /* Disable clut by default */
 
   if (dev->vinfo.fmt == FB_FMT_RGB8)
@@ -2394,7 +2394,7 @@ static int stm32_getplaneinfo(struct fb_vtable_s *vtable, int planeno,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
 static int stm32_getcmap(struct fb_vtable_s *vtable,
                          struct fb_cmap_s *cmap)
 {
@@ -2494,7 +2494,7 @@ static int stm32_putcmap(struct fb_vtable_s *vtable,
           priv_cmap->red[n] = cmap->red[n];
           priv_cmap->green[n] = cmap->green[n];
           priv_cmap->blue[n] = cmap->blue[n];
-#  ifdef CONFIG_FB_TRANSPARENCY
+#  ifdef CONFIG_STM32_FB_TRANSPARENCY
           /* Not supported by LTDC */
 
           priv_cmap->transp[n] = cmap->transp[n];
@@ -2525,7 +2525,7 @@ static int stm32_putcmap(struct fb_vtable_s *vtable,
 
   return ret;
 }
-#endif /* CONFIG_FB_CMAP */
+#endif /* CONFIG_STM32_FB_CMAP */
 
 /***************************************************************************
  * Name: stm32_ioctl_waitforvsync
@@ -2665,7 +2665,7 @@ static int stm32_setchromakey(FAR struct fb_vtable_s *vtable,
 #  endif
 
       nxsem_wait(layer->lock);
-#  ifdef CONFIG_FB_CMAP
+#  ifdef CONFIG_STM32_FB_CMAP
       if (oinfo->chromakey >= g_vtable.cmap.len)
         {
           lcderr("ERROR: Clut index %d is out of range\n", oinfo->chromakey);
@@ -3023,16 +3023,16 @@ int stm32_ltdcinitialize(void)
   DEBUGASSERT(g_vtable.dma2d != NULL);
 #endif
 
-#ifdef CONFIG_FB_CMAP
+#ifdef CONFIG_STM32_FB_CMAP
   /* Cleanup clut */
 
   memset(&g_redclut, 0, STM32_LTDC_NCLUT);
   memset(&g_blueclut, 0, STM32_LTDC_NCLUT);
   memset(&g_greenclut, 0, STM32_LTDC_NCLUT);
-#  ifdef CONFIG_FB_TRANSPARENCY
+#  ifdef CONFIG_STM32_FB_TRANSPARENCY
   memset(&g_transpclut, 0, STM32_LTDC_NCLUT);
 #  endif
-#endif /* CONFIG_FB_CMAP */
+#endif /* CONFIG_STM32_FB_CMAP */
 
   /* Initialize ltdc layer */
 

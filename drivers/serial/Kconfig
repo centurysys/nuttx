@@ -69,7 +69,7 @@ config SERIAL_OFLOWCONTROL
 	default n
 
 config SERIAL_FULL_CONNECTION
-	bool
+	bool "Support DTR/DSR/DCD/RI signals."
 	default n
 	---help---
 		Support DTR/DSR/DCD/RI signals.

@@ -192,7 +192,7 @@ Using MSYS
 
   Unlike Cygwin, MSYS does not support symbolic links.  The 'ln -s' commnad
   will, in fact, copy a directory!  This means that you Make.defs file will
-  have to include  defintion like:
+  have to include definitions like:
 
     ifeq ($(CONFIG_WINDOWS_MSYS),y)
       DIRLINK = $(TOPDIR)/tools/copydir.sh
@@ -200,7 +200,9 @@ Using MSYS
     endif
 
   This will force the directory copies to work in a way that can be handled
-  by the NuttX build system.
+  by the NuttX build system.  NOTE:  The default link.sh script has been
+  updated so that is should now be MSYS2 compatible.  The above is preferred
+  but no longer necessary in the Make.defs file.
 
   To build the simulator under MSYS, you also need:
 

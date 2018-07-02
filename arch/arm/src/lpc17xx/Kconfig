@@ -544,25 +544,19 @@ endmenu
 menu "CAN driver options"
 	depends on LPC17_CAN1 || LPC17_CAN2
 
-config CAN_EXTID
-	bool "CAN extended IDs"
-	default n
-	---help---
-		Enables support for the 29-bit extended ID.  Default Standard 11-bit IDs.
-
-config CAN1_BAUD
+config LPC17_CAN1_BAUD
 	int "CAN1 BAUD"
 	depends on LPC17_CAN1
 	---help---
 		CAN1 BAUD rate.  Required if LPC17_CAN1 is defined.
 
-config CAN2_BAUD
+config LPC17_CAN2_BAUD
 	int "CAN2 BAUD"
 	depends on LPC17_CAN2
 	---help---
 		CAN2 BAUD rate.  Required if LPC17_CAN2 is defined.
 
-config CAN1_DIVISOR
+config LPC17_CAN1_DIVISOR
 	int "CAN1 CCLK divisor"
 	depends on LPC17_CAN1
 	default 4
@@ -570,7 +564,7 @@ config CAN1_DIVISOR
 		CAN1 is clocked at CCLK divided by this number. (the CCLK frequency is divided
 		by this number to get the CAN clock). Options = {1,2,4,6}. Default: 4.
 
-config CAN2_DIVISOR
+config LPC17_CAN2_DIVISOR
 	int "CAN2 CCLK divisor"
 	depends on LPC17_CAN2
 	default 4
@@ -578,29 +572,23 @@ config CAN2_DIVISOR
 		CAN2 is clocked at CCLK divided by this number. (the CCLK frequency is divided
 		by this number to get the CAN clock). Options = {1,2,4,6}. Default: 4.
 
-config CAN_TSEG1
+config LPC17_CAN_TSEG1
 	int "TSEG1 quanta"
 	default 6
 	---help---
 		The number of CAN time quanta in segment 1. Default: 6
 
-config CAN_TSEG2
+config LPC17_CAN_TSEG2
 	int "TSEG2 quanta"
 	default 4
 	---help---
 		The number of CAN time quanta in segment 2. Default: 7
 
-config CAN_SAM
+config LPC17_CAN_SAM
 	bool "CAN sampling"
 	default n
 	---help---
 		The bus is sampled 3 times (recommended for low to medium speed buses to spikes on the bus-line).
-
-config CAN_LOOPBACK
-	bool "CAN loopback mode"
-	default n
-	---help---
-		Enable CAN loopback mode
 
 config LPC17_CAN_REGDEBUG
 	bool "Register level debug"
@@ -665,49 +653,49 @@ endmenu
 menu "Ethernet driver options"
 	depends on LPC17_ETHERNET
 
-config PHY_AUTONEG
+config LPC17_PHY_AUTONEG
 	bool "Autonegiation"
 	---help---
 		Enable auto-negotion
 
-config PHY_SPEED100
+config LPC17_PHY_SPEED100
 	bool "100Mbit/Sec"
-	depends on !PHY_AUTONEG
+	depends on !LPC17_PHY_AUTONEG
 	---help---
 		Select 100Mbit vs. 10Mbit speed.
 
-config PHY_FDUPLEX
+config LPC17_PHY_FDUPLEX
 	bool "Full duplex"
-	depends on !PHY_AUTONEG
+	depends on !LPC17_PHY_AUTONEG
 	---help---
 		Select full (vs. half) duplex
 
-config NET_EMACRAM_SIZE
+config LPC17_EMACRAM_SIZE
 	int "EMAC RAM Size"
 	default 16384
 	---help---
 		Size of EMAC RAM.  Default: 16384 bytes
 
-config NET_NTXDESC
+config LPC17_ETH_NTXDESC
 	int "Number of Tx descriptors"
 	default 13
 	---help---
 		Configured number of Tx descriptors. Default: 13
 
-config NET_NRXDESC
+config LPC17_ETH_NRXDESC
 	int "Number of Rx descriptors"
 	default 13
 	---help---
 		Configured number of Rx descriptors. Default: 13
 
-config NET_PRIORITY
+config LPC17_ETH_PRIORITY
 	int "Ethernet interrupt priority"
 	default 128
 	depends on ARCH_IRQPRIO && EXPERIMENTAL
 	---help---
 		Ethernet interrupt priority.  The default is the default priority (128).
 
-config NET_WOL
+config LPC17_NET_WOL
 	bool "Wake-up on LAN"
 	default n
 	---help---
@@ -720,7 +708,7 @@ config LPC17_NET_REGDEBUG
 	---help---
 		Enable low level register debug.  Also needs CONFIG_DEBUG_NET_INFO.
 
-config NET_HASH
+config LPC17_ETH_HASH
 	bool "Hashing"
 	default n
 	---help---
@@ -941,37 +929,37 @@ endmenu
 menu "USB host driver options"
 	depends on LPC17_USBHOST
 
-config USBHOST_OHCIRAM_SIZE
+config LPC17_OHCIRAM_SIZE
 	int "OHCI RAM Size"
 	default 16384
 	---help---
 		Total size of OHCI RAM (in AHB SRAM Bank 1).  Default: 16384
 
-config USBHOST_NEDS
+config LPC17_USBHOST_NEDS
 	int "Number of Endpoint Descriptors"
 	default 2
 	---help---
 		Number of endpoint descriptors.  Default: 2
 
-config USBHOST_NTDS
+config LPC17_USBHOST_NTDS
 	int "Number of transfer descriptors"
 	default 3
 	---help---
 		Number of transfer descriptors. Default: 3
 
-config USBHOST_TDBUFFERS
+config LPC17_USBHOST_TDBUFFERS
 	int "Number of descriptor buffers"
 	default 2
 	---help---
 		Number of transfer descriptor buffers.  Default: 2
 
-config USBHOST_TDBUFSIZE
+config LPC17_USBHOST_TDBUFSIZE
 	int "Descriptor buffer size"
 	default 128
 	---help---
 		Size of one transfer descriptor buffer.  Default 128
 
-config USBHOST_IOBUFSIZE
+config LPC17_USBHOST_IOBUFSIZE
 	int "I/O buffer size"
 	default 512
 	---help---
@@ -986,24 +974,6 @@ config LPC17_USBHOST_NPREALLOC
 		This number represents a number of pre-allocated structures to support
 		concurrent data transfers.  This number limits that number of concurrent
 		asynchronous IN endpoint transfer that can be supported.
-
-config USBHOST_BULK_DISABLE
-	bool "Disable bulk EPs"
-	default n
-	---help---
-		Disable support for bulk endpoints.
-
-config USBHOST_INT_DISABLE
-	bool "Disable interrupt EPs"
-	default n
-	---help---
-		Disable support for interrupt endpoints.
-
-config USBHOST_ISOC_DISABLE
-	bool "Disable isochronous EPs"
-	default n
-	---help---
-		Disable support for isochronous endpoints.
 
 config LPC17_USBHOST_REGDEBUG
 	bool "Register level debug"

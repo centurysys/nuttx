@@ -2366,15 +2366,15 @@ config STM32_HASH
 	default n
 	depends on STM32_STM32F207 || STM32_STM32F4XXX
 
-config HRTIM
-	bool "HRTIM"
+config STM32_HRTIM
+	bool
 	default n
 
 config STM32_HRTIM1
 	bool "HRTIM1"
 	default n
 	depends on STM32_HAVE_HRTIM1
-	select HRTIM
+	select STM32_HRTIM
 
 if STM32_HRTIM1
 
@@ -5022,21 +5022,21 @@ choice
 config STM32_TIM1_ADC1
 	bool "TIM1 ADC channel 1"
 	depends on STM32_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM1 to trigger ADC1
 
 config STM32_TIM1_ADC2
 	bool "TIM1 ADC channel 2"
 	depends on STM32_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM1 to trigger ADC2
 
 config STM32_TIM1_ADC3
 	bool "TIM1 ADC channel 3"
 	depends on STM32_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM1 to trigger ADC3
 
@@ -5064,21 +5064,21 @@ choice
 config STM32_TIM2_ADC1
 	bool "TIM2 ADC channel 1"
 	depends on STM32_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM2 to trigger ADC1
 
 config STM32_TIM2_ADC2
 	bool "TIM2 ADC channel 2"
 	depends on STM32_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM2 to trigger ADC2
 
 config STM32_TIM2_ADC3
 	bool "TIM2 ADC channel 3"
 	depends on STM32_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM2 to trigger ADC3
 
@@ -5106,21 +5106,21 @@ choice
 config STM32_TIM3_ADC1
 	bool "TIM3 ADC channel 1"
 	depends on STM32_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM3 to trigger ADC1
 
 config STM32_TIM3_ADC2
 	bool "TIM3 ADC channel 2"
 	depends on STM32_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM3 to trigger ADC2
 
 config STM32_TIM3_ADC3
 	bool "TIM3 ADC channel 3"
 	depends on STM32_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM3 to trigger ADC3
 
@@ -5148,21 +5148,21 @@ choice
 config STM32_TIM4_ADC1
 	bool "TIM4 ADC channel 1"
 	depends on STM32_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM4 to trigger ADC1
 
 config STM32_TIM4_ADC2
 	bool "TIM4 ADC channel 2"
 	depends on STM32_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM4 to trigger ADC2
 
 config STM32_TIM4_ADC3
 	bool "TIM4 ADC channel 3"
 	depends on STM32_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM4 to trigger ADC3
 
@@ -5190,21 +5190,21 @@ choice
 config STM32_TIM5_ADC1
 	bool "TIM5 ADC channel 1"
 	depends on STM32_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM5 to trigger ADC1
 
 config STM32_TIM5_ADC2
 	bool "TIM5 ADC channel 2"
 	depends on STM32_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM5 to trigger ADC2
 
 config STM32_TIM5_ADC3
 	bool "TIM5 ADC channel 3"
 	depends on STM32_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM5 to trigger ADC3
 
@@ -5232,39 +5232,39 @@ choice
 config STM32_TIM8_ADC1
 	bool "TIM8 ADC channel 1"
 	depends on STM32_ADC1
-	select HAVE_ADC1_TIMER
+	select STM32_HAVE_ADC1_TIMER
 	---help---
 		Reserve TIM8 to trigger ADC1
 
 config STM32_TIM8_ADC2
 	bool "TIM8 ADC channel 2"
 	depends on STM32_ADC2
-	select HAVE_ADC2_TIMER
+	select STM32_HAVE_ADC2_TIMER
 	---help---
 		Reserve TIM8 to trigger ADC2
 
 config STM32_TIM8_ADC3
 	bool "TIM8 ADC channel 3"
 	depends on STM32_ADC3
-	select HAVE_ADC3_TIMER
+	select STM32_HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM8 to trigger ADC3
 
 endchoice
 
-config HAVE_ADC1_TIMER
+config STM32_HAVE_ADC1_TIMER
 	bool
 
-config HAVE_ADC2_TIMER
+config STM32_HAVE_ADC2_TIMER
 	bool
 
-config HAVE_ADC3_TIMER
+config STM32_HAVE_ADC3_TIMER
 	bool
 
 config STM32_ADC1_SAMPLE_FREQUENCY
 	int "ADC1 Sampling Frequency"
 	default 100
-	depends on HAVE_ADC1_TIMER
+	depends on STM32_HAVE_ADC1_TIMER
 	---help---
 		ADC1 sampling frequency.  Default:  100Hz
 
@@ -5272,14 +5272,14 @@ config STM32_ADC1_TIMTRIG
 	int "ADC1 Timer Trigger"
 	default 0
 	range 0 4
-	depends on HAVE_ADC1_TIMER
+	depends on STM32_HAVE_ADC1_TIMER
 	---help---
 		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
 
 config STM32_ADC2_SAMPLE_FREQUENCY
 	int "ADC2 Sampling Frequency"
 	default 100
-	depends on HAVE_ADC2_TIMER
+	depends on STM32_HAVE_ADC2_TIMER
 	---help---
 		ADC2 sampling frequency.  Default:  100Hz
 
@@ -5287,14 +5287,14 @@ config STM32_ADC2_TIMTRIG
 	int "ADC2 Timer Trigger"
 	default 0
 	range 0 4
-	depends on HAVE_ADC2_TIMER
+	depends on STM32_HAVE_ADC2_TIMER
 	---help---
 		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
 
 config STM32_ADC3_SAMPLE_FREQUENCY
 	int "ADC3 Sampling Frequency"
 	default 100
-	depends on HAVE_ADC3_TIMER
+	depends on STM32_HAVE_ADC3_TIMER
 	---help---
 		ADC3 sampling frequency.  Default:  100Hz
 
@@ -5302,7 +5302,7 @@ config STM32_ADC3_TIMTRIG
 	int "ADC3 Timer Trigger"
 	default 0
 	range 0 4
-	depends on HAVE_ADC3_TIMER
+	depends on STM32_HAVE_ADC3_TIMER
 	---help---
 		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
 
@@ -7335,7 +7335,7 @@ config STM32_SERIAL_RXDMA_BUFFER_SIZE
 
 		Value given here will be rounded up to next multiple of 4 bytes.
 
-config SERIAL_DISABLE_REORDERING
+config STM32_SERIAL_DISABLE_REORDERING
 	bool "Disable reordering of ttySx devices."
 	default n
 	---help---
@@ -7446,12 +7446,14 @@ config STM32_HCIUART_LOWER_WATERMARK
 endmenu # HCI UART Driver Configuration
 
 if PM
-config PM_SERIAL_ACTIVITY
+
+config STM32_PM_SERIAL_ACTIVITY
 	int "PM serial activity"
 	default 10
 	---help---
 		PM activity reported to power management logic on every serial
 		interrupt.
+
 endif
 
 endmenu # U[S]ART Configuration
@@ -7706,19 +7708,19 @@ config STM32_RTC_MAGIC_TIME_SET
 
 choice
 	prompt "RTC clock source"
-	default RTC_LSECLOCK
+	default STM32_RTC_LSECLOCK
 
-config RTC_LSECLOCK
+config STM32_RTC_LSECLOCK
 	bool "LSE clock"
 	---help---
 		Drive the RTC with the LSE clock
 
-config RTC_LSICLOCK
+config STM32_RTC_LSICLOCK
 	bool "LSI clock"
 	---help---
 		Drive the RTC with the LSI clock
 
-config RTC_HSECLOCK
+config STM32_RTC_HSECLOCK
 	bool "HSE clock"
 	---help---
 		Drive the RTC with the HSE clock, divided down to 1MHz.
@@ -8082,27 +8084,27 @@ config STM32_USB_ITRMP
 menu "CAN driver configuration"
 	depends on STM32_CAN
 
-config CAN1_BAUD
+config STM32_CAN1_BAUD
 	int "CAN1 BAUD"
 	default 250000
 	depends on STM32_CAN1
 	---help---
 		CAN1 BAUD rate.  Required if CONFIG_STM32_CAN1 is defined.
 
-config CAN2_BAUD
+config STM32_CAN2_BAUD
 	int "CAN2 BAUD"
 	default 250000
 	depends on STM32_CAN2
 	---help---
 		CAN2 BAUD rate.  Required if CONFIG_STM32_CAN2 is defined.
 
-config CAN_TSEG1
+config STM32_CAN_TSEG1
 	int "TSEG1 quanta"
 	default 6
 	---help---
 		The number of CAN time quanta in segment 1. Default: 6
 
-config CAN_TSEG2
+config STM32_CAN_TSEG2
 	int "TSEG2 quanta"
 	default 7
 	---help---
@@ -8197,35 +8199,35 @@ choice
 
 config STM32_LTDC_L1_L8
 	bool "8 bpp L8 (8-bit CLUT)"
-	depends on FB_CMAP
+	depends on STM32_FB_CMAP
 
 config STM32_LTDC_L1_AL44
 	bool "8 bpp AL44 (4-bit alpha + 4-bit CLUT)"
-	depends on FB_CMAP
+	depends on STM32_FB_CMAP
 
 config STM32_LTDC_L1_AL88
 	bool "16 bpp AL88 (8-bit alpha + 8-bit CLUT)"
-	depends on FB_CMAP
+	depends on STM32_FB_CMAP
 
 config STM32_LTDC_L1_RGB565
 	bool "16 bpp RGB 565"
-	depends on !FB_CMAP
+	depends on !STM32_FB_CMAP
 
 config STM32_LTDC_L1_ARGB4444
 	bool "16 bpp ARGB 4444"
-	depends on !FB_CMAP
+	depends on !STM32_FB_CMAP
 
 config STM32_LTDC_L1_ARGB1555
 	bool "16 bpp ARGB 1555"
-	depends on !FB_CMAP
+	depends on !STM32_FB_CMAP
 
 config STM32_LTDC_L1_RGB888
 	bool "24 bpp RGB 888"
-	depends on !FB_CMAP
+	depends on !STM32_FB_CMAP
 
 config STM32_LTDC_L1_ARGB8888
 	bool "32 bpp ARGB 8888"
-	depends on !FB_CMAP
+	depends on !STM32_FB_CMAP
 
 endchoice # Layer 1 color format
 
@@ -8287,18 +8289,20 @@ endchoice # Layer 2 color format
 
 endif # STM32_LTDC_L2
 
-config FB_CMAP
-	bool "Enable color map support"
+config STM32_FB_CMAP
+	bool "Color map support"
 	default y
+	select FB_CMAP
 	---help---
-		Enabling color map support is neccessary for ltdc L8 format.
+		Enabling color map support is necessary for LTDC L8 format.
 
-config FB_TRANSPARENCY
-	bool "Enable transparency color map support"
-	depends on FB_CMAP
+config STM32_FB_TRANSPARENCY
+	bool "Transparency color map support"
 	default y
+	depends on STM32_FB_CMAP
+	select FB_TRANSPARENCY
 	---help---
-		Enabling transparency color map support is neccessary for ltdc L8 format.
+		Enabling transparency color map support is necessary for LTDC L8 format.
 
 config STM32_LTDC_REGDEBUG
 	bool "LTDC Register level debug"
@@ -8354,17 +8358,17 @@ config STM32_DMA2D_FB_SIZE
 menu "Supported pixel format"
 
 config STM32_DMA2D_L8
-	depends on FB_CMAP && STM32_LTDC_L1_L8
+	depends on STM32_FB_CMAP && STM32_LTDC_L1_L8
 	bool "8 bpp L8 (8-bit CLUT)"
 	default y
 
 config STM32_DMA2D_AL44
-	depends on FB_CMAP && STM32_LTDC_L1_AL44
+	depends on STM32_FB_CMAP && STM32_LTDC_L1_AL44
 	bool "8 bpp AL44 (4-bit alpha + 4-bit CLUT)"
 	default y
 
 config STM32_DMA2D_AL88
-	depends on FB_CMAP && STM32_LTDC_L1_AL88
+	depends on STM32_FB_CMAP && STM32_LTDC_L1_AL88
 	bool "16 bpp AL88 (8-bit alpha + 8-bit CLUT)"
 	default y
 

@@ -39,6 +39,7 @@
 
 #include <nuttx/config.h>
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -180,8 +181,8 @@
 
 /* Power management definitions */
 
-#if defined(CONFIG_PM) && !defined(CONFIG_PM_SERIAL_ACTIVITY)
-#  define CONFIG_PM_SERIAL_ACTIVITY  10
+#if defined(CONFIG_PM) && !defined(CONFIG_STM32L4_PM_SERIAL_ACTIVITY)
+#  define CONFIG_STM32L4_PM_SERIAL_ACTIVITY  10
 #endif
 #if defined(CONFIG_PM)
 #  define PM_IDLE_DOMAIN             0 /* Revisit */
@@ -1767,8 +1768,8 @@ static int up_interrupt(int irq, FAR void *context, FAR void *arg)
 
   /* Report serial activity to the power management logic */
 
-#if defined(CONFIG_PM) && CONFIG_PM_SERIAL_ACTIVITY > 0
-  pm_activity(PM_IDLE_DOMAIN, CONFIG_PM_SERIAL_ACTIVITY);
+#if defined(CONFIG_PM) && CONFIG_STM32L4_PM_SERIAL_ACTIVITY > 0
+  pm_activity(PM_IDLE_DOMAIN, CONFIG_STM32L4_PM_SERIAL_ACTIVITY);
 #endif
 
   /* Loop until there are no characters to be transferred or,
@@ -2204,7 +2205,7 @@ static int stm32l4serial_tiocmbic(struct stm32l4_serial_s *priv, const int *arg)
     {
       if (*arg & TIOCM_DTR)
         {
-          stm32l4_gpiowrite(priv->dtr_gpio, 1);
+          stm32l4_gpiowrite(priv->dtr_gpio, 0);
         }
     }
 
@@ -2226,7 +2227,7 @@ static int stm32l4serial_tiocmbis(struct stm32l4_serial_s *priv, const int *arg)
     {
       if (*arg & TIOCM_DTR)
         {
-          stm32l4_gpiowrite(priv->dtr_gpio, 0);
+          stm32l4_gpiowrite(priv->dtr_gpio, 1);
         }
     }
 
@@ -3046,7 +3047,7 @@ void up_serialinit(void)
   syslog(LOG_INFO, "registered %s as /dev/console.\n",
          uart_devs[CONSOLE_UART - 1]->name);
 
-#ifndef CONFIG_SERIAL_DISABLE_REORDERING
+#ifndef CONFIG_STM32L4_SERIAL_DISABLE_REORDERING
   /* If not disabled, register the console UART to ttyS0 and exclude
    * it from initializing it further down
    */
@@ -3078,7 +3079,7 @@ void up_serialinit(void)
           continue;
         }
 
-#ifndef CONFIG_SERIAL_DISABLE_REORDERING
+#ifndef CONFIG_STM32L4_SERIAL_DISABLE_REORDERING
       /* Don't create a device for the console - we did that above */
 
       if (uart_devs[i]->dev.isconsole)
