@@ -102,7 +102,7 @@ uint16_t tcp_get_recvwindow(FAR struct net_driver_s *dev)
    * is the minimum size.
    */
 
-  mss = dev->d_mtu - (NET_LL_HDRLEN(dev) + iplen + TCP_HDRLEN);
+  mss = dev->d_pktsize - (NET_LL_HDRLEN(dev) + iplen + TCP_HDRLEN);
 
 #ifdef CONFIG_NET_TCP_READAHEAD
   /* Update the TCP received window based on read-ahead I/O buffer
@@ -152,9 +152,9 @@ uint16_t tcp_get_recvwindow(FAR struct net_driver_s *dev)
        */
 
       rwnd = (navail * CONFIG_IOB_BUFSIZE) + mss;
-      if (rwnd > UINT16_MAX)
+      if (rwnd > INT16_MAX)
         {
-          rwnd = UINT16_MAX;
+          rwnd = INT16_MAX;
         }
 
       /* Save the new receive window size */
