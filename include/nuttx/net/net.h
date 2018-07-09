@@ -290,12 +290,15 @@ void net_initialize(void);
 /****************************************************************************
  * Critical section management.
  *
- * Semaphore based locking is used:
+ * Re-entrant mutex based locking of the network is supported:
  *
- *   net_lock()          - Takes the semaphore().  Implements a re-entrant mutex.
- *   net_unlock()        - Gives the semaphore().
- *   net_lockedwait()    - Like pthread_cond_wait(); releases the semaphore
- *                         momentarily to wait on another semaphore()
+ *   net_lock()        - Locks the network via a re-entrant mutex.
+ *   net_unlock()      - Unlocks the network.
+ *   net_lockedwait()  - Like pthread_cond_wait() except releases the
+ *                       network momentarily to wait on another semaphore.
+ *   net_ioballoc()    - Like iob_alloc() except releases the network
+ *                       momentarily to wait for an IOB to become
+ *                       available.
  *
  ****************************************************************************/
 
@@ -338,6 +341,11 @@ void net_unlock(void);
  *   Atomically wait for sem (or a timeout( while temporarily releasing
  *   the lock on the network.
  *
+ *   Caution should be utilized.  Because the network lock is relinquished
+ *   during the wait, there could changes in the network state that occur
+ *   before the lock is recovered.  Your design should account for this
+ *   possibility.
+ *
  * Input Parameters:
  *   sem     - A reference to the semaphore to be taken.
  *   abstime - The absolute time to wait until a timeout is declared.
@@ -357,6 +365,11 @@ int net_timedwait(sem_t *sem, FAR const struct timespec *abstime);
  * Description:
  *   Atomically wait for sem while temporarily releasing the network lock.
  *
+ *   Caution should be utilized.  Because the network lock is relinquished
+ *   during the wait, there could changes in the network state that occur
+ *   before the lock is recovered.  Your design should account for this
+ *   possibility.
+ *
  * Input Parameters:
  *   sem - A reference to the semaphore to be taken.
  *
@@ -367,6 +380,32 @@ int net_timedwait(sem_t *sem, FAR const struct timespec *abstime);
  ****************************************************************************/
 
 int net_lockedwait(sem_t *sem);
+
+/****************************************************************************
+ * Name: net_ioballoc
+ *
+ * Description:
+ *   Allocate an IOB.  If no IOBs are available, then atomically wait for
+ *   for the IOB while temporarily releasing the lock on the network.
+ *
+ *   Caution should be utilized.  Because the network lock is relinquished
+ *   during the wait, there could changes in the network state that occur
+ *   before the lock is recovered.  Your design should account for this
+ *   possibility.
+ *
+ * Input Parameters:
+ *   throttled - An indication of the IOB allocation is "throttled"
+ *
+ * Returned Value:
+ *   A pointer to the newly allocated IOB is returned on success.  NULL is
+ *   returned on any allocation failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_MM_IOB
+struct iob_s;  /* Forward reference */
+FAR struct iob_s *net_ioballoc(bool throttled);
+#endif
 
 /****************************************************************************
  * Name: net_setipid

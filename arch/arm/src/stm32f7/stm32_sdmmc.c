@@ -540,8 +540,6 @@ static int  stm32_recvlong(FAR struct sdio_dev_s *dev, uint32_t cmd,
               uint32_t rlong[4]);
 static int  stm32_recvshort(FAR struct sdio_dev_s *dev, uint32_t cmd,
               uint32_t *rshort);
-static int  stm32_recvnotimpl(FAR struct sdio_dev_s *dev, uint32_t cmd,
-              uint32_t *rnotimpl);
 
 /* EVENT handler */
 
@@ -950,7 +948,7 @@ static void stm32_configxfrints(struct stm32_dev_s *priv, uint32_t xfrmask)
   priv->xfrmask = xfrmask;
 
 #ifdef HAVE_SDMMC_SDIO_MODE
-  if (priv->sdiomode == true
+  if (priv->sdiomode == true)
     {
       sdmmc_putreg32(priv, priv->xfrmask | priv->waitmask | priv->sdiointmask,
                      STM32_SDMMC_MASK_OFFSET);
@@ -1272,14 +1270,14 @@ static void stm32_dataconfig(struct stm32_dev_s *priv, uint32_t timeout,
               STM32_SDMMC_DCTRL_DBLOCKSIZE_MASK);
 
 #ifdef HAVE_SDMMC_SDIO_MODE
-  if (priv->sdiomode==true
+  if (priv->sdiomode == true)
     {
       regval |=  (dctrl | STM32_SDMMC_DCTRL_DTEN | STM32_SDMMC_DCTRL_SDIOEN);
     }
   else
 #endif
     {
-      regval |=  (dctrl | STM32_SDMMC_DCTRL_DTEN );
+      regval |=  (dctrl | STM32_SDMMC_DCTRL_DTEN);
     }
 
   sdmmc_putreg32(priv, regval, STM32_SDMMC_DCTRL_OFFSET);
@@ -2674,17 +2672,6 @@ static int stm32_recvshort(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *r
       *rshort = sdmmc_getreg32(priv, STM32_SDMMC_RESP1_OFFSET);
     }
   return ret;
-}
-
-/* MMC responses not supported */
-
-static int stm32_recvnotimpl(FAR struct sdio_dev_s *dev, uint32_t cmd,
-                             uint32_t *rnotimpl)
-{
-  struct stm32_dev_s *priv = (struct stm32_dev_s *)dev;
-  sdmmc_putreg32(priv, STM32_SDMMC_RESPDONE_ICR | STM32_SDMMC_CMDDONE_ICR,
-                 STM32_SDMMC_ICR_OFFSET);
-  return -ENOSYS;
 }
 
 /****************************************************************************
