@@ -47,11 +47,15 @@ STATUS
     - There is a fragmentary NSH here.  However, it does not have any serial
       console selected and is not expected to be usable.
 
-   This logic has set on a branch for some time with little progress.  I
-   have decided to bring it into the master but only with the option to
-   select the STM32 H7 architecture dependent on CONFIG_EXPERMIMENTAL.
-   That should eliminate the possibility of anyone accidentally enabling
-   this know incomplete port.
+    This logic has set on a branch for some time with little progress.  I
+    have decided to bring it into the master but only with the option to
+    select the STM32 H7 architecture dependent on CONFIG_EXPERMIMENTAL.
+    That should eliminate the possibility of anyone accidentally enabling
+    this know incomplete port.
+
+  2018-07-12:  After several commits focused primarily on the H7 RCC and
+    serial driver, Mateusz Szafoni states the basic NSH configuration is
+    now functional.
 
 Serial Console
 ==============
@@ -151,4 +155,5 @@ Configurations
   nsh:
 
     This configuration provides a basic NuttShell configuration (NSH)
-    for the Nucleo-H743ZI.
+    for the Nucleo-H743ZI.  The default console is the VCOM on USART3.
+
