@@ -291,8 +291,10 @@ enum usbhost_trace1codes_e
   __TRACE1_BASEVALUE = 0,           /* This will force the first value to be 1 */
 
   MAX3421E_TRACE1_ALLOC_FAIL,
+#ifdef CONFIG_USBHOST_ASYNCH
   MAX3421E_TRACE1_ASYNCHSETUP_FAIL1,
   MAX3421E_TRACE1_ASYNCHSETUP_FAIL2,
+#endif
   MAX3421E_TRACE1_BAD_JKSTATE,
   MAX3421E_TRACE1_BADREVISION,
   MAX3421E_TRACE1_CHANALLOC_FAIL,
@@ -303,22 +305,26 @@ enum usbhost_trace1codes_e
   MAX3421E_TRACE1_DEVDISCONN4,
   MAX3421E_TRACE1_DEVDISCONN5,
   MAX3421E_TRACE1_DEVDISCONN6,
+  MAX3421E_TRACE1_DEVDISCONN7,
+  MAX3421E_TRACE1_DEVDISCONN8,
   MAX3421E_TRACE1_ENUMERATE_FAIL,
   MAX3421E_TRACE1_INSETUP_FAIL1,
+#ifdef CONFIG_USBHOST_ASYNCH
   MAX3421E_TRACE1_INSETUP_FAIL2,
   MAX3421E_TRACE1_INSETUP_FAIL3,
-  MAX3421E_TRACE1_INT_DISCONNECTED1,
-  MAX3421E_TRACE1_INT_DISCONNECTED2,
+#endif
   MAX3421E_TRACE1_IRQATTACH_FAIL,
   MAX3421E_TRACE1_OUTSETUP_FAIL1,
+#ifdef CONFIG_USBHOST_ASYNCH
   MAX3421E_TRACE1_OUTSETUP_FAIL2,
   MAX3421E_TRACE1_OUTSETUP_FAIL3,
-  MAX3421E_TRACE1_RECVDATA_FAIL1,
-  MAX3421E_TRACE1_RECVDATA_FAIL2,
-  MAX3421E_TRACE1_SENDDATA_FAIL1,
-  MAX3421E_TRACE1_SENDDATA_FAIL2,
+#endif
+  MAX3421E_TRACE1_RECVDATA_FAIL,
+  MAX3421E_TRACE1_RECVSTATUS_FAIL,
+  MAX3421E_TRACE1_SENDDATA_FAIL,
   MAX3421E_TRACE1_SENDSETUP_FAIL1,
   MAX3421E_TRACE1_SENDSETUP_FAIL2,
+  MAX3421E_TRACE1_SENDSTATUS_FAIL,
   MAX3421E_TRACE1_TRANSFER_FAILED1,
   MAX3421E_TRACE1_TRANSFER_FAILED2,
   MAX3421E_TRACE1_TRANSFER_FAILED3,
@@ -327,27 +333,35 @@ enum usbhost_trace1codes_e
   MAX3421E_VTRACE1_CANCEL,
   MAX3421E_VTRACE1_CONNECTED1,
   MAX3421E_VTRACE1_CONNECTED2,
-  MAX3421E_VTRACE1_DISCONNECTED,
+  MAX3421E_VTRACE1_CONNECTED3,
+  MAX3421E_VTRACE1_DISCONNECTED1,
+  MAX3421E_VTRACE1_DISCONNECTED2,
   MAX3421E_VTRACE1_ENUMERATE,
+#ifdef CONFIG_USBHOST_HUB
   MAX3421E_VTRACE1_HUB_CONNECTED,
+#endif
   MAX3421E_VTRACE1_INITIALIZED,
-  MAX3421E_VTRACE1_INT_CONNECTED,
-  MAX3421E_VTRACE1_INT_DISCONNECTED,
+#ifdef CONFIG_USBHOST_ASYNCH
   MAX3421E_VTRACE1_TRANSFER_COMPLETE,
+#endif
 
 #endif
 
   __TRACE1_NSTRINGS,                 /* Separates the format 1 from the format 2 strings */
 
 #ifdef HAVE_USBHOST_TRACE_VERBOSE
+#ifdef CONFIG_USBHOST_ASYNCH
   MAX3421E_VTRACE2_ASYNCH,
+#endif
   MAX3421E_VTRACE2_BULKIN,
   MAX3421E_VTRACE2_BULKOUT,
   MAX3421E_VTRACE2_CHANWAKEUP_IN,
   MAX3421E_VTRACE2_CHANWAKEUP_OUT,
   MAX3421E_VTRACE2_CTRLIN,
   MAX3421E_VTRACE2_CTRLOUT,
+#ifdef CONFIG_USBHOST_HUB
   MAX3421E_VTRACE2_HUB_CONNECTED,
+#endif
   MAX3421E_VTRACE2_INTRIN,
   MAX3421E_VTRACE2_INTROUT,
   MAX3421E_VTRACE2_ISOCIN,
@@ -357,7 +371,9 @@ enum usbhost_trace1codes_e
   MAX3421E_VTRACE2_STARTTRANSFER1,
   MAX3421E_VTRACE2_STARTTRANSFER2,
   MAX3421E_VTRACE2_TRANSFER,
+#ifdef CONFIG_USBHOST_ASYNCH
   MAX3421E_VTRACE2_XFRCOMPLETE,
+#endif
 #endif
   __TRACE2_NSTRINGS                  /* Total number of enumeration values */
 };
@@ -571,78 +587,94 @@ static inline int max3421e_hw_initialize(FAR struct max3421e_usbhost_s *priv);
  ****************************************************************************/
 
 #ifdef HAVE_USBHOST_TRACE
-/* TODO:  Improve format strings so that they are self-explanatory. */
+/* Trace/debug format strings. */
 
 static const struct max3421e_usbhost_trace_s g_trace1[TRACE1_NSTRINGS] =
 {
-  TRENTRY(MAX3421E_TRACE1_ALLOC_FAIL,         TR_FMT1, "MAX3421E_TRACE1_ALLOC_FAIL: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_ASYNCHSETUP_FAIL1,  TR_FMT1, "MAX3421E_TRACE1_ASYNCHSETUP_FAIL1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_ASYNCHSETUP_FAIL2,  TR_FMT1, "MAX3421E_TRACE1_ASYNCHSETUP_FAIL2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_BAD_JKSTATE,        TR_FMT1, "MAX3421E_TRACE1_BAD_JKSTATE: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_BADREVISION,        TR_FMT1, "MAX3421E_TRACE1_BADREVISION: %02x\n"),
-  TRENTRY(MAX3421E_TRACE1_CHANALLOC_FAIL,     TR_FMT1, "MAX3421E_TRACE1_CHANALLOC_FAIL: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_CHANWAIT_FAIL,      TR_FMT1, "MAX3421E_TRACE1_CHANWAIT_FAIL: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_DEVDISCONN1,        TR_FMT1, "MAX3421E_TRACE1_DEVDISCONN1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_DEVDISCONN2,        TR_FMT1, "MAX3421E_TRACE1_DEVDISCONN2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_DEVDISCONN3,        TR_FMT1, "MAX3421E_TRACE1_DEVDISCONN3: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_DEVDISCONN4,        TR_FMT1, "MAX3421E_TRACE1_DEVDISCONN4: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_DEVDISCONN5,        TR_FMT1, "MAX3421E_TRACE1_DEVDISCONN5: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_DEVDISCONN6,        TR_FMT1, "MAX3421E_TRACE1_DEVDISCONN6: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_ENUMERATE_FAIL,     TR_FMT1, "MAX3421E_TRACE1_ENUMERATE_FAIL: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_INSETUP_FAIL1,      TR_FMT1, "MAX3421E_TRACE1_INSETUP_FAIL1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_INSETUP_FAIL2,      TR_FMT1, "MAX3421E_TRACE1_INSETUP_FAIL2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_INSETUP_FAIL3,      TR_FMT1, "MAX3421E_TRACE1_INSETUP_FAIL3: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_INT_DISCONNECTED1,  TR_FMT1, "MAX3421E_TRACE1_INT_DISCONNECTED1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_INT_DISCONNECTED2,  TR_FMT1, "MAX3421E_TRACE1_INT_DISCONNECTED2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_IRQATTACH_FAIL,     TR_FMT1, "MAX3421E_TRACE1_IRQATTACH_FAIL: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_OUTSETUP_FAIL1,     TR_FMT1, "MAX3421E_TRACE1_OUTSETUP_FAIL1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_OUTSETUP_FAIL2,     TR_FMT1, "MAX3421E_TRACE1_OUTSETUP_FAIL2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_OUTSETUP_FAIL3,     TR_FMT1, "MAX3421E_TRACE1_OUTSETUP_FAIL3: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_RECVDATA_FAIL1,     TR_FMT1, "MAX3421E_TRACE1_RECVDATA_FAIL1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_RECVDATA_FAIL2,     TR_FMT1, "MAX3421E_TRACE1_RECVDATA_FAIL2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_SENDDATA_FAIL1,     TR_FMT1, "MAX3421E_TRACE1_SENDDATA_FAIL1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_SENDDATA_FAIL2,     TR_FMT1, "MAX3421E_TRACE1_SENDDATA_FAIL2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_SENDSETUP_FAIL1,    TR_FMT1, "MAX3421E_TRACE1_SENDSETUP_FAIL1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_SENDSETUP_FAIL2,    TR_FMT1, "MAX3421E_TRACE1_SENDSETUP_FAIL2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_TRANSFER_FAILED1,   TR_FMT1, "MAX3421E_TRACE1_TRANSFER_FAILED1: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_TRANSFER_FAILED2,   TR_FMT1, "MAX3421E_TRACE1_TRANSFER_FAILED2: %u\n"),
-  TRENTRY(MAX3421E_TRACE1_TRANSFER_FAILED3,   TR_FMT1, "MAX3421E_TRACE1_TRANSFER_FAILED3: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_ALLOC_FAIL,        TR_FMT1, "INIT: Failed to allocate state structure: %u\n"),
+#ifdef CONFIG_USBHOST_ASYNCH
+  TRENTRY(MAX3421E_TRACE1_ASYNCHSETUP_FAIL1, TR_FMT1, "OUT: Asynch setup failed: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_ASYNCHSETUP_FAIL2, TR_FMT1, "IN: Asynch setup failed: %u\n"),
+#endif
+  TRENTRY(MAX3421E_TRACE1_BAD_JKSTATE,       TR_FMT1, "CONNECT: Bad JK state: %02x\n"),
+  TRENTRY(MAX3421E_TRACE1_BADREVISION,       TR_FMT1, "INIT: Bad revision number:  %02x\n"),
+  TRENTRY(MAX3421E_TRACE1_CHANALLOC_FAIL,    TR_FMT1, "EPALLOC: Channel allocation failed: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_CHANWAIT_FAIL,     TR_FMT1, "OUT: Channel wait failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_DEVDISCONN1,       TR_FMT1, "OUT: Disconnected during wait: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_DEVDISCONN2,       TR_FMT1, "CTRL: Disconnected during SETUP phase: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_DEVDISCONN3,       TR_FMT1, "CTRL OUT: Disconnected during DATA phase: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_DEVDISCONN4,       TR_FMT1, "CTRL IN: Disconnected during DATA phase: %u"),
+  TRENTRY(MAX3421E_TRACE1_DEVDISCONN5,       TR_FMT1, "IN: Disconnected during wait: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_DEVDISCONN6,       TR_FMT1, "CONNECT: Device disconnect #1: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_DEVDISCONN7,       TR_FMT1, "CONNECT: Device disconnect #2: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_DEVDISCONN8,       TR_FMT1, "CONNECT: Device disconnect #3: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_ENUMERATE_FAIL,    TR_FMT1, "CONNECT: Enumeration failed: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_INSETUP_FAIL1,     TR_FMT1, "CTRL IN: SETUP phase failure: %u\n"),
+#ifdef CONFIG_USBHOST_ASYNCH
+  TRENTRY(MAX3421E_TRACE1_INSETUP_FAIL2,     TR_FMT1, "CTRL IN: Asynch SETUP phase failure #1: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_INSETUP_FAIL3,     TR_FMT1, "CTRL IN: Asynch SETUP phase failure #2: %u\n"),
+#endif
+  TRENTRY(MAX3421E_TRACE1_IRQATTACH_FAIL,    TR_FMT1, "INIT: Failed to attach interrupt: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_OUTSETUP_FAIL1,    TR_FMT1, "CTRL OUT: SETUP phase failure: %u\n"),
+#ifdef CONFIG_USBHOST_ASYNCH
+  TRENTRY(MAX3421E_TRACE1_OUTSETUP_FAIL2,    TR_FMT1, "CTRL OUT: Asynch SETUP phase failure #1: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_OUTSETUP_FAIL3,    TR_FMT1, "CTRL OUT: Asynch SETUP phase failure #2: %u\n"),
+#endif
+  TRENTRY(MAX3421E_TRACE1_RECVDATA_FAIL,     TR_FMT1, "CTRL IN: Data phase failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_RECVSTATUS_FAIL,   TR_FMT1, "CTRL OUT: Status phase failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_SENDDATA_FAIL,     TR_FMT1, "CTRL OUT: Data phase failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_SENDSETUP_FAIL1,   TR_FMT1, "CTRL OUT: SETUP phase failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_SENDSETUP_FAIL2,   TR_FMT1, "CTRL IN: SETUP phase failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_SENDSTATUS_FAIL,   TR_FMT1, "CTRL IN: Status phase failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_TRANSFER_FAILED1,  TR_FMT1, "OUT: Transfer wait returned failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_TRANSFER_FAILED2,  TR_FMT1, "CTRL: SETUP wait returned failure: %u\n"),
+  TRENTRY(MAX3421E_TRACE1_TRANSFER_FAILED3,  TR_FMT1, "IN: Transfer wait returned failure: %u\n"),
 
 #ifdef HAVE_USBHOST_TRACE_VERBOSE
-  TRENTRY(MAX3421E_VTRACE1_CANCEL,            TR_FMT1, "MAX3421E_VTRACE1_CANCEL: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_CONNECTED1,        TR_FMT1, "MAX3421E_VTRACE1_CONNECTED1: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_CONNECTED2,        TR_FMT1, "MAX3421E_VTRACE1_CONNECTED2: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_DISCONNECTED,      TR_FMT1, "MAX3421E_VTRACE1_DISCONNECTED: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_ENUMERATE,         TR_FMT1, "MAX3421E_VTRACE1_ENUMERATE: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_HUB_CONNECTED,     TR_FMT1, "MAX3421E_VTRACE1_HUB_CONNECTED: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_INITIALIZED,       TR_FMT1, "MAX3421E_VTRACE1_INITIALIZED: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_INT_CONNECTED,     TR_FMT1, "MAX3421E_VTRACE1_INT_CONNECTED: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_INT_DISCONNECTED,  TR_FMT1, "MAX3421E_VTRACE1_INT_DISCONNECTED: %u\n"),
-  TRENTRY(MAX3421E_VTRACE1_TRANSFER_COMPLETE, TR_FMT1, "MAX3421E_VTRACE1_TRANSFER_COMPLETE: %u\n"),
+  TRENTRY(MAX3421E_VTRACE1_CANCEL,           TR_FMT1, "Transfer canceled: EP%u\n"),
+  TRENTRY(MAX3421E_VTRACE1_CONNECTED1,       TR_FMT1, "CONNECT: Connection event: %u\n"),
+  TRENTRY(MAX3421E_VTRACE1_CONNECTED2,       TR_FMT1, "CONNECT: Connection change detected: %u\n"),
+  TRENTRY(MAX3421E_VTRACE1_CONNECTED3,       TR_FMT1, "CONNECT: Connected: %u\n"),
+  TRENTRY(MAX3421E_VTRACE1_DISCONNECTED1,    TR_FMT1, "CONNECT: Disconnected: %u\n"),
+  TRENTRY(MAX3421E_VTRACE1_DISCONNECTED2,    TR_FMT1, "CONNECT: Disconnect detected: %u\n"),
+  TRENTRY(MAX3421E_VTRACE1_ENUMERATE,        TR_FMT1, "ENUMERATE: Start: %u\n"),
+#ifdef CONFIG_USBHOST_HUB
+  TRENTRY(MAX3421E_VTRACE1_HUB_CONNECTED,    TR_FMT1, "CONNECT: Hub connected: %u\n"),
+#endif
+  TRENTRY(MAX3421E_VTRACE1_INITIALIZED,      TR_FMT1, "INIT: Hardware initialized: %u\n"),
+#ifdef CONFIG_USBHOST_ASYNCH
+ TRENTRY(MAX3421E_VTRACE1_TRANSFER_COMPLETE, TR_FMT1, "OUT: Asynch transfer complete: %u\n"),
+#endif
 #endif
 };
 
 static const struct max3421e_usbhost_trace_s g_trace2[TRACE2_NSTRINGS] =
 {
 #ifdef HAVE_USBHOST_TRACE_VERBOSE
-  TRENTRY(MAX3421E_VTRACE2_ASYNCH,            TR_FMT2, "MAX3421E_VTRACE2_ASYNCH: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_BULKIN,            TR_FMT2, "MAX3421E_VTRACE2_BULKIN: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_BULKOUT,           TR_FMT2, "MAX3421E_VTRACE2_BULKOUT: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_CHANWAKEUP_IN,     TR_FMT2, "MAX3421E_VTRACE2_CHANWAKEUP_IN: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_CHANWAKEUP_OUT,    TR_FMT2, "MAX3421E_VTRACE2_CHANWAKEUP_OUT: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_CTRLIN,            TR_FMT2, "MAX3421E_VTRACE2_CTRLIN: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_CTRLOUT,           TR_FMT2, "MAX3421E_VTRACE2_CTRLOUT: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_HUB_CONNECTED,     TR_FMT2, "MAX3421E_VTRACE2_HUB_CONNECTED: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_INTRIN,            TR_FMT2, "MAX3421E_VTRACE2_INTRIN: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_INTROUT,           TR_FMT2, "MAX3421E_VTRACE2_INTROUT: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_ISOCIN,            TR_FMT2, "MAX3421E_VTRACE2_ISOCIN: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_ISOCOUT,           TR_FMT2, "MAX3421E_VTRACE2_ISOCOUT: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_RECVSTATUS,        TR_FMT2, "MAX3421E_VTRACE2_RECVSTATUS: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_SENDSTATUS,        TR_FMT2, "MAX3421E_VTRACE2_SENDSTATUS: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_STARTTRANSFER1,    TR_FMT2, "MAX3421E_VTRACE2_STARTTRANSFER1: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_STARTTRANSFER2,    TR_FMT2, "MAX3421E_VTRACE2_STARTTRANSFER2: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_TRANSFER,          TR_FMT2, "MAX3421E_VTRACE2_TRANSFER: %u, %u\n"),
-  TRENTRY(MAX3421E_VTRACE2_XFRCOMPLETE,       TR_FMT2, "MAX3421E_VTRACE2_XFRCOMPLETE: %u, %u\n"),
+#ifdef CONFIG_USBHOST_ASYNCH
+  TRENTRY(MAX3421E_VTRACE2_ASYNCH,           TR_FMT2, "ASYNCH: Transfer started: EP%u len=%u\n"),
+#endif
+  TRENTRY(MAX3421E_VTRACE2_BULKIN,           TR_FMT2, "BULK IN:  SETUP: Chan%u len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_BULKOUT,          TR_FMT2, "BULK OUT:  SETUP: Chan%u len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_CHANWAKEUP_IN,    TR_FMT2, "IN: Channel wakeup: Chan%, result=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_CHANWAKEUP_OUT,   TR_FMT2, "OUT: Channel wakeup: Chan%u result=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_CTRLIN,           TR_FMT2, "CTRL IN: Start: type=%u req=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_CTRLOUT,          TR_FMT2, "CTRL OUT: Start: type=%u req=%u\n"),
+#ifdef CONFIG_USBHOST_HUB
+  TRENTRY(MAX3421E_VTRACE2_HUB_CONNECTED,    TR_FMT2, "CONNECT: Hub connected: port=%u, connected=%u\n"),
+#endif
+  TRENTRY(MAX3421E_VTRACE2_INTRIN,           TR_FMT2, "INTR IN: SETUP: Chan%u len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_INTROUT,          TR_FMT2, "INTR OUT: SETUP: Chan%u len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_ISOCIN,           TR_FMT2, "ISOC IN: SETUP: Chan%u len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_ISOCOUT,          TR_FMT2, "ISOC OUT: SETUP: Chan%u len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_RECVSTATUS,       TR_FMT2, "CTRL OUT: Receive status: Chan% len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_SENDSTATUS,       TR_FMT2, "CTRL IN: Send status: Chan% len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_STARTTRANSFER1,   TR_FMT2, "OUT: Send start: Chan% len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_STARTTRANSFER2,   TR_FMT2, "IN: Receive start: Chan% len=%u\n"),
+  TRENTRY(MAX3421E_VTRACE2_TRANSFER,         TR_FMT2, "Transfer start: EP%u len=%u\n"),
+#ifdef CONFIG_USBHOST_ASYNCH
+  TRENTRY(MAX3421E_VTRACE2_XFRCOMPLETE,      TR_FMT2, "ASYNCH: Transfer complete: EP%u len=%u\n"),
+#endif
 #endif
 };
 #endif
@@ -915,7 +947,7 @@ static inline void max3421e_modifyreg(FAR struct max3421e_usbhost_s *priv,
 {
   uint8_t value;
 
-  value = max3421e_getreg(priv, addr);
+  value  = max3421e_getreg(priv, addr);
   value &= ~clrbits;
   value |= setbits;
   max3421e_putreg(priv, addr, value);
@@ -1753,9 +1785,9 @@ static ssize_t max3421e_out_transfer(FAR struct max3421e_usbhost_s *priv,
            */
 
           elapsed = clock_systimer() - start;
-          if (ret != -EAGAIN ||                  /* Not a NAK condition OR */
+          if (ret != -EAGAIN ||                     /* Not a NAK condition OR */
               elapsed >= MAX3421E_DATANAK_DELAY ||  /* Timeout has elapsed OR */
-              priv->xfrd > 0)                    /* Data has been partially transferred */
+              priv->xfrd > 0)                       /* Data has been partially transferred */
             {
               /* Break out and return the error */
 
@@ -2819,7 +2851,7 @@ static int max3421e_in_asynch(FAR struct max3421e_usbhost_s *priv,
 
 static void max3421e_connect_event(FAR struct max3421e_usbhost_s *priv)
 {
-  /* We we previously disconnected? */
+  /* Were we previously disconnected? */
 
   if (!priv->connected)
     {
@@ -2857,7 +2889,7 @@ static void max3421e_disconnect_event(FAR struct max3421e_usbhost_s *priv)
     {
       /* Yes.. then we no longer connected */
 
-      usbhost_vtrace1(MAX3421E_VTRACE1_DISCONNECTED, 0);
+      usbhost_vtrace1(MAX3421E_VTRACE1_DISCONNECTED1, 0);
 
       /* Are we bound to a class driver? */
 
@@ -2910,11 +2942,11 @@ static int max3421e_connected(FAR struct max3421e_usbhost_s *priv)
   ret = max3421e_startsof(priv);
   if (ret < 0)
     {
-      usbhost_trace1(MAX3421E_TRACE1_INT_DISCONNECTED1, -ret);
+      usbhost_trace1(MAX3421E_TRACE1_DEVDISCONN7, -ret);
       return ret;
     }
 
-  usbhost_vtrace1(MAX3421E_VTRACE1_INT_CONNECTED, 0);
+  usbhost_vtrace1(MAX3421E_VTRACE1_CONNECTED3, 0);
 
   /* Were we previously disconnected? */
 
@@ -2932,7 +2964,7 @@ static int max3421e_connected(FAR struct max3421e_usbhost_s *priv)
 
 static void max3421e_disconnected(FAR struct max3421e_usbhost_s *priv)
 {
-  usbhost_vtrace1(MAX3421E_VTRACE1_INT_DISCONNECTED, 0);
+  usbhost_vtrace1(MAX3421E_VTRACE1_DISCONNECTED2, 0);
 
   /* Disable the SOF generator */
 
@@ -3322,7 +3354,7 @@ static int max3421e_getspeed(FAR struct max3421e_usbhost_s *priv,
   ret = max3421e_startsof(priv);
   if (ret < 0)
     {
-      usbhost_trace1(MAX3421E_TRACE1_INT_DISCONNECTED2, -ret);
+      usbhost_trace1(MAX3421E_TRACE1_DEVDISCONN8, -ret);
     }
 
   return ret;
@@ -3844,7 +3876,7 @@ static int max3421e_ctrlin(FAR struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
               ret = max3421e_ctrl_recvdata(priv, chan, buffer, buflen);
               if (ret < 0)
                 {
-                  usbhost_trace1(MAX3421E_TRACE1_RECVDATA_FAIL2, -ret);
+                  usbhost_trace1(MAX3421E_TRACE1_RECVDATA_FAIL, -ret);
                 }
             }
 
@@ -3861,7 +3893,7 @@ static int max3421e_ctrlin(FAR struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
                   return OK;
                 }
 
-              usbhost_trace1(MAX3421E_TRACE1_SENDDATA_FAIL1, -ret);
+              usbhost_trace1(MAX3421E_TRACE1_SENDSTATUS_FAIL, -ret);
             }
 
           /* Get the elapsed time (in frames) */
@@ -3939,7 +3971,7 @@ static int max3421e_ctrlout(FAR struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
               ret = max3421e_ctrl_senddata(priv, chan, NULL, 0);
               if (ret < 0)
                 {
-                  usbhost_trace1(MAX3421E_TRACE1_SENDDATA_FAIL2, -ret);
+                  usbhost_trace1(MAX3421E_TRACE1_SENDDATA_FAIL, -ret);
                 }
             }
 
@@ -3956,7 +3988,7 @@ static int max3421e_ctrlout(FAR struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
                   return OK;
                 }
 
-              usbhost_trace1(MAX3421E_TRACE1_RECVDATA_FAIL1, -ret);
+              usbhost_trace1(MAX3421E_TRACE1_RECVSTATUS_FAIL, -ret);
             }
 
           /* Get the elapsed time (in frames) */
@@ -4368,7 +4400,7 @@ static int max3421e_startsof(FAR struct max3421e_usbhost_s *priv)
       case (USBHOST_HRSL_KSTATUS | USBHOST_HRSL_JSTATUS):
         /* Invalid state */
 
-        usbhost_trace1(MAX3421E_TRACE1_BAD_JKSTATE, 0);
+        usbhost_trace1(MAX3421E_TRACE1_BAD_JKSTATE, regval);
 
         /* Fall through */
 
@@ -4566,7 +4598,29 @@ static inline int max3421e_hw_initialize(FAR struct max3421e_usbhost_s *priv)
 
   max3421e_lock(priv);
 
-  /* Reset the MAX3421E by toggling the CHIPRES bit in the USBCTRL register. */
+  /* Configure full duplex SPI, level or edge-active, rising- or falling
+   * edge interrupt.
+   *
+   * NOTE:  Initially, the MAX3421E operations in half-duplex mode.  MISO is
+   * tristated and there is no status response to commands.  Writes are not
+   * effected:  The MISO pin continues to be high impedance and the master
+   * continues to drive MOSI.
+   *
+   * For reads, however, after the 8-bit command, the max3421e starts driving
+   * the MOSI pin.  The  master must turn off its driver to the MOSI pin to
+   * avoid contention.
+   */
+
+  regval  = priv->lower->intconfig;
+  regval &= (USBHOST_PINCTL_INTLEVEL | USBHOST_PINCTL_POSINT);
+  regval |= USBHOST_PINCTL_FDUPSPI;
+  max3421e_putreg(priv, MAX3421E_USBHOST_PINCTL, regval);
+
+  /* Reset the MAX3421E by toggling the CHIPRES bit in the USBCTRL register.
+   *
+   * NOTE: The bits that control the SPI interface are not changed by
+   * CHIPRES: FDUPSPI, INTLEVEL, and POSINT.
+   */
 
   max3421e_putreg(priv, MAX3421E_USBHOST_USBCTL, USBHOST_USBCTL_CHIPRES);
   max3421e_putreg(priv, MAX3421E_USBHOST_USBCTL, 0);
@@ -4579,7 +4633,7 @@ static inline int max3421e_hw_initialize(FAR struct max3421e_usbhost_s *priv)
     }
 
   /* Disable interrupts, clear pending interrupts, and reset the interrupt
-   * state
+   * state.
    */
 
   max3421e_modifyreg(priv, MAX3421E_USBHOST_CPUCTL, USBHOST_CPUCTL_IE, 0);
@@ -4587,15 +4641,6 @@ static inline int max3421e_hw_initialize(FAR struct max3421e_usbhost_s *priv)
   max3421e_putreg(priv, MAX3421E_USBHOST_HIRQ, 0xff);
 
   priv->irqset  = 0;
-
-  /* Configure full duplex SPI, level or edge-active, rising- or falling
-   * edge interrupt.
-   */
-
-  regval  = priv->lower->intconfig;
-  regval &= (USBHOST_PINCTL_INTLEVEL | USBHOST_PINCTL_POSINT);
-  regval |= USBHOST_PINCTL_FDUPSPI;
-  max3421e_putreg(priv, MAX3421E_USBHOST_PINCTL, regval);
 
   /* Configure as full-speed USB host */
 
@@ -4673,12 +4718,13 @@ max3421e_usbhost_initialize(FAR const struct max3421e_lowerhalf_s *lower)
   int ret;
 
   DEBUGASSERT(lower != NULL && lower->spi != NULL && lower->attach != NULL &&
-              lower->attach != NULL && lower->acknowledge != NULL);
+              lower->attach != NULL && lower->acknowledge != NULL &&
+              lower->power != NULL);
 
   /* Allocate and instance of the MAX4321E state structure */
 
   alloc = (FAR struct usbhost_alloc_s *)
-    kmm_malloc(sizeof(struct usbhost_alloc_s));
+    kmm_zalloc(sizeof(struct usbhost_alloc_s));
 
   if (alloc < 0)
     {
@@ -4705,7 +4751,15 @@ max3421e_usbhost_initialize(FAR const struct max3421e_lowerhalf_s *lower)
       goto errout_with_alloc;
     }
 
-  /* Enable interrupts at the interrupt controller */
+  /* Drive Vbus +5V (the smoke test).
+   *
+   * REVISIT: Should be done elsewhere in order to support device self-
+   * powered mode?  How does the MAX3421E VBUS detect logic work?
+   */
+
+  lower->power(lower, true);
+
+  /* Enable host interrupts */
 
   lower->enable(lower, true);
   return &conn->conn;

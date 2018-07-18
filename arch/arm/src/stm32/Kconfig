@@ -1422,6 +1422,7 @@ config STM32_LOWDENSITY
 config STM32_STM32F20XX
 	bool
 	default n
+	select STM32_HAVE_IOCOMPENSATION
 
 config STM32_STM32F205
 	bool
@@ -1570,6 +1571,7 @@ config STM32_STM32F4XXX
 	default n
 	select STM32_HAVE_SPI2
 	select STM32_HAVE_I2C2
+	select STM32_HAVE_IOCOMPENSATION
 
 config STM32_STM32F401xBC
 	bool
@@ -1896,6 +1898,10 @@ config STM32_HAVE_OTGFS
 	default n
 
 config STM32_HAVE_FSMC
+	bool
+	default n
+
+config STM32_HAVE_IOCOMPENSATION
 	bool
 	default n
 
@@ -2478,16 +2484,22 @@ config STM32_OPAMP4
 	default n
 	depends on STM32_HAVE_OPAMP4
 
+config STM32_USBHOST
+	bool
+	default n
+
 config STM32_OTGFS
 	bool "OTG FS"
 	default n
 	depends on STM32_HAVE_OTGFS
+	select STM32_USBHOST
 	select USBHOST_HAVE_ASYNCH if USBHOST
 
 config STM32_OTGHS
 	bool "OTG HS"
 	default n
 	depends on STM32_STM32F205 || STM32_STM32F207 || STM32_STM32F4XXX || STM32_STM32F429
+	select STM32_USBHOST
 	select USBHOST_HAVE_ASYNCH if USBHOST
 
 config STM32_PWR
@@ -2745,6 +2757,19 @@ config STM32_NOEXT_VECTORS
 	---help---
 		Sometimes you may not need any Vector support beyond SysTick
 		and wish to save memory. This applies only to ARMv7-M architectures.
+
+config STM32_SYSCFG_IOCOMPENSATION
+	bool "SYSCFG I/O Compensation"
+	default n
+	depends on STM32_HAVE_IOCOMPENSATION
+	---help---
+		By default the I/O compensation cell is not used. However when the I/O
+		output buffer speed is configured in 50 MHz or 100 MHz mode, it is
+		recommended to use the compensation cell for slew rate control on I/O
+		tf(IO)out)/tr(IO)out commutation to reduce the I/O noise on power supply.
+
+		The I/O compensation cell can be used only when the supply voltage ranges
+		from 2.4 to 3.6 V.
 
 menu "Alternate Pin Mapping"
 
@@ -7971,46 +7996,41 @@ config STM32_ETHMAC_REGDEBUG
 endmenu # Ethernet MAC configuration
 
 menu "USB FS Host Configuration"
+	depends on STM32_OTGFS
 
 config STM32_OTGFS_RXFIFO_SIZE
 	int "Rx Packet Size"
 	default 128
-	depends on USBHOST && STM32_OTGFS
 	---help---
 		Size of the RX FIFO in 32-bit words. Default 128 (512 bytes)
 
 config STM32_OTGFS_NPTXFIFO_SIZE
 	int "Non-periodic Tx FIFO Size"
 	default 96
-	depends on USBHOST && STM32_OTGFS
 	---help---
 		Size of the non-periodic Tx FIFO in 32-bit words.  Default 96 (384 bytes)
 
 config STM32_OTGFS_PTXFIFO_SIZE
 	int "Periodic Tx FIFO size"
 	default 128
-	depends on USBHOST && STM32_OTGFS
 	---help---
 		Size of the periodic Tx FIFO in 32-bit words.  Default 96 (384 bytes)
 
 config STM32_OTGFS_DESCSIZE
 	int "Descriptor Size"
 	default 128
-	depends on USBHOST && STM32_OTGFS
 	---help---
 		Maximum size to allocate for descriptor memory descriptor.  Default: 128
 
 config STM32_OTGFS_SOFINTR
 	bool "Enable SOF interrupts"
 	default n
-	depends on USBHOST && STM32_OTGFS
 	---help---
 		Enable SOF interrupts.  Why would you ever want to do that?
 
 config STM32_OTGFS_VBUS_CONTROL
 	bool "Enable VBus Control"
 	default y
-	depends on USBHOST && STM32_OTGFS
 	---help---
 		Enable VBus control.  Used when the board has VBus sensing and
 		a power switch for the OTG FS USB port.  Disable this config
@@ -8019,39 +8039,35 @@ config STM32_OTGFS_VBUS_CONTROL
 endmenu
 
 menu "USB HS Host Configuration"
+	depends on STM32_OTGHS
 
 config STM32_OTGHS_RXFIFO_SIZE
 	int "Rx Packet Size"
 	default 128
-	depends on USBHOST && STM32_OTGHS
 	---help---
 		Size of the RX FIFO in 32-bit words. Default 128 (512 bytes)
 
 config STM32_OTGHS_NPTXFIFO_SIZE
 	int "Non-periodic Tx FIFO Size"
 	default 96
-	depends on USBHOST && STM32_OTGHS
 	---help---
 		Size of the non-periodic Tx FIFO in 32-bit words.  Default 96 (384 bytes)
 
 config STM32_OTGHS_PTXFIFO_SIZE
 	int "Periodic Tx FIFO size"
 	default 128
-	depends on USBHOST && STM32_OTGHS
 	---help---
 		Size of the periodic Tx FIFO in 32-bit words.  Default 96 (384 bytes)
 
 config STM32_OTGHS_DESCSIZE
 	int "Descriptor Size"
 	default 128
-	depends on USBHOST && STM32_OTGHS
 	---help---
 		Maximum size to allocate for descriptor memory descriptor.  Default: 128
 
 config STM32_OTGHS_SOFINTR
 	bool "Enable SOF interrupts"
 	default n
-	depends on USBHOST && STM32_OTGHS
 	---help---
 		Enable SOF interrupts.  Why would you ever want to do that?
 
@@ -8062,14 +8078,14 @@ menu "USB Host Debug Configuration"
 config STM32_USBHOST_REGDEBUG
 	bool "Register-Level Debug"
 	default n
-	depends on USBHOST && DEBUG_USB_INFO && (STM32_OTGFS || STM32_OTGHS)
+	depends on STM32_USBHOST && DEBUG_USB_INFO
 	---help---
 		Enable very low-level register access debug.
 
 config STM32_USBHOST_PKTDUMP
 	bool "Packet Dump Debug"
 	default n
-	depends on USBHOST && DEBUG_USB_INFO && (STM32_OTGFS || STM32_OTGHS)
+	depends on STM32_USBHOST && DEBUG_USB_INFO
 	---help---
 		Dump all incoming and outgoing USB packets.
 
