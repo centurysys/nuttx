@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/mmcsd/mmcsd_sdio.c
  *
- *   Copyright (C) 2009-2013, 2016-2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2009-2013, 2016-2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,7 +96,7 @@
 
 #define MMCSD_SCR_DATADELAY     (100)      /* Wait up to 100MS to get SCR */
 #define MMCSD_BLOCK_RDATADELAY  (100)      /* Wait up to 100MS to get one data block */
-#define MMCSD_BLOCK_WDATADELAY  (200)      /* Wait up to 200MS to write one data block */
+#define MMCSD_BLOCK_WDATADELAY  (230)      /* Wait up to 230MS to write one data block */
 
 #define IS_EMPTY(priv) (priv->type == MMCSD_CARDTYPE_UNKNOWN)
 
@@ -127,7 +127,7 @@ struct mmcsd_state_s
 
   uint8_t mode:2;                  /* (See MMCSDMODE_* definitions) */
   uint8_t type:4;                  /* Card type (See MMCSD_CARDTYPE_* definitions) */
-  uint8_t buswidth:4;              /* Bus widthes supported (SD only) */
+  uint8_t buswidth:4;              /* Bus widths supported (SD only) */
   sdio_capset_t caps;              /* SDIO driver capabilities/limitations */
   uint16_t selblocklen;            /* The currently selected block length */
   uint16_t rca;                    /* Relative Card Address (RCS) register */
@@ -143,6 +143,7 @@ struct mmcsd_state_s
 #else
   uint32_t capacity;               /* Total capacity of volume (Limited to 4Gb) */
 #endif
+
   /* Read-ahead and write buffering support */
 
 #if defined(CONFIG_DRVR_WRITEBUFFER) || defined(CONFIG_DRVR_READAHEAD)
@@ -1003,6 +1004,10 @@ static int mmcsd_getR1(FAR struct mmcsd_state_s *priv, FAR uint32_t *r1)
            */
 
           priv->locked = ((localR1 & MMCSD_R1_CARDISLOCKED) != 0);
+
+          /* We must tell someone which error bits were set. */
+
+          fwarn("WARNING: mmcsd_getR1 returned errors: R1=%08x\n", localR1);
           ret = -EIO;
         }
       else
@@ -1797,6 +1802,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
   off_t  offset;
   size_t nbytes;
   int ret;
+  int evret = OK;
 
   finfo("startblock=%d nblocks=%d\n", startblock, nblocks);
   DEBUGASSERT(priv != NULL && buffer != NULL && nblocks > 1);
@@ -1866,10 +1872,10 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
       return ret;
     }
 
-  /* If this is an SD card, then send ACMD23 (SET_WR_BLK_COUNT) just before
-   * sending CMD25 (WRITE_MULTIPLE_BLOCK).  This sets the number of write
-   * blocks to be pre-erased and might make the following multiple block write
-   * command faster.
+  /* If this is an SD card, then send ACMD23 (SET_WR_BLK_ERASE_COUNT) just
+   * before sending CMD25 (WRITE_MULTIPLE_BLOCK).  This sets the number of
+   * write blocks to be pre-erased and might make the following multiple block
+   * write command faster.
    */
 
   if (IS_SD(priv->type))
@@ -1884,9 +1890,11 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
           return ret;
         }
 
-      /* Send CMD23, SET_WR_BLK_COUNT, and verify that good R1 status is returned */
+      /* Send CMD23, SET_WR_BLK_ERASE_COUNT, and verify that good R1 status
+       * is returned.
+       */
 
-      mmcsd_sendcmdpoll(priv, SD_ACMD23, 0);
+      mmcsd_sendcmdpoll(priv, SD_ACMD23, nblocks);
       ret = mmcsd_recvR1(priv, SD_ACMD23);
       if (ret != OK)
         {
@@ -1961,17 +1969,27 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
 
   /* Wait for the transfer to complete */
 
-  ret = mmcsd_eventwait(priv, SDIOWAIT_TIMEOUT | SDIOWAIT_ERROR,
-                        nblocks * MMCSD_BLOCK_WDATADELAY);
-  if (ret != OK)
+  evret = mmcsd_eventwait(priv, SDIOWAIT_TIMEOUT | SDIOWAIT_ERROR,
+                          nblocks * MMCSD_BLOCK_WDATADELAY);
+  if (evret != OK)
     {
-      ferr("ERROR: CMD25 transfer failed: %d\n", ret);
-      return ret;
+      ferr("ERROR: CMD25 transfer failed: %d\n", evret);
+
+      /* If we return from here, we probably leave the sd-card in
+       * Receive-data State. Instead, we will remember that
+       * an error occurred and try to execute the STOP_TRANSMISSION
+       * to put the sd-card back into Transfer State.
+       */
     }
 
   /* Send STOP_TRANSMISSION */
 
   ret = mmcsd_stoptransmission(priv);
+  if (evret != OK)
+    {
+      return evret;
+    }
+
   if (ret != OK)
     {
       ferr("ERROR: mmcsd_stoptransmission failed: %d\n", ret);
@@ -3397,3 +3415,4 @@ errout_with_alloc:
 }
 
 #endif /* defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO) */
+

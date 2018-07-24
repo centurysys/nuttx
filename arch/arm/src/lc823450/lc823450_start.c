@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/lc823450/lc823450_start.c
  *
- *   Copyright 2014, 2015, 2016, 2017 Sony Video & Sound Products Inc.
+ *   Copyright 2014, 2015, 2016, 2017, 2018 Sony Video & Sound Products Inc.
  *   Author: Masatoshi Tateishi <Masatoshi.Tateishi@jp.sony.com>
  *   Author: Masayuki Ishikawa <Masayuki.Ishikawa@jp.sony.com>
  *   Author: Yasuhiro Osaki <Yasuhiro.Osaki@jp.sony.com>
@@ -61,14 +61,14 @@
 #include <arch/board/board.h>
 
 #ifdef CONFIG_LC823450_SPIFI
-#  include "lc823450_spifi.h"
+#  include "lc823450_spifi2.h"
 #endif
 #include "lc823450_lowputc.h"
 #include "lc823450_clockconfig.h"
 #include "lc823450_syscontrol.h"
 
-#ifdef CONFIG_ARMV7M_MPU
-#  include "lc823450_mpuinit.h"
+#ifdef CONFIG_BUILD_PROTECTED
+#  include "lc823450_userspace.h"
 #endif
 
 #include "lc823450_gpio.h"
@@ -349,10 +349,10 @@ void __start(void)
    * segments.
    */
 
-#ifdef CONFIG_ARMV7M_MPU
-  lc823450_mpuinitialize();
-  showprogress('E');
+#ifdef CONFIG_BUILD_PROTECTED
+  lc823450_userspace();
 #endif
+  showprogress('E');
 
 #ifdef CONFIG_MM_MULTIHEAP
   lc823450_sram_initialize();
