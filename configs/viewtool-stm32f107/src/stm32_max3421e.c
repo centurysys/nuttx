@@ -190,15 +190,20 @@ static void max3421e_enable(FAR const struct max3421e_lowerhalf_s *lower,
     (FAR struct viewtool_max3421elower_s *)lower;
   irqstate_t flags;
 
+  uinfo("enable=%u handler=%p\n", enable, priv->handler);
+
   /* Attach and enable, or detach and disable.  Enabling and disabling GPIO
    * interrupts is a multi-step process so the safest thing is to keep
    * interrupts disabled during the reconfiguration.
    */
 
   flags = enter_critical_section();
-  if (enable && priv->handler)
+  if (enable && priv->handler != NULL)
     {
-      /* Configure the EXTI interrupt using the saved handler */
+      /* Configure the EXTI interrupt using the saved handler to generate
+       * an interrupt when a falling edge is detected on the INT pin.  An
+       * event is also generated (but not used).
+       */
 
       (void)stm32_gpiosetevent(GPIO_MAX3421E_INT, false, true, true,
                                priv->handler, priv->arg);
@@ -377,7 +382,14 @@ int stm32_max3421e_setup(void)
 #endif
 
 #ifdef CONFIG_VIEWTOOL_MAX3421E_RST
-  /* Take the MAX3412E out of reset */
+  /* Take the MAX3412E out of reset
+   *
+   * REVISIT:  The MAX3421E is not operational immediately after the reset.
+   * The internal signal OPERATE indicates when the MAX3421E is fully out of
+   * reset an operational.  The reset forces the OPERATE signal to be
+   * visible on the GPX pin.  Hence, it many be necessary to poll the GPX
+   * pin here to assure that the MAX3421E is operational before continuing.
+   */
 
   stm32_gpiowrite(GPIO_MAX3421E_RST, true);
 #endif

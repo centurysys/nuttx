@@ -222,16 +222,28 @@ config ARCH_CHIP_SAMA5
 		Atmel SAMA5 (ARM Cortex-A5)
 
 config ARCH_CHIP_SAMD2X
-	bool "Atmel SAMD2x"
+	bool "Microchip/Atmel SAMD2x"
 	select ARCH_CORTEXM0
 	---help---
-		Atmel SAMD (ARM Cortex-M0+)
+		Microchip (formerly Atmel) SAMD2X (ARM Cortex-M0+)
 
 config ARCH_CHIP_SAML2X
-	bool "Atmel SAML2x"
+	bool "Microchip/Atmel SAML2x"
 	select ARCH_CORTEXM0
 	---help---
-		Atmel SAML (ARM Cortex-M0+)
+		Microchip (formerly Atmel) SAML2X (ARM Cortex-M0+)
+
+config ARCH_CHIP_SAMD5X
+	bool "Microchip SAMD5x"
+	select ARCH_CORTEXM4
+	---help---
+		Microchip SAMD5X (ARM Cortex-M4)
+
+config ARCH_CHIP_SAME5X
+	bool "Microchip SAME5x"
+	select ARCH_CORTEXM4
+	---help---
+		Microchip SAME5x (ARM Cortex-M4)
 
 config ARCH_CHIP_SAM34
 	bool "Atmel SAM3/SAM4"
@@ -441,6 +453,7 @@ config ARCH_CORTEXM0
 	default n
 	select ARCH_HAVE_IRQPRIO
 	select ARCH_HAVE_RESET
+	select ARCH_HAVE_HARDFAULT_DEBUG
 
 config ARCH_CORTEXM23
 	bool
@@ -454,6 +467,8 @@ config ARCH_CORTEXM3
 	select ARCH_HAVE_LAZYFPU
 	select ARCH_HAVE_HIPRI_INTERRUPT
 	select ARCH_HAVE_RESET
+	select ARCH_HAVE_HARDFAULT_DEBUG
+	select ARCH_HAVE_MEMFAULT_DEBUG
 
 config ARCH_CORTEXM33
 	bool
@@ -467,6 +482,8 @@ config ARCH_CORTEXM4
 	select ARCH_HAVE_LAZYFPU
 	select ARCH_HAVE_HIPRI_INTERRUPT
 	select ARCH_HAVE_RESET
+	select ARCH_HAVE_HARDFAULT_DEBUG
+	select ARCH_HAVE_MEMFAULT_DEBUG
 
 config ARCH_CORTEXM7
 	bool
@@ -478,6 +495,8 @@ config ARCH_CORTEXM7
 	select ARCH_HAVE_HIPRI_INTERRUPT
 	select ARCH_HAVE_RESET
 	select ARCH_HAVE_COHERENT_DCACHE if ELF || MODULE
+	select ARCH_HAVE_HARDFAULT_DEBUG
+	select ARCH_HAVE_MEMFAULT_DEBUG
 
 config ARCH_CORTEXA5
 	bool
@@ -573,6 +592,7 @@ config ARCH_CHIP
 	default "nuc1xx"	if ARCH_CHIP_NUC1XX
 	default "sama5"		if ARCH_CHIP_SAMA5
 	default "samd2l2"	if ARCH_CHIP_SAMD2X || ARCH_CHIP_SAML2X
+	default "samd5e5"	if ARCH_CHIP_SAMD5X || ARCH_CHIP_SAME5X
 	default "sam34"		if ARCH_CHIP_SAM34
 	default "samv7"		if ARCH_CHIP_SAMV7
 	default "stm32"		if ARCH_CHIP_STM32
@@ -724,15 +744,43 @@ config ARCH_ROMPGTABLE
 	default n
 	depends on ARCH_USE_MMU
 	---help---
-		Support a fixed memory mapping use a (read-only) page table in ROM/FLASH.
+		Support a fixed memory mapping use a (read-only) page table in
+		ROM/FLASH.
 
-config DEBUG_HARDFAULT
-	bool "Verbose Hard-Fault Debug"
+config ARCH_HAVE_HARDFAULT_DEBUG
+	bool
 	default n
-	depends on DEBUG_FEATURES && (ARCH_CORTEXM0 || ARCH_CORTEXM3 || ARCH_CORTEXM4 || ARCH_CORTEXM7)
+
+config DEBUG_HARDFAULT_ALERT
+	bool "Hard-Fault Alert Debug"
+	default n
+	depends on ARCH_HAVE_HARDFAULT_DEBUG && DEBUG_ALERT
 	---help---
-		Enables verbose debug output when a hard fault is occurs.  This verbose
-		output is sometimes helpful when debugging difficult hard fault problems,
+		Enables debug alert output to the SYSLOG when a hard fault
+		occurs.  This output is sometimes helpful when debugging difficult
+		hard fault problems.
+
+config DEBUG_HARDFAULT_INFO
+	bool "Hard-Fault Informational Output"
+	default n
+	depends on ARCH_HAVE_HARDFAULT_DEBUG && DEBUG_INFO
+	---help---
+		Enables informational alert output to the SYSLOG when a hard fault
+		occurs.  This output is sometimes helpful when debugging difficult
+		hard fault problems but may be more than you want to see in some
+		cases.
+
+config ARCH_HAVE_MEMFAULT_DEBUG
+	bool
+	default n
+
+config DEBUG_MEMFAULT
+	bool "Verbose Mem-Fault Debug"
+	default n
+	depends on ARCH_HAVE_MEMFAULT_DEBUG && DEBUG_ALERT && ARCH_USE_MPU
+	---help---
+		Enables verbose debug output when a mem fault is occurs.  This verbose
+		output is sometimes helpful when debugging difficult mem fault problems,
 		but may be more than you typically want to see.
 
 if ARCH_CORTEXM0
@@ -821,6 +869,9 @@ source arch/arm/src/sama5/Kconfig
 endif
 if ARCH_CHIP_SAMD2X || ARCH_CHIP_SAML2X
 source arch/arm/src/samd2l2/Kconfig
+endif
+if ARCH_CHIP_SAMD5X || ARCH_CHIP_SAME5X
+source arch/arm/src/samd5e5/Kconfig
 endif
 if ARCH_CHIP_SAM34
 source arch/arm/src/sam34/Kconfig
