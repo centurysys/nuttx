@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/metro-m4/scripts/ld.script
+ * configs/metro-m4/scripts/flash.ld
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -40,7 +40,7 @@
 MEMORY
 {
     flash (rx) : ORIGIN = 0x00000000, LENGTH = 512K
-    sram (rwx) : ORIGIN = 0x20000000, LENGTH = 64K
+    sram (rwx) : ORIGIN = 0x20000000, LENGTH = 192K
 }
 
 OUTPUT_ARCH(arm)
