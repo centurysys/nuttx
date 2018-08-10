@@ -1706,7 +1706,8 @@ nuttx/
  |   |
  |   |- arm/
  |   |   `- src
- |   |       `- lpc214x/README.txt
+ |   |       |- lpc214x/README.txt
+ |   |       `- stm32l4/README.txt
  |   |- renesas/
  |   |   |- include/
  |   |   |   `-README.txt
@@ -2080,6 +2081,8 @@ nuttx/
  |- net/
  |   |- sixlowpan
  |   |   `- README.txt
+ |   `- README.txt
+ |- pass1/
  |   `- README.txt
  |- syscall/
  |   `- README.txt

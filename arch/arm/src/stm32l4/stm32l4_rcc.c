@@ -79,7 +79,7 @@
 
 /* Include chip-specific clocking initialization logic */
 
-#if defined(CONFIG_STM32L4_STM32L4X2) || defined(CONFIG_STM32L4_STM32L4X3)
+#if defined(CONFIG_STM32L4_STM32L4X3)
 #  include "stm32l4x3xx_rcc.c"
 #elif defined(CONFIG_STM32L4_STM32L4X5)
 #  include "stm32l4x5xx_rcc.c"
@@ -110,7 +110,7 @@
  *
  ****************************************************************************/
 
-#if defined(CONFIG_STM32L4_PWR) && defined(CONFIG_RTC)
+#if defined(CONFIG_STM32L4_PWR) && defined(CONFIG_STM32L4_RTC)
 static inline void rcc_resetbkp(void)
 {
   bool init_stat;
