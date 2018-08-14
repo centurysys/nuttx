@@ -65,6 +65,57 @@ config PCA9555_RETRY
 
 endif # IOEXPANDER_PCA9555
 
+config IOEXPANDER_TCA9534
+	bool "TCA9534 I2C IO expander"
+	default n
+	depends on I2C
+	---help---
+		Enable support for the NXP TCA9534 IO Expander
+
+if IOEXPANDER_TCA9534
+
+config TCA9534_MULTIPLE
+	bool "Multiple TCA9534 Devices"
+	default n
+	---help---
+		Can be defined to support multiple TCA9534 devices on board.
+
+config TCA9534_INT_ENABLE
+	bool "Enable TCA9534 Interrupt Support"
+	default n
+	select IOEXPANDER_INT_ENABLE
+	---help---
+		Enable driver interrupt functionality
+
+config TCA9534_INT_NCALLBACKS
+	int "Max number of interrupt callbacks"
+	default 4
+	depends on TCA9534_INT_ENABLE
+	---help---
+		This is the maximum number of interrupt callbacks supported
+
+config TCA9534_SHADOW_MODE
+	bool "Use Shadow Mode instead of Read-Modify-Write Operations"
+	default n
+	---help---
+		This setting enables a mode where the output and pin
+		configuration registers are held in RAM.
+		With this for example we do not need to read back the
+		output-register every time we want to change one pin.
+		We do instead change the bit in the internal register
+		and then just write this register to the IO-Expander.
+		This reduces bus traffic and eliminates the problem of
+		EMC-caused toggling of output pins.
+
+config TCA9534_RETRY
+	bool "Retry to send commands and data at I2C communication errors"
+	default n
+	---help---
+		Retry to send commands and data if a I2C-communication
+		error occurs (eg. caused by EMC).
+
+endif # IOEXPANDER_TCA9534
+
 config IOEXPANDER_TCA64XX
 	bool "TCA64XX I2C IO expander"
 	default n
