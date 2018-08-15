@@ -76,7 +76,50 @@
 #  include <nuttx/mtd/configdata.h>
 #  include <nuttx/mtd/mtd.h>
 #  include <nuttx/leds/tca6507.h>
+#  include <nuttx/ioexpander/tca9534.h>
+#  include <nuttx/ioexpander/gpio.h>
+#  include <nuttx/ioexpander/ioexpander.h>
 #  define HAVE_I2C_DRIVER 1
+#endif
+
+#ifdef CONFIG_IOEXPANDER_TCA9534
+static struct tca9534_config_s tca9534_config;
+#endif
+
+/****************************************************************************
+ * Static Functions
+ ****************************************************************************/
+
+#ifdef CONFIG_IOEXPANDER_TCA9534
+static void tca9534_setup(struct ioexpander_dev_s *tca9534)
+{
+  /* Pin 6: DIN0 */
+
+  IOEXP_SETDIRECTION(tca9534, 6, IOEXPANDER_DIRECTION_IN);
+  IOEXP_SETOPTION(tca9534, 6, IOEXPANDER_OPTION_INVERT,
+                  (void *) IOEXPANDER_VAL_NORMAL);
+  IOEXP_SETOPTION(tca9534, 6, IOEXPANDER_OPTION_INTCFG,
+                  (void *) IOEXPANDER_VAL_DISABLE);
+  gpio_lower_half(tca9534, 6, GPIO_INPUT_PIN, 0);
+
+  /* Pin 5: DIN1 */
+
+  IOEXP_SETDIRECTION(tca9534, 5, IOEXPANDER_DIRECTION_IN);
+  IOEXP_SETOPTION(tca9534, 5, IOEXPANDER_OPTION_INVERT,
+                  (void *) IOEXPANDER_VAL_NORMAL);
+  IOEXP_SETOPTION(tca9534, 5, IOEXPANDER_OPTION_INTCFG,
+                  (void *) IOEXPANDER_VAL_DISABLE);
+  gpio_lower_half(tca9534, 5, GPIO_INPUT_PIN, 1);
+
+  /* Pin 4: DI Power */
+
+  IOEXP_SETDIRECTION(tca9534, 4, IOEXPANDER_DIRECTION_OUT);
+  IOEXP_SETOPTION(tca9534, 4, IOEXPANDER_OPTION_INVERT,
+                  (void *) IOEXPANDER_VAL_NORMAL);
+  IOEXP_SETOPTION(tca9534, 4, IOEXPANDER_OPTION_INTCFG,
+                  (void *) IOEXPANDER_VAL_DISABLE);
+  gpio_lower_half(tca9534, 4, GPIO_OUTPUT_PIN, 2);
+}
 #endif
 
 /****************************************************************************
@@ -116,6 +159,9 @@ int board_app_initialize(uintptr_t arg)
 #ifdef HAVE_I2C_DRIVER
   FAR struct i2c_master_s *i2c;
   struct mtd_dev_s *at24;
+#  ifdef CONFIG_IOEXPANDER_TCA9534
+  struct ioexpander_dev_s *tca9534;
+#  endif
 #endif
   int ret;
 
@@ -161,29 +207,54 @@ int board_app_initialize(uintptr_t arg)
 
   /* Initialize the AT24 driver */
 
-  at24 = at24c_initialize(i2c);
-
-  if (!at24)
+  if (i2c)
     {
-      i2cerr("ERROR: Failed to initialize the AT24 driver\n");
-    }
-  else
-    {
-      ret = ftl_initialize(0, at24);
+      at24 = at24c_initialize(i2c);
 
-      if (ret < 0)
+      if (!at24)
         {
-          i2cerr("ERROR: Failed to initialize the FTL layer: %d\n", ret);
+          i2cerr("ERROR: Failed to initialize the AT24 driver\n");
+        }
+      else
+        {
+          ret = ftl_initialize(0, at24);
+
+          if (ret < 0)
+            {
+              i2cerr("ERROR: Failed to initialize the FTL layer: %d\n", ret);
+            }
         }
     }
 
 #  ifdef CONFIG_TCA6507
-
-  ret = tca6507_register("/dev/leddrv0", i2c, 0x45);
-
-  if (ret < 0)
+  if (i2c)
     {
-      i2cerr("ERROR: Failed to initialize TCA6507 driver\n");
+      ret = tca6507_register("/dev/leddrv0", i2c, 0x45);
+
+      if (ret < 0)
+        {
+          i2cerr("ERROR: Failed to initialize TCA6507 driver\n");
+        }
+    }
+#  endif
+
+#  ifdef CONFIG_IOEXPANDER_TCA9534
+  if (i2c)
+    {
+      tca9534_config.address = 0x20;
+      tca9534_config.frequency = 400 * 1000; /* 400kHz */
+
+      tca9534 = tca9534_initialize(i2c, &tca9534_config);
+
+      if (!tca9534)
+        {
+          i2cerr("ERROR: Failed to initialize TCA9534 driver\n");
+        }
+      else
+        {
+          syslog(LOG_INFO, "TCA9534 registered.\n");
+          tca9534_setup(tca9534);
+        }
     }
 #  endif
 #endif
