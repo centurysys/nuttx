@@ -118,6 +118,7 @@ static void tca9534_setup(struct ioexpander_dev_s *tca9534)
                   (void *) IOEXPANDER_VAL_NORMAL);
   IOEXP_SETOPTION(tca9534, 4, IOEXPANDER_OPTION_INTCFG,
                   (void *) IOEXPANDER_VAL_DISABLE);
+  IOEXP_WRITEPIN(tca9534, 4, 1);
   gpio_lower_half(tca9534, 4, GPIO_OUTPUT_PIN, 2);
 }
 #endif
