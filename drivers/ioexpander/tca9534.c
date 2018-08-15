@@ -271,7 +271,7 @@ static int tca9534_setbit(FAR struct tca9534_dev_s *tca, uint8_t addr,
   tca->sreg[addr] = buf[1];
 #endif
 
-  ret = tca9534_write(tca, buf, 1);
+  ret = tca9534_write(tca, buf, 2);
 #ifdef CONFIG_TCA9534_RETRY
   if (ret != OK)
     {
@@ -341,7 +341,7 @@ static int tca9534_direction(FAR struct ioexpander_dev_s *dev, uint8_t pin,
   FAR struct tca9534_dev_s *tca = (FAR struct tca9534_dev_s *)dev;
   int ret;
 
-  /* Get exclusive access to the TCA555 */
+  /* Get exclusive access to the TCA9534 */
 
   tca9534_lock(tca);
   ret = tca9534_setbit(tca, TCA9534_REG_CONFIG, pin,
@@ -379,7 +379,7 @@ static int tca9534_option(FAR struct ioexpander_dev_s *dev, uint8_t pin,
     {
       int ival = (int)((intptr_t)val);
 
-      /* Get exclusive access to the TCA555 */
+      /* Get exclusive access to the TCA9534 */
 
       tca9534_lock(tca);
       ret = tca9534_setbit(tca, TCA9534_REG_POLINV, pin, ival);
@@ -412,7 +412,7 @@ static int tca9534_writepin(FAR struct ioexpander_dev_s *dev, uint8_t pin,
   FAR struct tca9534_dev_s *tca = (FAR struct tca9534_dev_s *)dev;
   int ret;
 
-  /* Get exclusive access to the TCA555 */
+  /* Get exclusive access to the TCA9534 */
 
   tca9534_lock(tca);
   ret = tca9534_setbit(tca, TCA9534_REG_OUTPUT, pin, value);
@@ -444,7 +444,7 @@ static int tca9534_readpin(FAR struct ioexpander_dev_s *dev, uint8_t pin,
   FAR struct tca9534_dev_s *tca = (FAR struct tca9534_dev_s *)dev;
   int ret;
 
-  /* Get exclusive access to the TCA555 */
+  /* Get exclusive access to the TCA9534 */
 
   tca9534_lock(tca);
   ret = tca9534_getbit(tca, TCA9534_REG_INPUT, pin, value);
@@ -475,7 +475,7 @@ static int tca9534_readbuf(FAR struct ioexpander_dev_s *dev, uint8_t pin,
   FAR struct tca9534_dev_s *tca = (FAR struct tca9534_dev_s *)dev;
   int ret;
 
-  /* Get exclusive access to the TCA555 */
+  /* Get exclusive access to the TCA9534 */
 
   tca9534_lock(tca);
   ret = tca9534_getbit(tca, TCA9534_REG_OUTPUT, pin, value);
@@ -559,7 +559,7 @@ static int tca9534_multiwritepin(FAR struct ioexpander_dev_s *dev,
   int index;
   int pin;
 
-  /* Get exclusive access to the TCA555 */
+  /* Get exclusive access to the TCA9534 */
 
   tca9534_lock(tca);
 
@@ -672,7 +672,7 @@ static int tca9534_multireadbuf(FAR struct ioexpander_dev_s *dev,
   FAR struct tca9534_dev_s *tca = (FAR struct tca9534_dev_s *)dev;
   int ret;
 
-  /* Get exclusive access to the TCA555 */
+  /* Get exclusive access to the TCA9534 */
 
   tca9534_lock(tca);
   ret = tca9534_getmultibits(tca, TCA9534_REG_OUTPUT,
@@ -712,7 +712,7 @@ static FAR void *tca9534_attach(FAR struct ioexpander_dev_s *dev,
   FAR void *handle = NULL;
   int i;
 
-  /* Get exclusive access to the TCA555 */
+  /* Get exclusive access to the TCA9534 */
 
   tca9534_lock(tca);
 
