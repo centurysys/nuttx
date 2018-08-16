@@ -392,6 +392,24 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
         break;
       }
 
+    case BIOC_GET_INITSW:
+      {
+        int *stat;
+
+        if (arg)
+          {
+            stat = (int *) arg;
+
+            stm32l4_configgpio(GPIO_INITSW);
+            *stat = stm32l4_gpioread(GPIO_INITSW);
+          }
+        else
+          {
+            res = -EFAULT;
+          }
+        break;
+      }
+
     case BIOC_SET_LED:
       {
         bool on = (bool) arg;
@@ -400,9 +418,6 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
 
         break;
       }
-
-    case BIOC_GET_DI:
-      break;
 
     default:
       res = -ENOTTY;
