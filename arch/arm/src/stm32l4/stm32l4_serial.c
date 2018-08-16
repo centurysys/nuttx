@@ -1108,16 +1108,33 @@ static void stm32l4serial_setformat(FAR struct uart_dev_s *dev)
   regval &= ~(USART_CR3_CTSE | USART_CR3_RTSE);
 
 #if defined(CONFIG_SERIAL_IFLOWCONTROL) && !defined(CONFIG_STM32L4_FLOWCONTROL_BROKEN)
-  if (priv->iflow && (priv->rts_gpio != 0))
+  if (priv->rts_gpio != 0)
     {
-      regval |= USART_CR3_RTSE;
+      if (priv->iflow)
+        {
+          stm32l4_configgpio(priv->rts_gpio);
+          regval |= USART_CR3_RTSE;
+        }
+      else
+        {
+          stm32l4_configgpio((priv->rts_gpio & ~GPIO_MODE_MASK)
+                             | (GPIO_OUTPUT | GPIO_OUTPUT_CLEAR));
+        }
     }
 #endif
 
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
-  if (priv->oflow && (priv->cts_gpio != 0))
+  if (priv->cts_gpio != 0)
     {
-      regval |= USART_CR3_CTSE;
+      if (priv->oflow)
+        {
+          stm32l4_configgpio(priv->cts_gpio);
+          regval |= USART_CR3_CTSE;
+        }
+      else
+        {
+          stm32l4_configgpio((priv->cts_gpio & ~GPIO_MODE_MASK) | GPIO_INPUT);
+        }
     }
 #endif
 
