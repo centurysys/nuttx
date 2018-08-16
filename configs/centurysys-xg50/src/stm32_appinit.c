@@ -119,7 +119,17 @@ static void tca9534_setup(struct ioexpander_dev_s *tca9534)
   IOEXP_SETOPTION(tca9534, 4, IOEXPANDER_OPTION_INTCFG,
                   (void *) IOEXPANDER_VAL_DISABLE);
   IOEXP_WRITEPIN(tca9534, 4, 1);
-  gpio_lower_half(tca9534, 4, GPIO_OUTPUT_PIN, 2);
+  gpio_lower_half(tca9534, 4, GPIO_OUTPUT_PIN, 0);
+
+  /* Pin 7: UART2 Sleep */
+
+  IOEXP_SETDIRECTION(tca9534, 7, IOEXPANDER_DIRECTION_OUT);
+  IOEXP_SETOPTION(tca9534, 7, IOEXPANDER_OPTION_INVERT,
+                  (void *) IOEXPANDER_VAL_NORMAL);
+  IOEXP_SETOPTION(tca9534, 7, IOEXPANDER_OPTION_INTCFG,
+                  (void *) IOEXPANDER_VAL_DISABLE);
+  IOEXP_WRITEPIN(tca9534, 7, 1);
+  gpio_lower_half(tca9534, 7, GPIO_OUTPUT_PIN, 1);
 }
 #endif
 
