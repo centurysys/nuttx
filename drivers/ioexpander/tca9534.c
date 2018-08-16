@@ -871,6 +871,25 @@ static int tca9534_interrupt(int irq, FAR void *context, FAR void *arg)
 #endif
 
 /****************************************************************************
+ * Name: tca9534_init_regs
+ ****************************************************************************/
+
+static void tca9534_init_regs(struct tca9534_dev_s *tca)
+{
+  uint8_t regs[3] = {0xff, 0x00, 0xff};
+  uint8_t buf[2];
+  uint8_t addr;
+
+  for (addr = 1; addr <=3; addr++)
+    {
+      buf[0] = addr;
+      buf[1] = regs[addr - 1];
+
+      tca9534_write(tca, buf, 2);
+    }
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -923,6 +942,8 @@ FAR struct ioexpander_dev_s *tca9534_initialize(FAR struct i2c_master_s *i2cdev,
   tcadev->config->attach(tcadev->config, tca9534_interrupt, tcadev);
   tcadev->config->enable(tcadev->config, TRUE);
 #endif
+
+  tca9534_init_regs(tcadev);
 
   nxsem_init(&tcadev->exclsem, 0, 1);
   return &tcadev->dev;
