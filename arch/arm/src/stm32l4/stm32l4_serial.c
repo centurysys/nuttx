@@ -1421,6 +1421,7 @@ static int stm32l4serial_setup(FAR struct uart_dev_s *dev)
   if (PORT_VALID(priv->dtr_gpio))
     {
       stm32l4_configgpio(priv->dtr_gpio);
+      stm32l4_gpiowrite(priv->dtr_gpio, 0);
     }
 
   if (PORT_VALID(priv->dsr_gpio))
@@ -2244,7 +2245,7 @@ static int stm32l4serial_tiocmbic(struct stm32l4_serial_s *priv, const int *arg)
     {
       if (*arg & TIOCM_DTR)
         {
-          stm32l4_gpiowrite(priv->dtr_gpio, 0);
+          stm32l4_gpiowrite(priv->dtr_gpio, 1);
         }
     }
 
@@ -2252,7 +2253,7 @@ static int stm32l4serial_tiocmbic(struct stm32l4_serial_s *priv, const int *arg)
     {
       if (*arg & TIOCM_RTS)
         {
-          stm32l4_gpiowrite(priv->rts_gpio, 0);
+          stm32l4_gpiowrite(priv->rts_gpio, 1);
         }
     }
 
@@ -2274,7 +2275,7 @@ static int stm32l4serial_tiocmbis(struct stm32l4_serial_s *priv, const int *arg)
     {
       if (*arg & TIOCM_DTR)
         {
-          stm32l4_gpiowrite(priv->dtr_gpio, 1);
+          stm32l4_gpiowrite(priv->dtr_gpio, 0);
         }
     }
 
@@ -2282,7 +2283,7 @@ static int stm32l4serial_tiocmbis(struct stm32l4_serial_s *priv, const int *arg)
     {
       if (*arg & TIOCM_RTS)
         {
-          stm32l4_gpiowrite(priv->rts_gpio, 1);
+          stm32l4_gpiowrite(priv->rts_gpio, 0);
         }
     }
 
