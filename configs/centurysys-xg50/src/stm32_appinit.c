@@ -327,6 +327,49 @@ int board_app_initialize(uintptr_t arg)
 }
 
 #ifdef CONFIG_BOARDCTL_IOCTL
+
+#  ifndef CONFIG_CENTURYSYS_XG50_ADDON_NONE
+static void enable_b2b(void)
+{
+#    ifdef CONFIG_CENTURYSYS_XG50_ADDON_OB_KM
+  stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
+  stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
+  stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
+
+  usleep(500 * 1000);
+
+  stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
+#    else
+  stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
+  stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
+  stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
+#    endif /* CONFIG_CENTURYSYS_XG50_ADDON_OB_KM */
+}
+
+static void disable_b2b(void)
+{
+  stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
+  stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
+  stm32l4_gpiowrite(GPIO_B2B_DCDC, 1);
+}
+
+static void reset_b2b(uint32_t wait_msec)
+{
+  if (wait_msec == 0)
+    {
+      wait_msec = 100;
+    }
+  else if (wait_msec > 1000)
+    {
+      wait_msec = 1000;
+    }
+
+  stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
+  usleep(wait_msec * 1000);
+  stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
+}
+#  endif /* CONFIG_CENTURYSYS_XG50_ADDON_NONE */
+
 int board_ioctl(unsigned int cmd, uintptr_t arg)
 {
   int res = OK;
@@ -349,40 +392,25 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
       stm32l4_configgpio(GPIO_DCDC_SEL);
       break;
 
+#  ifndef CONFIG_CENTURYSYS_XG50_ADDON_NONE
     case BIOC_ENABLE_B2B:
       syslog(LOG_INFO, "%s: BIOC_ENABLE_B2B\n", __FUNCTION__);
-
-      stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
-      stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
-      stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
-
+      enable_b2b();
       break;
 
     case BIOC_DISABLE_B2B:
-      stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
-      stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
-      stm32l4_gpiowrite(GPIO_B2B_DCDC, 1);
+      disable_b2b();
       break;
 
     case BIOC_RESET_B2B:
       {
         uint32_t wait_msec = *((uint32_t *) arg);
 
-        if (wait_msec == 0)
-          {
-            wait_msec = 100;
-          }
-        else if (wait_msec > 1000)
-          {
-            wait_msec = 1000;
-          }
-
-        stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
-        usleep(wait_msec * 1000);
-        stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
-
+        reset_b2b(wait_msec);
         break;
       }
+
+#  endif /* CONFIG_CENTURYSYS_XG50_ADDON_NONE */
 
     case BIOC_GET_LEDSW:
       {

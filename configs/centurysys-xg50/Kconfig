@@ -5,4 +5,38 @@
 
 if ARCH_BOARD_CENTURYSYS_XG50
 
+choice
+	prompt "Select Main-PLL Oscillator"
+	default CENTURYSYS_XG50_OSC_HSE
+	---help---
+		select Oscillator
+
+config CENTURYSYS_XG50_OSC_HSE
+	bool "External Oscillator (HSE)"
+
+config CENTURYSYS_XG50_OSC_HSI
+	bool "Internal Oscillator (HSI)"
+
+endchoice
+
+choice
+	prompt "Select Add-On board"
+	default CENTURYSYS_XG50_EXT_NONE
+	---help---
+		select expansion board type.
+
+config CENTURYSYS_XG50_ADDON_NONE
+	bool "No Add-On board"
+
+config CENTURYSYS_XG50_ADDON_OB_L1
+	bool "OB-L1 Add-On board (NTT docomo LTE Cat.1)"
+
+config CENTURYSYS_XG50_ADDON_OB_KM
+	bool "OB-KM Add-On board (KDDI LTE Cat-M1)"
+
+config CENTURYSYS_XG50_ADDON_OB_WS
+	bool "OB-WS Add-On board (Wi-SUN)"
+
+endchoice
+
 endif # ARCH_BOARD_CENTURYSYS_XG50
