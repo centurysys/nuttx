@@ -1,7 +1,7 @@
 /****************************************************************************
  * tools/nxstyle.c
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2015, 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -119,6 +119,11 @@ int main(int argc, char **argv, char **envp)
         {
           if (lineno == last_oneline_comment + 1)
             {
+              /* TODO:  This generates a false alarm if the current line
+               * contains a right brace.  No blank line should be present in
+               * that case.
+               */
+
               fprintf(stderr,
                       "Missing blank line after comment line. Found at line %d\n",
                       last_oneline_comment);
@@ -164,6 +169,9 @@ int main(int argc, char **argv, char **envp)
 
       if (line[indent] == '#')
         {
+          /* Suppress error for comment following conditional compilation */
+
+          last_blank_line = lineno;
           continue;
         }
 
@@ -179,6 +187,8 @@ int main(int argc, char **argv, char **envp)
               if (last_oneline_comment != lineno - 1 &&
                   last_blank_line != lineno - 1)
                 {
+                  /* TODO:  This generates a false alarm if preceded by a label. */
+
                   fprintf(stderr,
                           "Missing blank line before comment found at line %d\n",
                           lineno);
@@ -447,6 +457,10 @@ int main(int argc, char **argv, char **envp)
                       {
                         declnest++;
                       }
+
+                    /* Suppress error for comment following a left brace */
+
+                    last_blank_line = lineno;
                   }
                   break;
 
