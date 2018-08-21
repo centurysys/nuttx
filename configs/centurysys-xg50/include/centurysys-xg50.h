@@ -49,8 +49,13 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-//#define HSI_CLOCK_CONFIG          /* HSI-16 clock configuration */
-#define HSE_CLOCK_CONFIG          /* HSE with 16 MHz xtal */
+#if defined(CONFIG_CENTURYSYS_XG50_OSC_HSI)
+#  define HSI_CLOCK_CONFIG          /* HSI-16 clock configuration */
+#elif defined(CONFIG_CENTURYSYS_XG50_OSC_HSE)
+#  define HSE_CLOCK_CONFIG          /* HSE with 16 MHz xtal */
+#else
+#error "Select Oscillator"
+#endif
 //#define MSI_CLOCK_CONFIG          /* MSI @ 4 MHz autotrimmed via LSE */
 
 #define STM32L4_BOARD_ENABLE_HSI

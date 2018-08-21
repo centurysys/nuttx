@@ -80,8 +80,13 @@
 
 #define GPIO_USART1_RX   (GPIO_USART1_RX_2)     /* PB7 */
 #define GPIO_USART1_TX   (GPIO_USART1_TX_2)     /* PB6 */
-#define GPIO_USART1_RTS  (GPIO_USART1_RTS_DE_2) /* PB3 */
-#define GPIO_USART1_CTS  (GPIO_USART1_CTS_2)    /* PB4 */
+#ifndef CONFIG_CENTURYSYS_XG50_ADDON_OB_KM
+#  define GPIO_USART1_RTS  (GPIO_USART1_RTS_DE_2) /* PB3 */
+#  define GPIO_USART1_CTS  (GPIO_USART1_CTS_2)    /* PB4 */
+#else
+#  define GPIO_USART1_RTS  (STM32L4_NPORTS)       /* not assigned */
+#  define GPIO_USART1_CTS  (STM32L4_NPORTS)       /* not assigned */
+#endif
 #define GPIO_USART1_DSR  (STM32L4_NPORTS)       /* not assigned */
 #define GPIO_USART1_DCD  (STM32L4_NPORTS)       /* not assigned */
 #define GPIO_USART1_RI   (STM32L4_NPORTS)       /* not assigned */

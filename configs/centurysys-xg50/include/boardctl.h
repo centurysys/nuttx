@@ -47,9 +47,11 @@
  ****************************************************************************/
 
 #define BIOC_CONFIG_GPIO  (BOARDIOC_USER + 1)
+#  ifndef CONFIG_CENTURYSYS_XG50_ADDON_NONE
 #define BIOC_ENABLE_B2B   (BOARDIOC_USER + 2)
 #define BIOC_DISABLE_B2B  (BOARDIOC_USER + 3)
 #define BIOC_RESET_B2B    (BOARDIOC_USER + 4)
+#  endif
 #define BIOC_GET_LEDSW    (BOARDIOC_USER + 5)
 #define BIOC_GET_INITSW   (BOARDIOC_USER + 6)
 #define BIOC_SET_LED      (BOARDIOC_USER + 7)
