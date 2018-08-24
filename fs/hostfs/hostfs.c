@@ -82,6 +82,8 @@ static int     hostfs_dup(FAR const struct file *oldp,
                         FAR struct file *newp);
 static int     hostfs_fstat(FAR const struct file *filep,
                         FAR struct stat *buf);
+static int     hostfs_ftruncate(FAR struct file *filep,
+                        off_t length);
 
 static int     hostfs_opendir(FAR struct inode *mountpt,
                         FAR const char *relpath,
@@ -139,6 +141,7 @@ const struct mountpt_operations hostfs_operations =
   hostfs_sync,          /* sync */
   hostfs_dup,           /* dup */
   hostfs_fstat,         /* fstat */
+  hostfs_ftruncate,     /* ftruncate */
 
   hostfs_opendir,       /* opendir */
   hostfs_closedir,      /* closedir */
@@ -299,12 +302,29 @@ static int hostfs_open(FAR struct file *filep, FAR const char *relpath,
   /* Try to open the file in the host file system */
 
   hf->fd = host_open(path, oflags, mode);
-  if (hf->fd == -1)
+  if (hf->fd < 0)
     {
       /* Error opening file */
 
       ret = -EBADF;
       goto errout_with_buffer;
+    }
+
+  /* In write/append mode, we need to set the file pointer to the end of the
+   * file.
+   */
+
+  if ((oflags & (O_APPEND | O_WRONLY)) == (O_APPEND | O_WRONLY))
+    {
+      ret = host_lseek(hf->fd, 0, SEEK_END);
+      if (ret >= 0)
+        {
+          filep->f_pos = ret;
+        }
+      else
+        {
+          goto errout_with_buffer;
+        }
     }
 
   /* Attach the private date to the struct file instance */
@@ -430,7 +450,7 @@ static ssize_t hostfs_read(FAR struct file *filep, FAR char *buffer,
   FAR struct inode *inode;
   FAR struct hostfs_mountpt_s *fs;
   FAR struct hostfs_ofile_s *hf;
-  int ret = OK;
+  ssize_t ret;
 
   /* Sanity checks */
 
@@ -451,6 +471,10 @@ static ssize_t hostfs_read(FAR struct file *filep, FAR char *buffer,
   /* Call the host to perform the read */
 
   ret = host_read(hf->fd, buffer, buflen);
+  if (ret > 0)
+    {
+      filep->f_pos += ret;
+    }
 
   hostfs_semgive(fs);
   return ret;
@@ -466,7 +490,7 @@ static ssize_t hostfs_write(FAR struct file *filep, const char *buffer,
   FAR struct inode *inode;
   FAR struct hostfs_mountpt_s *fs;
   FAR struct hostfs_ofile_s *hf;
-  int ret;
+  ssize_t ret;
 
   /* Sanity checks.  I have seen the following assertion misfire if
    * CONFIG_DEBUG_MM is enabled while re-directing output to a
@@ -509,6 +533,10 @@ static ssize_t hostfs_write(FAR struct file *filep, const char *buffer,
   /* Call the host to perform the write */
 
   ret = host_write(hf->fd, buffer, buflen);
+  if (ret > 0)
+    {
+      filep->f_pos += ret;
+    }
 
 errout_with_semaphore:
   hostfs_semgive(fs);
@@ -524,7 +552,7 @@ static off_t hostfs_seek(FAR struct file *filep, off_t offset, int whence)
   FAR struct inode *inode;
   FAR struct hostfs_mountpt_s *fs;
   FAR struct hostfs_ofile_s *hf;
-  int ret;
+  off_t ret;
 
   /* Sanity checks */
 
@@ -545,6 +573,10 @@ static off_t hostfs_seek(FAR struct file *filep, off_t offset, int whence)
   /* Call our internal routine to perform the seek */
 
   ret = host_lseek(hf->fd, offset, whence);
+  if (ret >= 0)
+    {
+      filep->f_pos = ret;
+    }
 
   hostfs_semgive(fs);
   return ret;
@@ -688,6 +720,47 @@ static int hostfs_fstat(FAR const struct file *filep, FAR struct stat *buf)
   /* Call the host to perform the read */
 
   ret = host_fstat(hf->fd, buf);
+
+  hostfs_semgive(fs);
+  return ret;
+}
+
+/****************************************************************************
+ * Name: hostfs_ftruncate
+ *
+ * Description:
+ *   Set the length of the open, regular file associated with the file
+ *   structure 'filep' to 'length'.
+ *
+ ****************************************************************************/
+
+static int hostfs_ftruncate(FAR struct file *filep, off_t length)
+{
+  FAR struct inode *inode;
+  FAR struct hostfs_mountpt_s *fs;
+  FAR struct hostfs_ofile_s *hf;
+  int ret = OK;
+
+  /* Sanity checks */
+
+  DEBUGASSERT(filep != NULL);
+
+  /* Recover our private data from the struct file instance */
+
+  DEBUGASSERT(filep->f_priv != NULL && filep->f_inode != NULL);
+  hf    = filep->f_priv;
+  inode = filep->f_inode;
+
+  fs    = inode->i_private;
+  DEBUGASSERT(fs != NULL);
+
+  /* Take the semaphore */
+
+  hostfs_semtake(fs);
+
+  /* Call the host to perform the truncate */
+
+  ret = host_ftruncate(hf->fd, length);
 
   hostfs_semgive(fs);
   return ret;
