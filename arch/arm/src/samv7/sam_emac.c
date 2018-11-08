@@ -614,11 +614,11 @@ static int  sam_ifdown(struct net_driver_s *dev);
 static void sam_txavail_work(FAR void *arg);
 static int  sam_txavail(struct net_driver_s *dev);
 
-#if defined(CONFIG_NET_IGMP) || defined(CONFIG_NET_ICMPv6)
+#if defined(CONFIG_NET_MCASTGROUP) || defined(CONFIG_NET_ICMPv6)
 static unsigned int sam_hashindx(const uint8_t *mac);
 static int  sam_addmac(struct net_driver_s *dev, const uint8_t *mac);
 #endif
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int  sam_rmmac(struct net_driver_s *dev, const uint8_t *mac);
 #endif
 
@@ -1547,21 +1547,24 @@ static int sam_txpoll(struct net_driver_s *dev)
         }
 #endif /* CONFIG_NET_IPv6 */
 
-      /* Send the packet */
-
-      sam_transmit(priv, EMAC_QUEUE_0);
-
-      /* Check if there are any free TX descriptors.  We cannot perform
-       * the TX poll if we do not have buffering for another packet.
-       */
-
-      if (sam_txfree(priv, EMAC_QUEUE_0) == 0)
+      if (!devif_loopback(&priv->dev))
         {
-          /* We have to terminate the poll if we have no more descriptors
-           * available for another transfer.
+          /* Send the packet */
+
+          sam_transmit(priv, EMAC_QUEUE_0);
+
+          /* Check if there are any free TX descriptors.  We cannot perform
+           * the TX poll if we do not have buffering for another packet.
            */
 
-          return -EBUSY;
+          if (sam_txfree(priv, EMAC_QUEUE_0) == 0)
+            {
+              /* We have to terminate the poll if we have no more descriptors
+               * available for another transfer.
+               */
+
+              return -EBUSY;
+            }
         }
     }
 
@@ -2908,7 +2911,7 @@ static int sam_txavail(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_IGMP) || defined(CONFIG_NET_ICMPv6)
+#if defined(CONFIG_NET_MCASTGROUP) || defined(CONFIG_NET_ICMPv6)
 static unsigned int sam_hashindx(const uint8_t *mac)
 {
   unsigned int ndx;
@@ -3006,7 +3009,7 @@ static unsigned int sam_hashindx(const uint8_t *mac)
 
   return ndx & 0x3f;
 }
-#endif /* CONFIG_NET_IGMP || CONFIG_NET_ICMPv6 */
+#endif /* CONFIG_NET_MCASTGROUP || CONFIG_NET_ICMPv6 */
 
 /****************************************************************************
  * Function: sam_addmac
@@ -3026,7 +3029,7 @@ static unsigned int sam_hashindx(const uint8_t *mac)
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_IGMP) || defined(CONFIG_NET_ICMPv6)
+#if defined(CONFIG_NET_MCASTGROUP) || defined(CONFIG_NET_ICMPv6)
 static int sam_addmac(struct net_driver_s *dev, const uint8_t *mac)
 {
   struct sam_emac_s *priv = (struct sam_emac_s *)dev->d_private;
@@ -3098,7 +3101,7 @@ static int sam_addmac(struct net_driver_s *dev, const uint8_t *mac)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int sam_rmmac(struct net_driver_s *dev, const uint8_t *mac)
 {
   struct sam_emac_s *priv = (struct sam_emac_s *)dev->d_private;
@@ -5017,7 +5020,7 @@ int sam_emac_initialize(int intf)
   priv->dev.d_ifup    = sam_ifup;       /* I/F up (new IP address) callback */
   priv->dev.d_ifdown  = sam_ifdown;     /* I/F down callback */
   priv->dev.d_txavail = sam_txavail;    /* New TX data callback */
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
   priv->dev.d_addmac  = sam_addmac;     /* Add multicast MAC address */
   priv->dev.d_rmmac   = sam_rmmac;      /* Remove multicast MAC address */
 #endif

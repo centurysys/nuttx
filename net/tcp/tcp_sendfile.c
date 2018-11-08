@@ -296,7 +296,7 @@ static inline bool sendfile_addrcheck(FAR struct tcp_conn_s *conn)
 #endif
     {
 #if !defined(CONFIG_NET_ARP_IPIN) && !defined(CONFIG_NET_ARP_SEND)
-      return (arp_find(conn->u.ipv4.raddr) != NULL);
+      return (arp_find(conn->u.ipv4.raddr, NULL) >= 0);
 #else
       return true;
 #endif
@@ -662,7 +662,7 @@ ssize_t tcp_sendfile(FAR struct socket *psock, FAR struct file *infile,
   if (state.snd_datacb == NULL)
     {
       nerr("ERROR: Failed to allocate data callback\n");
-      ret =- ENOMEM;
+      ret = -ENOMEM;
       goto errout_locked;
     }
 

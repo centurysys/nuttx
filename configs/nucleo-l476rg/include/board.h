@@ -120,10 +120,17 @@
 #define GPIO_USART2_RTS  GPIO_USART2_RTS_2
 #define GPIO_USART2_CTS  GPIO_USART2_CTS_2
 
-#define GPIO_USART3_RX   GPIO_USART3_RX_2     /* PC5 */
-#define GPIO_USART3_TX   GPIO_USART3_TX_2     /* PC4 */
-#define GPIO_USART3_RTS  GPIO_USART3_RTS_DE_1 /* PB1 */
-#define GPIO_USART3_CTS  GPIO_USART3_CTS_1    /* PA6 */
+/* USART3:
+ *   RXD: PA10  CN9 pin 3, CN10 pin 33
+ *        PC5   CN5 pin 9, CN10 pin 6
+ *        PC11  CN7 pin 2
+ *   TXD: PA9   CN5 pin 1, CN10 pin 21
+ *        PC4   CN9 pin 3, CN10 pin 34
+ *        PC10  CN7 pin 1
+ */
+
+#define GPIO_USART3_RX   GPIO_USART3_RX_3    /* PC11 */
+#define GPIO_USART3_TX   GPIO_USART3_TX_3    /* PC10 */
 
 #define GPIO_UART4_RX    GPIO_UART4_RX_1     /* PA1 */
 #define GPIO_UART4_TX    GPIO_UART4_TX_1     /* PA0 */

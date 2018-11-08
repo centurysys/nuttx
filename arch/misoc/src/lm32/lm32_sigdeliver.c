@@ -85,7 +85,7 @@ void lm32_sigdeliver(void)
 
   sinfo("rtcb=%p sigdeliver=%p sigpendactionq.head=%p\n",
         rtcb, rtcb->xcp.sigdeliver, rtcb->sigpendactionq.head);
-  ASSERT(rtcb->xcp.sigdeliver != NULL);
+  DEBUGASSERT(rtcb->xcp.sigdeliver != NULL);
 
   /* Save the real return state on the stack. */
 
@@ -134,7 +134,7 @@ void lm32_sigdeliver(void)
    * interrupts are disabled.
    */
 
-  PANIC();
+  DEBUGPANIC();
 }
 
 #endif /* !CONFIG_DISABLE_SIGNALS */

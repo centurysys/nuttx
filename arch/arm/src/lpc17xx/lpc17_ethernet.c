@@ -122,7 +122,7 @@
 
 /* If IGMP is enabled, then accept multi-cast frames. */
 
-#if defined(CONFIG_NET_IGMP) && !defined(CONFIG_LPC17_MULTICAST)
+#if defined(CONFIG_NET_MCASTGROUP) && !defined(CONFIG_LPC17_MULTICAST)
 #  define CONFIG_LPC17_MULTICAST 1
 #endif
 
@@ -356,11 +356,11 @@ static int lpc17_ifdown(struct net_driver_s *dev);
 static void lpc17_txavail_work(FAR void *arg);
 static int lpc17_txavail(struct net_driver_s *dev);
 
-#if defined(CONFIG_NET_IGMP) || defined(CONFIG_NET_ICMPv6)
+#if defined(CONFIG_NET_MCASTGROUP) || defined(CONFIG_NET_ICMPv6)
 static uint32_t lpc17_calcethcrc(const uint8_t *data, size_t length);
 static int lpc17_addmac(struct net_driver_s *dev, const uint8_t *mac);
 #endif
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int lpc17_rmmac(struct net_driver_s *dev, const uint8_t *mac);
 #endif
 
@@ -716,17 +716,20 @@ static int lpc17_txpoll(struct net_driver_s *dev)
         }
 #endif /* CONFIG_NET_IPv6 */
 
-      /* Send this packet.  In this context, we know that there is space for
-       * at least one more packet in the descriptor list.
-       */
+      if (!devif_loopback(&priv->lp_dev))
+        {
+          /* Send this packet.  In this context, we know that there is space for
+           * at least one more packet in the descriptor list.
+           */
 
-      lpc17_transmit(priv);
+          lpc17_transmit(priv);
 
-      /* Check if there is room in the device to hold another packet. If not,
-       * return any non-zero value to terminate the poll.
-       */
+          /* Check if there is room in the device to hold another packet. If not,
+           * return any non-zero value to terminate the poll.
+           */
 
-      ret = lpc17_txdesc(priv);
+          ret = lpc17_txdesc(priv);
+        }
     }
 
   /* If zero is returned, the polling will continue until all connections have
@@ -1872,7 +1875,7 @@ static int lpc17_txavail(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_IGMP) || defined(CONFIG_NET_ICMPv6)
+#if defined(CONFIG_NET_MCASTGROUP) || defined(CONFIG_NET_ICMPv6)
 static uint32_t lpc17_calcethcrc(const uint8_t *data, size_t length)
 {
   char byte;
@@ -1933,7 +1936,7 @@ static uint32_t lpc17_calcethcrc(const uint8_t *data, size_t length)
 
   return crc;
 }
-#endif /* CONFIG_NET_IGMP || CONFIG_NET_ICMPv6 */
+#endif /* CONFIG_NET_MCASTGROUP || CONFIG_NET_ICMPv6 */
 
 /****************************************************************************
  * Function: lpc17_addmac
@@ -1953,7 +1956,7 @@ static uint32_t lpc17_calcethcrc(const uint8_t *data, size_t length)
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_IGMP) || defined(CONFIG_NET_ICMPv6)
+#if defined(CONFIG_NET_MCASTGROUP) || defined(CONFIG_NET_ICMPv6)
 static int lpc17_addmac(struct net_driver_s *dev, const uint8_t *mac)
 {
   uintptr_t regaddr;
@@ -2008,7 +2011,7 @@ static int lpc17_addmac(struct net_driver_s *dev, const uint8_t *mac)
 
   return OK;
 }
-#endif /* CONFIG_NET_IGMP || CONFIG_NET_ICMPv6 */
+#endif /* CONFIG_NET_MCASTGROUP || CONFIG_NET_ICMPv6 */
 
 /****************************************************************************
  * Function: lpc17_rmmac
@@ -2028,7 +2031,7 @@ static int lpc17_addmac(struct net_driver_s *dev, const uint8_t *mac)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int lpc17_rmmac(struct net_driver_s *dev, const uint8_t *mac)
 {
   uintptr_t regaddr1;
@@ -3044,7 +3047,7 @@ static inline int lpc17_ethinitialize(int intf)
   priv->lp_dev.d_ifup    = lpc17_ifup;    /* I/F down callback */
   priv->lp_dev.d_ifdown  = lpc17_ifdown;  /* I/F up (new IP address) callback */
   priv->lp_dev.d_txavail = lpc17_txavail; /* New TX data callback */
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
   priv->lp_dev.d_addmac  = lpc17_addmac;  /* Add multicast MAC address */
   priv->lp_dev.d_rmmac   = lpc17_rmmac;   /* Remove multicast MAC address */
 #endif

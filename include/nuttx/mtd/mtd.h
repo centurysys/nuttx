@@ -288,6 +288,21 @@ FAR struct mtd_dev_s *mtd_rwb_initialize(FAR struct mtd_dev_s *mtd);
 #endif
 
 /****************************************************************************
+ * Name: ftl_initialize_by_name
+ *
+ * Description:
+ *   Initialize to provide a block driver wrapper around an MTD interface
+ *
+ * Input Parameters:
+ *   name - The device name.  The MTD block device will be
+ *          registered as as /dev/mtdNAME where NAME is the device name.
+ *   mtd  - The MTD device that supports the FLASH interface.
+ *
+ ****************************************************************************/
+
+int ftl_initialize_by_name(FAR const char *name, FAR struct mtd_dev_s *mtd);
+
+/****************************************************************************
  * Name: ftl_initialize
  *
  * Description:
@@ -523,6 +538,16 @@ FAR struct mtd_dev_s *sst39vf_initialize(void);
  ****************************************************************************/
 
 FAR struct mtd_dev_s *w25_initialize(FAR struct spi_dev_s *dev);
+
+/****************************************************************************
+ * Name: gd25_initialize
+ *
+ * Description:
+ *   Initializes the driver for SPI-based GD25 FLASH
+ *
+ ****************************************************************************/
+
+FAR struct mtd_dev_s *gd25_initialize(FAR struct spi_dev_s *dev);
 
 /****************************************************************************
  * Name: s25fl1_initialize

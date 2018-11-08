@@ -68,18 +68,10 @@
 
 #define CONFIG_RNDIS_EP0MAXPACKET 64
 
-#define CONFIG_RNDIS_VENDORID   0x1d6b
-#define CONFIG_RNDIS_PRODUCTID  0x0129
-#define CONFIG_RNDIS_VERSIONNO  0x0205
-
-#define CONFIG_RNDIS_VENDORSTR  "NuttX"
-#define CONFIG_RNDIS_PRODUCTSTR "USB RNDIS device"
-#define CONFIG_RNDIS_SERIALSTR  "0"
-
 #define CONFIG_RNDIS_NWRREQS    (2)
 
 #define RNDIS_PACKET_HDR_SIZE   (sizeof(struct rndis_packet_msg))
-#define CONFIG_RNDIS_BULKIN_REQLEN (CONFIG_NET_ETH_PKTSIZE + RNDIS_PACKET_HDR_SIZE)
+#define CONFIG_RNDIS_BULKIN_REQLEN (CONFIG_NET_ETH_PKTSIZE + CONFIG_NET_GUARDSIZE + RNDIS_PACKET_HDR_SIZE)
 #define CONFIG_RNDIS_BULKOUT_REQLEN CONFIG_RNDIS_BULKIN_REQLEN
 
 #define RNDIS_NCONFIGS          (1)
@@ -994,8 +986,10 @@ static int rndis_txpoll(FAR struct net_driver_s *dev)
         }
 #endif /* CONFIG_NET_IPv6 */
 
-      ret = rndis_transmit(priv);
-
+      if (!devif_loopback(&priv->netdev))
+        {
+          ret = rndis_transmit(priv);
+        }
     }
 
   /* If zero is returned, the polling will continue until all connections have
@@ -1247,7 +1241,7 @@ static inline int rndis_recvpacket(FAR struct rndis_dev_s *priv,
 
           /* Check if the received packet exceeds request buffer */
 
-          if ((RNDIS_PACKET_HDR_SIZE + index + copysize) <= CONFIG_NET_ETH_PKTSIZE)
+          if ((index + copysize) <= CONFIG_NET_ETH_PKTSIZE)
             {
               memcpy(&priv->rx_req->req->buf[RNDIS_PACKET_HDR_SIZE + index], reqbuf,
                      copysize);

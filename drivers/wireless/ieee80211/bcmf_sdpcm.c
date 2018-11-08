@@ -258,7 +258,7 @@ int bcmf_sdpcm_readframe(FAR struct bcmf_dev_s *priv)
 
         if (nxsem_wait(&sbus->queue_mutex) < 0)
           {
-            PANIC();
+            DEBUGPANIC();
           }
 
         bcmf_dqueue_push(&sbus->rx_queue, &sframe->list_entry);
@@ -313,7 +313,7 @@ int bcmf_sdpcm_sendframe(FAR struct bcmf_dev_s *priv)
 
   if (nxsem_wait(&sbus->queue_mutex) < 0)
     {
-      PANIC();
+      DEBUGPANIC();
     }
 
   entry = sbus->tx_queue.tail;
@@ -397,7 +397,7 @@ int bcmf_sdpcm_queue_frame(FAR struct bcmf_dev_s *priv,
 
   if (nxsem_wait(&sbus->queue_mutex) < 0)
     {
-      PANIC();
+      DEBUGPANIC();
     }
 
   bcmf_dqueue_push(&sbus->tx_queue, &sframe->list_entry);
@@ -423,8 +423,7 @@ struct bcmf_frame_s *bcmf_sdpcm_alloc_frame(FAR struct bcmf_dev_s *priv,
       header_len += 2; /* Data frames need alignment padding */
     }
 
-  if (len + header_len > MAX_NETDEV_PKTSIZE + HEADER_SIZE ||
-      len > len + header_len)
+  if (len + header_len > MAX_NETDEV_PKTSIZE + HEADER_SIZE)
     {
       wlerr("Invalid size %d\n", len);
       return NULL;
@@ -439,7 +438,7 @@ struct bcmf_frame_s *bcmf_sdpcm_alloc_frame(FAR struct bcmf_dev_s *priv,
       return NULL;
     }
 
-  sframe->header.len = header_len + len;
+  sframe->header.len   = header_len + len;
   sframe->header.data += header_len;
   return &sframe->header;
 }
@@ -459,7 +458,7 @@ struct bcmf_frame_s *bcmf_sdpcm_get_rx_frame(FAR struct bcmf_dev_s *priv)
 
   if (nxsem_wait(&sbus->queue_mutex) < 0)
     {
-      PANIC();
+      DEBUGPANIC();
     }
 
   entry = bcmf_dqueue_pop_tail(&sbus->rx_queue);

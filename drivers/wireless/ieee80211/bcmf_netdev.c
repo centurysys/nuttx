@@ -135,10 +135,10 @@ static int  bcmf_ifdown(FAR struct net_driver_s *dev);
 static void bcmf_txavail_work(FAR void *arg);
 static int  bcmf_txavail(FAR struct net_driver_s *dev);
 
-#if defined(CONFIG_NET_IGMP) || defined(CONFIG_NET_ICMPv6)
+#if defined(CONFIG_NET_MCASTGROUP) || defined(CONFIG_NET_ICMPv6)
 static int  bcmf_addmac(FAR struct net_driver_s *dev,
                         FAR const uint8_t *mac);
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int  bcmf_rmmac(FAR struct net_driver_s *dev,
                        FAR const uint8_t *mac);
 #endif
@@ -473,16 +473,19 @@ static int bcmf_txpoll(FAR struct net_driver_s *dev)
         }
 #endif /* CONFIG_NET_IPv6 */
 
-      /* Send the packet */
+      if (!devif_loopback(&priv->bc_dev))
+        {
+          /* Send the packet */
 
-      bcmf_transmit(priv, priv->cur_tx_frame);
+          bcmf_transmit(priv, priv->cur_tx_frame);
 
-      /* TODO: Check if there is room in the device to hold another packet.
-       * If not, return a non-zero value to terminate the poll.
-       */
+          /* TODO: Check if there is room in the device to hold another packet.
+           * If not, return a non-zero value to terminate the poll.
+           */
 
-      priv->cur_tx_frame = NULL;
-      return 1;
+          priv->cur_tx_frame = NULL;
+          return 1;
+        }
     }
 
   /* If zero is returned, the polling will continue until all connections have
@@ -851,7 +854,7 @@ static int bcmf_txavail(FAR struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_IGMP) || defined(CONFIG_NET_ICMPv6)
+#if defined(CONFIG_NET_MCASTGROUP) || defined(CONFIG_NET_ICMPv6)
 static int bcmf_addmac(FAR struct net_driver_s *dev, FAR const uint8_t *mac)
 {
   FAR struct bcmf_dev_s *priv = (FAR struct bcmf_dev_s *)dev->d_private;
@@ -880,7 +883,7 @@ static int bcmf_addmac(FAR struct net_driver_s *dev, FAR const uint8_t *mac)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int bcmf_rmmac(FAR struct net_driver_s *dev, FAR const uint8_t *mac)
 {
   FAR struct bcmf_dev_s *priv = (FAR struct bcmf_dev_s *)dev->d_private;
@@ -1110,7 +1113,7 @@ int bcmf_netdev_register(FAR struct bcmf_dev_s *priv)
   priv->bc_dev.d_ifup    = bcmf_ifup;     /* I/F up (new IP address) callback */
   priv->bc_dev.d_ifdown  = bcmf_ifdown;   /* I/F down callback */
   priv->bc_dev.d_txavail = bcmf_txavail;  /* New TX data callback */
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
   priv->bc_dev.d_addmac  = bcmf_addmac;   /* Add multicast MAC address */
   priv->bc_dev.d_rmmac   = bcmf_rmmac;    /* Remove multicast MAC address */
 #endif

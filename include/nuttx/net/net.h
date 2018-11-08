@@ -65,6 +65,11 @@
  * (libuc.a and libunx.a).  The that case, the correct interface must be
  * used for the build context.
  *
+ * REVISIT:  In the flat build, the same functions must be used both by
+ * the OS and by applications.  We have to use the normal user functions
+ * in this case or we will fail to set the errno or fail to create the
+ * cancellation point.
+ *
  * The interfaces accept(), read(), recv(), recvfrom(), write(), send(),
  * sendto() are all cancellation points.
  *
@@ -73,7 +78,7 @@
  * to become a cancellation points!
  */
 
-#if defined(CONFIG_BUILD_FLAT) || defined(__KERNEL__)
+#if !defined(CONFIG_BUILD_FLAT) && defined(__KERNEL__)
 #  define _NX_SEND(s,b,l,f)         nx_send(s,b,l,f)
 #  define _NX_RECV(s,b,l,f)         nx_recv(s,b,l,f)
 #  define _NX_RECVFROM(s,b,l,f,a,n) nx_recvfrom(s,b,l,f,a,n)
@@ -107,7 +112,7 @@
  * Public Types
  ****************************************************************************/
 
-/* Data link layer type.  This type is used with netdev_register in order to
+/* Link layer type.  This type is used with netdev_register in order to
  * identify the type of the network driver.
  */
 
@@ -180,6 +185,10 @@ struct sock_intf_s
                     size_t len, int flags, FAR struct sockaddr *from,
                     FAR socklen_t *fromlen);
   CODE int        (*si_close)(FAR struct socket *psock);
+#ifdef CONFIG_NET_USRSOCK
+  CODE int        (*si_ioctl)(FAR struct socket *psock, int cmd,
+                    FAR void *arg, size_t arglen);
+#endif
 };
 
 /* This is the internal representation of a socket reference by a file
@@ -1071,6 +1080,46 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
                      FAR const void *value, socklen_t value_len);
 
 /****************************************************************************
+ * Name: psock_getsockname
+ *
+ * Description:
+ *   The psock_getsockname() function retrieves the locally-bound name of the
+ *   the specified socket, stores this address in the sockaddr structure pointed
+ *   to by the 'addr' argument, and stores the length of this address in the
+ *   object pointed to by the 'addrlen' argument.
+ *
+ *   If the actual length of the address is greater than the length of the
+ *   supplied sockaddr structure, the stored address will be truncated.
+ *
+ *   If the socket has not been bound to a local name, the value stored in
+ *   the object pointed to by address is unspecified.
+ *
+ * Parameters:
+ *   psock    Socket structure of socket to operate on
+ *   addr     sockaddr structure to receive data [out]
+ *   addrlen  Length of sockaddr structure [in/out]
+ *
+ * Returned Value:
+ *   On success, 0 is returned, the 'addr' argument points to the address
+ *   of the socket, and the 'addrlen' argument points to the length of the
+ *   address. Otherwise, -1 is returned and errno is set to indicate the error.
+ *   Possible errno values that may be returned include:
+ *
+ *   EBADF      - The socket argument is not a valid file descriptor.
+ *   ENOTSOCK   - The socket argument does not refer to a socket.
+ *   EOPNOTSUPP - The operation is not supported for this socket's protocol.
+ *   ENOTCONN   - The socket is not connected or otherwise has not had the
+ *                peer pre-specified.
+ *   EINVAL     - The socket has been shut down.
+ *   ENOBUFS    - Insufficient resources were available in the system to
+ *                complete the function.
+ *
+ ****************************************************************************/
+
+int psock_getsockname(FAR struct socket *psock, FAR struct sockaddr *addr,
+                      FAR socklen_t *addrlen);
+
+/****************************************************************************
  * Name: psock_getpeername
  *
  * Description:
@@ -1225,6 +1274,23 @@ int net_poll(int sockfd, struct pollfd *fds, bool setup);
 #endif
 
 /****************************************************************************
+ * Name: psock_dupsd
+ *
+ * Description:
+ *   Clone a socket descriptor to an arbitray descriptor number.  If file
+ *   descriptors are implemented, then this is called by dup() for the case
+ *   of socket file descriptors.  If file descriptors are not implemented,
+ *   then this function IS dup().
+ *
+ * Returned Value:
+ *   On success, returns the number of characters sent.  On any error,
+ *   a negated errno value is returned:.
+ *
+ ****************************************************************************/
+
+int psock_dupsd(FAR struct socket *psock, int minsd);
+
+/****************************************************************************
  * Name: net_dupsd
  *
  * Description:
@@ -1354,6 +1420,46 @@ int net_clone(FAR struct socket *psock1, FAR struct socket *psock2);
 struct file;
 ssize_t net_sendfile(int outfd, struct file *infile, off_t *offset, size_t count);
 #endif
+
+/****************************************************************************
+ * Name: psock_vfcntl
+ *
+ * Description:
+ *   Performs fcntl operations on socket
+ *
+ * Input Parameters:
+ *   psock - An instance of the internal socket structure.
+ *   cmd   - The fcntl command.
+ *   ap    - Command-specific arguments
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   any failure to indicate the nature of the failure.
+ *
+ ****************************************************************************/
+
+int psock_vfcntl(FAR struct socket *psock, int cmd, va_list ap);
+
+/****************************************************************************
+ * Name: psock_fcntl
+ *
+ * Description:
+ *   Similar to the standard fcntl function except that is accepts a struct
+ *   struct socket instance instead of a file descriptor.
+ *
+ * Input Parameters:
+ *   psock - An instance of the internal socket structure.
+ *   cmd   - Identifies the operation to be performed.  Command specific
+ *           arguments may follow.
+ *
+ * Returned Value:
+ *   The nature of the return value depends on the command.  Non-negative
+ *   values indicate success.  Failures are reported as negated errno
+ *   values.
+ *
+ ****************************************************************************/
+
+int psock_fcntl(FAR struct socket *psock, int cmd, ...);
 
 /****************************************************************************
  * Name: net_vfcntl

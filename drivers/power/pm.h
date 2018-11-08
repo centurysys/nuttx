@@ -47,8 +47,8 @@
 
 #include <nuttx/semaphore.h>
 #include <nuttx/clock.h>
-#include <nuttx/wqueue.h>
 #include <nuttx/power/pm.h>
+#include <nuttx/wdog.h>
 
 #ifdef CONFIG_PM
 
@@ -56,10 +56,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 /* Configuration ************************************************************/
-
-#ifndef CONFIG_SCHED_WORKQUEUE
-#  warning "Worker thread support is required (CONFIG_SCHED_WORKQUEUE)"
-#endif
 
 /* Convert the time slice interval into system clock ticks.
  *
@@ -139,32 +135,36 @@ struct pm_domain_s
   /* stime - The time (in ticks) at the start of the current time slice */
 
   clock_t stime;
+
+  /* The power state lock count */
+
+  uint16_t stay[PM_COUNT];
+
+  /* Timer to decrease state */
+
+  WDOG_ID wdog;
 };
 
 /* This structure encapsulates all of the global data used by the PM module */
 
 struct pm_global_s
 {
-  /* The activity/state information for each PM domain */
-
-  struct pm_domain_s domain[CONFIG_PM_NDOMAINS];
-
   /* This semaphore manages mutually exclusive access to the power management
    * registry.  It must be initialized to the value 1.
    */
 
   sem_t regsem;
 
-  /* For work that has been deferred to the worker thread */
-
-  struct work_s work;
-
-  /* registry is a singly-linked list of registered power management
+  /* registry is a doubly-linked list of registered power management
    * callback structures.  To ensure mutually exclusive access, this list
    * must be locked by calling pm_lock() before it is accessed.
    */
 
-  sq_queue_t registry;
+  dq_queue_t registry;
+
+  /* The activity/state information for each PM domain */
+
+  struct pm_domain_s domain[CONFIG_PM_NDOMAINS];
 };
 
 /****************************************************************************
@@ -199,6 +199,7 @@ EXTERN struct pm_global_s g_pmglobals;
  *   domain - The domain associated with the accumulator.
  *   accum - The value of the activity accumulator at the end of the time
  *     slice.
+ *   elapsed - The elapsed time from last called pm_update, unit ms
  *
  * Returned Value:
  *   None.
@@ -206,12 +207,11 @@ EXTERN struct pm_global_s g_pmglobals;
  * Assumptions:
  *   This function may be called from a driver, perhaps even at the interrupt
  *   level.  It may also be called from the IDLE loop at the lowest possible
- *   priority level.  To reconcile these various conditions, all work is
- *   performed on the worker thread at a user-selectable priority.
+ *   priority level.
  *
  ****************************************************************************/
 
-void pm_update(int domain, int16_t accum);
+void pm_update(int domain, int16_t accum, clock_t elapsed);
 
 #undef EXTERN
 #if defined(__cplusplus)

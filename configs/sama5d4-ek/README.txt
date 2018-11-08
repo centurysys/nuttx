@@ -4152,8 +4152,14 @@ Configurations
 
         A. Build with no symbol table
 
+        $ make menuconfig
+
+          Disable ROMFS support in the .config file; Enable FAT file system
+          support in the .config file.  Enable "HSMCIO boot mount" support in
+          the board
+
         $ cd nuttx                          : Go to the NuttX build directory
-        $ tools/configure.sh sama5d4-ek/kernel  : Establish this configuration
+        $ tools/configure.sh sama5d4-ek/knsh  : Establish this configuration
         $ export PATH=???:$PATH             : Set up the PATH variable
         $ make                              : Build the kerne with a dummy ROMFS image
                                             : This should create the nuttx ELF
@@ -4170,25 +4176,6 @@ Configurations
         $ tools/mkimport.sh -x <zip-file>   : Use the full path to nuttx-export-*.zip
         $ make import                       : This will build the file system.
 
-        D. Create the symbol table from the apps/bin/content and copy back to NuttX
-
-        $ make symtab                       : Create the symbol table
-        $ ar rcs ../nuttx/binfmt/libbinfmt.a import/symtab.o
-
-        NOTE: There are many ways to create symbol tables.  The above will create
-        the minimal symbol tabled needed.
-
-        E. Reconfigure and rebuild NuttX
-
-          Enable the following in the configuration:
-            CONFIG_EXECFUNCS_HAVE_SYMTAB=y
-            CONFIG_EXECFUNCS_SYMTAB_ARRAY="g_symtab"
-            CONFIG_EXEDFUNCS_NSYMBOLS_VAR="g_nsymbols"
-            CONFIG_USER_INITPATH="/bin/init"
-
-        $ cd nuttx/                         : Rebuild the system with the correct
-        $ make clean_context all            : symbol table
-
       You will then need to copy the files from apps/bin to an SD card or USB
       FLASH drive to create the bootable SD card.
 
@@ -4201,7 +4188,12 @@ Configurations
 
         A. Build with dummy ROMFS file system image and no symbol table
 
-        $ tools/configure.sh sama5d4-ek/kernel  : Establish this configuration
+        $ make menuconfig
+
+          Enable the ROMFS file system and board-specific "ROMFS boot mount"
+          support to auto-mount the ROMFS file system on bootup.
+
+        $ tools/configure.sh sama5d4-ek/knsh  : Establish this configuration
         $ export PATH=???:$PATH             : Set up the PATH variable
         $ touch configs/sama5d4-ek/include/boot_romfsimg.h
         $ make                              : Build the kernel with a dummy ROMFS image
@@ -4224,24 +4216,10 @@ Configurations
         $ tools/mkromfsimg.sh               : Create the real ROMFS image
         $ mv boot_romfsimg.h ../nuttx/configs/sama5d4-ek/include/boot_romfsimg.h
 
-        E. Create the symbol table from the apps/bin and copy it back to NuttX
-
-        $ make symtab                       : Create the symbol table
-        $ ar rcs ../nuttx/binfmt/libbinfmt.a import/symtab.o
-
-        NOTE: There are many ways to create symbol tables.  The above will create
-        the minimal symbol tabled needed.
-
-        F. Reconfigure and rebuild NuttX/bin
-
-          Enable the following in the configuration:
-            CONFIG_EXECFUNCS_HAVE_SYMTAB=y
-            CONFIG_EXECFUNCS_SYMTAB_ARRAY="g_symtab"
-            CONFIG_EXEDFUNCS_NSYMBOLS_VAR="g_nsymbols"
-            CONFIG_USER_INITPATH="/bin/init"
+        E. Rebuild NuttX with the new file system image
 
         $ cd nuttx/                         : Rebuild the system with the correct
-        $ make clean_context all            : ROMFS file system and symbol table
+        $ make clean clean_context all      : ROMFS file system and symbol table
 
       But how does the ROMFS file system get mounted?  This is done in board-
       specific logic before the 'init' program is started.
@@ -4517,10 +4495,10 @@ Configurations
          |   |      |- fd                : File descriptors open in the group
          |   |      `- status            : Status of the group
          |   |- 1/                       : Information about Task ID 1
-         |   |  `- ...                   : Same psuedo-directories as for Task ID 0
+         |   |  `- ...                   : Same pseudo-directories as for Task ID 0
          |   |- ...                      : ...
          |   |- n/                       : Information about Task ID n
-         |   |  `- ...                   : Same psuedo-directories as for Task ID 0
+         |   |  `- ...                   : Same pseudo-directories as for Task ID 0
          |   |- uptime                   : Processor uptime
          `- tmp/
 
@@ -4788,10 +4766,6 @@ Configurations
 
           nuttx-git/NxWidgets/UnitTests/nxwm
 
-        Documentation for installing the NxWM unit test can be found here:
-
-          nuttx-git/NxWidgets/UnitTests/README.txt
-
     2. This configuration is set up generally like the nsh configuration
        except that:
 
@@ -4806,45 +4780,7 @@ Configurations
        for the nxwm configuration (other than the differences noted
        above).
 
-    3. Here is the quick summary of the build steps.  These steps assume
-       that you have the entire NuttX GIT in some directory ~/nuttx-git.
-       You may have these components installed elsewhere.  In that case, you
-       will need to adjust all of the paths in the following accordingly:
-
-        a. Install the nxwm configuration
-
-           $ tools/configure.sh sama5d4-ek/nxwm
-
-        b. Make the build context (only)
-
-           $ make context
-
-        c. Install the nxwm unit test
-
-           $ cd ~/nuttx-git/NxWidgets
-           $ tools/install.sh ~/nuttx-git/apps nxwm
-           Creating symbolic link
-            - To ~/nuttx-git/NxWidgets/UnitTests/nxwm
-            - At ~/nuttx-git/apps/external
-
-        d. Build the NxWidgets library
-
-           $ cd ~/nuttx-git/NxWidgets/libnxwidgets
-           $ make TOPDIR=~/nuttx-git/nuttx
-           ...
-
-        e. Build the NxWM library
-
-           $ cd ~/nuttx-git/NxWidgets/nxwm
-           $ make TOPDIR=~/nuttx-git/nuttx
-           ...
-
-        f. Built NuttX with the installed unit test as the application
-
-           $ cd ~/nuttx-git/nuttx
-           $ make
-
-    4. NSH Console Access.
+    3. NSH Console Access.
 
        This configuration boots directly into a graphic, window manage
        environment.  There is no serial console.  Some initial stdout
@@ -4868,7 +4804,7 @@ Configurations
        Instead, you will need use the dmesg command from an NxTerm or
        from a Telnet session to see the debug output
 
-    5. USB HID Keyboard Input
+    4. USB HID Keyboard Input
 
        USB keyboard support is enabled in the default configuration, but
        can be disabled:
@@ -4909,7 +4845,7 @@ Configurations
 
        which can be reduced if better keyboard response is required.
 
-    6. Media Player
+    5. Media Player
 
        This configuration has the media player application enabled. Support
        for the WM8904 CODEC is built in.

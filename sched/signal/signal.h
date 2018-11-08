@@ -44,6 +44,7 @@
 #include <nuttx/compiler.h>
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <queue.h>
 #include <sched.h>
 
@@ -67,13 +68,14 @@
  * Public Type Definitions
  ****************************************************************************/
 
+/* This enumeration identifies the type of signal data allocation */
+
 enum sigalloc_e
 {
   SIG_ALLOC_FIXED = 0,  /* pre-allocated; never freed */
   SIG_ALLOC_DYN,        /* dynamically allocated; free when unused */
   SIG_ALLOC_IRQ         /* Preallocated, reserved for interrupt handling */
 };
-typedef enum sigalloc_e sigalloc_t;
 
 /* The following defines the sigaction queue entry */
 
@@ -168,6 +170,16 @@ void               nxsig_alloc_actionblock(void);
 /* sig_action.c */
 
 void               nxsig_release_action(FAR sigactq_t *sigact);
+
+/* sig_default.c */
+
+#ifdef CONFIG_SIG_DEFAULT
+bool               nxsig_isdefault(FAR struct tcb_s *tcb, int signo);
+bool               nxsig_iscatchable(int signo);
+_sa_handler_t      nxsig_default(FAR struct tcb_s *tcb, int signo,
+                                 bool defaction);
+int                nxsig_default_initialize(FAR struct tcb_s *tcb);
+#endif
 
 /* sig_pending.c */
 

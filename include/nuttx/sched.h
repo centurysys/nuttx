@@ -188,9 +188,14 @@
  * used both by the OS (libkc.a and libknx.a) or by the applications
  * (libuc.a and libunx.a).  The that case, the correct interface must be
  * used for the build context.
+ *
+ * REVISIT:  In the flat build, the same functions must be used both by
+ * the OS and by applications.  We have to use the normal user functions
+ * in this case or we will fail to set the errno or fail to create the
+ * cancellation point.
  */
 
-#if defined(CONFIG_BUILD_FLAT) || defined(__KERNEL__)
+#if !defined(CONFIG_BUILD_FLAT) && defined(__KERNEL__)
 #  define _SCHED_GETPARAM(t,p)       nxsched_getparam(t,p)
 #  define _SCHED_SETPARAM(t,p)       nxsched_setparam(t,p)
 #  define _SCHED_GETSCHEDULER(t)     nxsched_getscheduler(t)
@@ -245,6 +250,10 @@ enum tstate_e
 #ifdef CONFIG_PAGING
   TSTATE_WAIT_PAGEFILL,       /* BLOCKED      - Waiting for page fill */
 #endif
+#ifdef CONFIG_SIG_SIGSTOP_ACTION
+  TSTATE_TASK_STOPPED,        /* BLOCKED      - Waiting for SIGCONT */
+#endif
+
   NUM_TASK_STATES             /* Must be last */
 };
 typedef enum tstate_e tstate_t;
@@ -498,8 +507,9 @@ struct task_group_s
   /* Simple mechanism used only when there is no support for SIGCHLD            */
 
   uint8_t tg_nwaiters;              /* Number of waiters                        */
+  uint8_t tg_waitflags;             /* User flags for waitpid behavior          */
   sem_t tg_exitsem;                 /* Support for waitpid                      */
-  int *tg_statloc;                  /* Location to return exit status           */
+  FAR int *tg_statloc;              /* Location to return exit status           */
 #endif
 
 #ifndef CONFIG_DISABLE_PTHREAD
@@ -518,6 +528,9 @@ struct task_group_s
 
   sq_queue_t tg_sigactionq;         /* List of actions for signals              */
   sq_queue_t tg_sigpendingq;        /* List of pending signals                  */
+#ifdef CONFIG_SIG_DEFAULT
+  sigset_t tg_sigdefault;           /* Set of signals set to the default action */
+#endif
 #endif
 
 #ifndef CONFIG_DISABLE_ENVIRON
@@ -872,7 +885,7 @@ void task_starthook(FAR struct task_tcb_s *tcb, starthook_t starthook,
  *
  ********************************************************************************/
 
-FAR struct task_tcb_s *task_vforksetup(start_t retaddr);
+FAR struct task_tcb_s *task_vforksetup(start_t retaddr, size_t *argsize);
 pid_t task_vforkstart(FAR struct task_tcb_s *child);
 void task_vforkabort(FAR struct task_tcb_s *child, int errcode);
 

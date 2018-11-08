@@ -215,14 +215,16 @@ int icmpv6_neighbor(const net_ipv6addr_t ipaddr)
   if (net_ipv6addr_cmp(ipaddr, g_ipv6_unspecaddr) ||
       net_is_addr_mcast(ipaddr))
     {
-      /* We don't need to send the Neighbor Solicitation */
+      /* We don't need to send the Neighbor Solicitation.  But for the case
+       * of the Multicast address, a routing able entry will be required.
+       */
 
       return OK;
     }
 
   /* Get the device that can route this request */
 
-  dev = netdev_findby_ipv6addr(g_ipv6_unspecaddr, ipaddr);
+  dev = netdev_findby_ripv6addr(g_ipv6_unspecaddr, ipaddr);
   if (!dev)
     {
       nerr("ERROR: Unreachable: %08lx\n", (unsigned long)ipaddr);
@@ -231,7 +233,7 @@ int icmpv6_neighbor(const net_ipv6addr_t ipaddr)
     }
 
   /* Send the Neighbor Solicitation request only if this device uses the
-   * Ethernet data link protocol.
+   * Ethernet link layer protocol.
    *
    * REVISIT:  Other link layer protocols may require Neighbor Discovery
    * as well.

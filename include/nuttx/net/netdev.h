@@ -51,8 +51,12 @@
 
 #include <sys/ioctl.h>
 #include <stdint.h>
-#include <net/if.h>
 
+#ifdef CONFIG_NET_MCASTGROUP
+#  include <queue.h>
+#endif
+
+#include <net/if.h>
 #include <net/ethernet.h>
 #include <arpa/inet.h>
 
@@ -61,6 +65,10 @@
 
 #ifdef CONFIG_NET_IGMP
 #  include <nuttx/net/igmp.h>
+#endif
+
+#ifdef CONFIG_NET_MLD
+#  include <nuttx/net/mld.h>
 #endif
 
 /****************************************************************************
@@ -237,7 +245,7 @@ struct net_driver_s
 
   uint8_t d_flags;
 
-  /* Multi network devices using multiple data links protocols are selected */
+  /* Multi network devices using multiple link layer protocols are supported */
 
   uint8_t d_lltype;             /* See enum net_lltype_e */
   uint8_t d_llhdrlen;           /* Link layer header size */
@@ -336,10 +344,13 @@ struct net_driver_s
 
   uint16_t d_sndlen;
 
-#ifdef CONFIG_NET_IGMP
-  /* IGMP group list */
+  /* Multicast group support */
 
-  sq_queue_t grplist;
+#ifdef CONFIG_NET_IGMP
+  sq_queue_t d_igmp_grplist;    /* IGMP group list */
+#endif
+#ifdef CONFIG_NET_MLD
+  sq_queue_t d_mld_grplist;     /* MLD group list */
 #endif
 
 #ifdef CONFIG_NETDEV_STATISTICS
@@ -380,7 +391,7 @@ struct net_driver_s
   int (*d_ifup)(FAR struct net_driver_s *dev);
   int (*d_ifdown)(FAR struct net_driver_s *dev);
   int (*d_txavail)(FAR struct net_driver_s *dev);
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
   int (*d_addmac)(FAR struct net_driver_s *dev, FAR const uint8_t *mac);
   int (*d_rmmac)(FAR struct net_driver_s *dev, FAR const uint8_t *mac);
 #endif
@@ -569,6 +580,23 @@ void neighbor_out(FAR struct net_driver_s *dev);
 #endif /* CONFIG_NET_IPv6 */
 
 /****************************************************************************
+ * Name: devif_loopback
+ *
+ * Description:
+ *   This function should be called before sending out a packet. The function
+ *   checks the destination address of the packet to see whether the target of
+ *   packet is ourself and then consume the packet directly by calling input
+ *   process functions.
+ *
+ * Returned Value:
+ *   Zero is returned if the packet don't loop back to ourself, otherwise
+ *   a no zero value is returned.
+ *
+ ****************************************************************************/
+
+int devif_loopback(FAR struct net_driver_s *dev);
+
+/****************************************************************************
  * Carrier detection
  *
  * Call netdev_carrier_on when the carrier has become available and the device
@@ -581,6 +609,25 @@ void neighbor_out(FAR struct net_driver_s *dev);
 
 int netdev_carrier_on(FAR struct net_driver_s *dev);
 int netdev_carrier_off(FAR struct net_driver_s *dev);
+
+/****************************************************************************
+ * Name: net_ioctl_arglen
+ *
+ * Description:
+ *   Calculate the ioctl argument buffer length.
+ *
+ * Input Parameters:
+ *
+ *   cmd      The ioctl command
+ *
+ * Returned Value:
+ *   The argument buffer length, or error code.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_USRSOCK
+ssize_t net_ioctl_arglen(int cmd);
+#endif
 
 /****************************************************************************
  * Name: net_chksum

@@ -270,6 +270,13 @@ EXTERN volatile clock_t g_system_timer;
  * Public Function Prototypes
  ****************************************************************************/
 
+void clock_timespec_add(FAR const struct timespec *ts1,
+                        FAR const struct timespec *ts2,
+                        FAR struct timespec *ts3);
+void clock_timespec_subtract(FAR const struct timespec *ts1,
+                             FAR const struct timespec *ts2,
+                             FAR struct timespec *ts3);
+
 /****************************************************************************
  * Name:  clock_synchronize
  *
@@ -424,6 +431,28 @@ int clock_cpuload(int pid, FAR struct cpuload_s *cpuload);
 #ifdef CONFIG_CPULOAD_ONESHOT
 struct oneshot_lowerhalf_s;
 void sched_oneshot_extclk(FAR struct oneshot_lowerhalf_s *lower);
+#endif
+
+/****************************************************************************
+ * Name:  sched_period_extclk
+ *
+ * Description:
+ *   Configure to use a period timer as described in
+ *   include/nuttx/timers/timer.h to provide external clocking to assess
+ *   the CPU load.
+ *
+ * Input Parameters:
+ *   lower - An instance of the period timer interface as defined in
+ *           include/nuttx/timers/timer.h
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_CPULOAD_PERIOD
+struct timer_lowerhalf_s;
+void sched_period_extclk(FAR struct timer_lowerhalf_s *lower);
 #endif
 
 #undef EXTERN

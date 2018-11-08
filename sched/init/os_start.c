@@ -68,6 +68,9 @@
 #ifndef CONFIG_DISABLE_PTHREAD
 #  include "pthread/pthread.h"
 #endif
+#ifdef CONFIG_SCHED_WORKQUEUE
+#  include "wqueue/wqueue.h"
+#endif
 #include "clock/clock.h"
 #include "timer/timer.h"
 #include "irq/irq.h"
@@ -154,32 +157,38 @@ volatile dq_queue_t g_pendingtasks;
 
 volatile dq_queue_t g_waitingforsemaphore;
 
+#ifndef CONFIG_DISABLE_SIGNALS
 /* This is the list of all tasks that are blocked waiting for a signal */
 
-#ifndef CONFIG_DISABLE_SIGNALS
 volatile dq_queue_t g_waitingforsignal;
 #endif
 
+#ifndef CONFIG_DISABLE_MQUEUE
 /* This is the list of all tasks that are blocked waiting for a message
  * queue to become non-empty.
  */
 
-#ifndef CONFIG_DISABLE_MQUEUE
 volatile dq_queue_t g_waitingformqnotempty;
 #endif
 
+#ifndef CONFIG_DISABLE_MQUEUE
 /* This is the list of all tasks that are blocked waiting for a message
  * queue to become non-full.
  */
 
-#ifndef CONFIG_DISABLE_MQUEUE
 volatile dq_queue_t g_waitingformqnotfull;
 #endif
 
+#ifdef CONFIG_PAGING
 /* This is the list of all tasks that are blocking waiting for a page fill */
 
-#ifdef CONFIG_PAGING
 volatile dq_queue_t g_waitingforfill;
+#endif
+
+#ifdef CONFIG_SIG_SIGSTOP_ACTION
+/* This is the list of all tasks that have been stopped via SIGSTOP or SIGSTP */
+
+volatile dq_queue_t g_stoppedtasks;
 #endif
 
 /* This the list of all tasks that have been initialized, but not yet
@@ -188,14 +197,14 @@ volatile dq_queue_t g_waitingforfill;
 
 volatile dq_queue_t g_inactivetasks;
 
+#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
+     defined(CONFIG_MM_KERNEL_HEAP)
 /* These are lists of delayed memory deallocations that need to be handled
  * within the IDLE loop or worker thread.  These deallocations get queued
  * by sched_kufree and sched_kfree() if the OS needs to deallocate memory
  * while it is within an interrupt handler.
  */
 
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
-     defined(CONFIG_MM_KERNEL_HEAP)
 volatile sq_queue_t g_delayed_kfree;
 #endif
 
@@ -300,6 +309,13 @@ const struct tasklist_s g_tasklisttable[NUM_TASK_STATES] =
     TLIST_ATTR_PRIORITIZED
   }
 #endif
+#ifdef CONFIG_SIG_SIGSTOP_ACTION
+  ,
+  {                                              /* TSTATE_TASK_STOPPED */
+    &g_stoppedtasks,
+    0                                            /* See tcb->prev_state */
+  },
+#endif
 };
 
 /* This is the current initialization state.  The level of initialization
@@ -397,6 +413,9 @@ void os_start(void)
 #endif
 #ifdef CONFIG_PAGING
   dq_init(&g_waitingforfill);
+#endif
+#ifdef CONFIG_SIG_SIGSTOP_ACTION
+  dq_init(&g_stoppedtasks);
 #endif
   dq_init(&g_inactivetasks);
 #if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \

@@ -594,7 +594,7 @@ int bcmf_transfer_bytes(FAR struct bcmf_sdio_dev_s *sbus, bool write,
         /* Use block mode */
 
         blocklen = 64;
-        nblocks = (len+63) / 64;
+        nblocks = (len + 63) / 64;
       }
     else
       {
@@ -921,6 +921,10 @@ int bcmf_sdio_thread(int argc, char **argv)
           continue;
         }
 
+      /* Re-configure the board GPIO interrupt pin */
+
+      bcmf_board_setup_oob_irq(sbus->minor, bcmf_oob_irq, (void *)sbus);
+
       /* If we're done for now, turn off clock request. */
 
 #if 0
@@ -945,7 +949,7 @@ struct bcmf_sdio_frame *bcmf_sdio_allocate_frame(FAR struct bcmf_dev_s *priv,
     {
       if (nxsem_wait(&sbus->queue_mutex) < 0)
         {
-          PANIC();
+          DEBUGPANIC();
         }
 
 #if 0
@@ -995,7 +999,7 @@ void bcmf_sdio_free_frame(FAR struct bcmf_dev_s *priv,
 
   if (nxsem_wait(&sbus->queue_mutex) < 0)
     {
-      PANIC();
+      DEBUGPANIC();
     }
 
   bcmf_dqueue_push(&sbus->free_queue, &sframe->list_entry);

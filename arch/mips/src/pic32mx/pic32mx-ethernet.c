@@ -124,7 +124,7 @@
 
 /* If IGMP is enabled, then accept multi-cast frames. */
 
-#if defined(CONFIG_NET_IGMP) && !defined(CONFIG_PIC32MX_MULTICAST)
+#if defined(CONFIG_NET_MCASTGROUP) && !defined(CONFIG_PIC32MX_MULTICAST)
 #  define CONFIG_PIC32MX_MULTICAST 1
 #endif
 
@@ -414,7 +414,7 @@ static int pic32mx_ifdown(struct net_driver_s *dev);
 static void pic32mx_txavail_work(void *arg);
 static int pic32mx_txavail(struct net_driver_s *dev);
 
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int pic32mx_addmac(struct net_driver_s *dev, const uint8_t *mac);
 static int pic32mx_rmmac(struct net_driver_s *dev, const uint8_t *mac);
 #endif
@@ -1149,31 +1149,34 @@ static int pic32mx_txpoll(struct net_driver_s *dev)
         }
 #endif /* CONFIG_NET_IPv6 */
 
-      /* Send this packet.  In this context, we know that there is space for
-       * at least one more packet in the descriptor list.
-       */
-
-      pic32mx_transmit(priv);
-
-      /* Check if the next TX descriptor is available. If not, return a
-       * non-zero value to terminate the poll.
-       */
-
-      if (pic32mx_txdesc(priv) == NULL)
+      if (!devif_loopback(&priv->pd_dev))
         {
-          /* There are no more TX descriptors/buffers available.. stop the poll */
+          /* Send this packet.  In this context, we know that there is space for
+           * at least one more packet in the descriptor list.
+           */
 
-          return -EAGAIN;
-        }
+          pic32mx_transmit(priv);
 
-      /* Get the next Tx buffer needed in order to continue the poll */
+          /* Check if the next TX descriptor is available. If not, return a
+           * non-zero value to terminate the poll.
+           */
 
-      priv->pd_dev.d_buf = pic32mx_allocbuffer(priv);
-      if (priv->pd_dev.d_buf == NULL)
-        {
-          /* We have no more buffers available for the nex Tx.. stop the poll */
+          if (pic32mx_txdesc(priv) == NULL)
+            {
+              /* There are no more TX descriptors/buffers available.. stop the poll */
 
-          return -ENOMEM;
+              return -EAGAIN;
+            }
+
+          /* Get the next Tx buffer needed in order to continue the poll */
+
+          priv->pd_dev.d_buf = pic32mx_allocbuffer(priv);
+          if (priv->pd_dev.d_buf == NULL)
+            {
+              /* We have no more buffers available for the nex Tx.. stop the poll */
+
+              return -ENOMEM;
+            }
         }
     }
 
@@ -2494,7 +2497,7 @@ static int pic32mx_txavail(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int pic32mx_addmac(struct net_driver_s *dev, const uint8_t *mac)
 {
   struct pic32mx_driver_s *priv = (struct pic32mx_driver_s *)dev->d_private;
@@ -2524,7 +2527,7 @@ static int pic32mx_addmac(struct net_driver_s *dev, const uint8_t *mac)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
 static int pic32mx_rmmac(struct net_driver_s *dev, const uint8_t *mac)
 {
   struct pic32mx_driver_s *priv = (struct pic32mx_driver_s *)dev->d_private;
@@ -3335,7 +3338,7 @@ static inline int pic32mx_ethinitialize(int intf)
   priv->pd_dev.d_ifup    = pic32mx_ifup;    /* I/F down callback */
   priv->pd_dev.d_ifdown  = pic32mx_ifdown;  /* I/F up (new IP address) callback */
   priv->pd_dev.d_txavail = pic32mx_txavail; /* New TX data callback */
-#ifdef CONFIG_NET_IGMP
+#ifdef CONFIG_NET_MCASTGROUP
   priv->pd_dev.d_addmac  = pic32mx_addmac;  /* Add multicast MAC address */
   priv->pd_dev.d_rmmac   = pic32mx_rmmac;   /* Remove multicast MAC address */
 #endif
