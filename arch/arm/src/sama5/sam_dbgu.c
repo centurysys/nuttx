@@ -50,17 +50,17 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/fs/ioctl.h>
 #include <nuttx/serial/serial.h>
 
-#include <arch/serial.h>
 #include <arch/board/board.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
 
 #include "chip.h"
-#include "chip/sam_dbgu.h"
-#include "chip/sam_pinmap.h"
+#include "hardware/sam_dbgu.h"
+#include "hardware/sam_pinmap.h"
 #include "sam_pio.h"
 #include "sam_dbgu.h"
 

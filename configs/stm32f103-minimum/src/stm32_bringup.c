@@ -131,10 +131,10 @@
  * Description:
  *   Perform architecture-specific initialization
  *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
+ *   CONFIG_BOARD_LATE_INITIALIZE=y :
+ *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
+ *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
  *     Called from the NSH library
  *
  ****************************************************************************/
@@ -203,6 +203,17 @@ int stm32_bringup(void)
       syslog(LOG_ERR, "ERROR: Failed to initialize W25 minor %d: %d\n",
              CONFIG_NSH_W25MINOR, ret);
       return ret;
+    }
+#endif
+
+#ifdef CONFIG_FS_PROCFS
+  /* Mount the procfs file system */
+
+  ret = mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to mount procfs at %s: %d\n",
+             STM32_PROCFS_MOUNTPOINT, ret);
     }
 #endif
 

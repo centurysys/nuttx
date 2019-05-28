@@ -43,7 +43,7 @@
 #include <arch/pic32mz/cp0.h>
 
 #include "pic32mz-config.h"
-#include "chip/pic32mz-features.h"
+#include "hardware/pic32mz-features.h"
 #include "pic32mz-excptmacros.h"
 
 /****************************************************************************
@@ -127,7 +127,7 @@
 
 	/* Imported symbols */
 
-	.global os_start
+	.global nx_start
 	.global	pic32mz_exception
 	.global pic32mz_decodeirq
 #ifdef CONFIG_PIC32MZ_NMIHANDLER
@@ -544,9 +544,9 @@ __start:
 	 * config3ISAOnExc now that exception vectors have been [re]located.
 	 */
 
-	mfc0	t0, MICROAPTIV_CP0_CONFIG3		/* Load CONFIG3 register */
+	mfc0	t0, MIPS32_CP0_CONFIG3		/* Load CONFIG3 register */
 	or		t0, t0, CP0_CONFIG3_ISAONEXC	/* Specify microMIPS mode on exceptions */
-	mtc0	t0, MICROAPTIV_CP0_CONFIG3		/* Update CONFIG3 register */
+	mtc0	t0, MIPS32_CP0_CONFIG3		/* Update CONFIG3 register */
 #endif
 
 	/* Start NuttX. We do this via a thunk in the text section so that
@@ -676,9 +676,9 @@ __start_nuttx:
 	jalr    ra, t0
 	nop
 
-	/* Call os_start */
+	/* Call nx_start */
 
-	la		t0, os_start
+	la		t0, nx_start
 	jalr	ra, t0
 	nop
 

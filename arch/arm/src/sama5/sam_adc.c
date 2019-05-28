@@ -71,10 +71,9 @@
 #include "up_arch.h"
 
 #include "chip.h"
-#include "cache.h"
-#include "chip/sam_adc.h"
-#include "chip/sam_pmc.h"
-#include "chip/sam_pinmap.h"
+#include "hardware/sam_adc.h"
+#include "hardware/sam_pmc.h"
+#include "hardware/sam_pinmap.h"
 
 #include "sam_periphclks.h"
 #include "sam_memories.h"
@@ -662,8 +661,8 @@ static void sam_adc_dmadone(void *arg)
        * newly DMAed data from RAM.
        */
 
-      arch_invalidate_dcache((uintptr_t)buffer,
-                             (uintptr_t)buffer + SAMA5_ADC_SAMPLES * sizeof(uint16_t));
+      up_invalidate_dcache((uintptr_t)buffer,
+                           (uintptr_t)buffer + SAMA5_ADC_SAMPLES * sizeof(uint16_t));
 
       /* Process each sample */
 

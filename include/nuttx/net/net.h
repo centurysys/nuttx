@@ -97,11 +97,7 @@
  * socket descriptors
  */
 
-#ifdef CONFIG_NFILE_DESCRIPTORS
-# define __SOCKFD_OFFSET CONFIG_NFILE_DESCRIPTORS
-#else
-# define __SOCKFD_OFFSET 0
-#endif
+#define __SOCKFD_OFFSET CONFIG_NFILE_DESCRIPTORS
 
 /* Capabilities of a socket */
 
@@ -148,6 +144,7 @@ typedef uint8_t sockcaps_t;
  * a given address family.
  */
 
+struct file;    /* Forward reference */
 struct socket;  /* Forward reference */
 struct pollfd;  /* Forward reference */
 
@@ -167,10 +164,8 @@ struct sock_intf_s
                     FAR const struct sockaddr *addr, socklen_t addrlen);
   CODE int        (*si_accept)(FAR struct socket *psock, FAR struct sockaddr *addr,
                     FAR socklen_t *addrlen, FAR struct socket *newsock);
-#ifndef CONFIG_DISABLE_POLL
   CODE int        (*si_poll)(FAR struct socket *psock,
                     FAR struct pollfd *fds, bool setup);
-#endif
   CODE ssize_t    (*si_send)(FAR struct socket *psock, FAR const void *buf,
                     size_t len, int flags);
   CODE ssize_t    (*si_sendto)(FAR struct socket *psock, FAR const void *buf,
@@ -230,7 +225,7 @@ struct socket
 
 /* This defines a list of sockets indexed by the socket descriptor */
 
-#if CONFIG_NSOCKET_DESCRIPTORS > 0
+#ifdef CONFIG_NET
 struct socketlist
 {
   sem_t         sl_sem;      /* Manage access to the socket list */
@@ -255,7 +250,7 @@ extern "C"
  ****************************************************************************/
 
 /****************************************************************************
- * Name: net_setup
+ * Name: net_initialize
  *
  * Description:
  *   This is called from the OS initialization logic at power-up reset in
@@ -268,25 +263,6 @@ extern "C"
  *   facilities such as semaphores are available but this logic cannot
  *   depend upon OS resources such as interrupts or timers which are not
  *   yet available.
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-void net_setup(void);
-
-/****************************************************************************
- * Name: net_initialize
- *
- * Description:
- *   This function is called from the OS initialization logic at power-up
- *   reset AFTER initialization of hardware facilities such as timers and
- *   interrupts.   This logic completes the initialization started by
- *   net_setup().
  *
  * Input Parameters:
  *   None
@@ -323,11 +299,12 @@ void net_initialize(void);
  *   None
  *
  * Returned Value:
- *   None
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   failured (probably -ECANCELED).
  *
  ****************************************************************************/
 
-void net_lock(void);
+int net_lock(void);
 
 /****************************************************************************
  * Name: net_unlock
@@ -1243,11 +1220,9 @@ int netdev_ioctl(int sockfd, int cmd, unsigned long arg);
  *
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 struct pollfd; /* Forward reference -- see poll.h */
 
 int psock_poll(FAR struct socket *psock, struct pollfd *fds, bool setup);
-#endif
 
 /****************************************************************************
  * Name: net_poll
@@ -1267,11 +1242,9 @@ int psock_poll(FAR struct socket *psock, struct pollfd *fds, bool setup);
  *
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 struct pollfd; /* Forward reference -- see poll.h */
 
 int net_poll(int sockfd, struct pollfd *fds, bool setup);
-#endif
 
 /****************************************************************************
  * Name: psock_dupsd

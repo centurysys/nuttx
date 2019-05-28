@@ -38,8 +38,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#if defined(CONFIG_NET) && defined(CONFIG_NET_USRSOCK) && \
-    !defined(CONFIG_DISABLE_POLL)
+#if defined(CONFIG_NET) && defined(CONFIG_NET_USRSOCK)
 
 #include <stdint.h>
 #include <string.h>
@@ -183,7 +182,8 @@ static int usrsock_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
 
   /* Allocate a container to hold the poll information */
 
-  info = (FAR struct usrsock_poll_s *)kmm_malloc(sizeof(struct usrsock_poll_s));
+  info = (FAR struct usrsock_poll_s *)
+    kmm_malloc(sizeof(struct usrsock_poll_s));
   if (!info)
     {
       return -ENOMEM;
@@ -305,7 +305,8 @@ errout_unlock:
  *
  * Input Parameters:
  *   psock - An instance of the internal socket structure.
- *   fds   - The structure describing the events to be stopped being monitored.
+ *   fds   - The structure describing the events to be stopped being
+ *           monitored.
  *
  * Returned Value:
  *  0: Success; Negated errno on failure
@@ -384,4 +385,4 @@ int usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup)
     }
 }
 
-#endif /* CONFIG_NET && CONFIG_NET_USRSOCK && !CONFIG_DISABLE_POLL */
+#endif /* CONFIG_NET && CONFIG_NET_USRSOCK */

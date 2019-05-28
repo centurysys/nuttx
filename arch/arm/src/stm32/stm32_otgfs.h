@@ -46,18 +46,9 @@
 
 #include "stm32.h"
 
-#include "chip/stm32fxxxxx_otgfs.h"
+#include "hardware/stm32fxxxxx_otgfs.h"
 
 #if defined(CONFIG_STM32_OTGFS)
-
-/************************************************************************************
- * Pre-processor Definitions
- ************************************************************************************/
-/* Configuration ********************************************************************/
-
-#ifndef CONFIG_OTGFS_PRI
-#  define CONFIG_OTGFS_PRI NVIC_SYSH_PRIORITY_DEFAULT
-#endif
 
 /************************************************************************************
  * Public Functions

@@ -123,7 +123,6 @@
 #define SDIO_SLOTNO 0  /* Only one slot */
 
 #ifdef HAVE_SDIO
-
 #  if !defined(CONFIG_NSH_MMCSDSLOTNO)
 #    define CONFIG_NSH_MMCSDSLOTNO SDIO_SLOTNO
 #  elif CONFIG_NSH_MMCSDSLOTNO != 0
@@ -136,18 +135,6 @@
 #    define SDIO_MINOR CONFIG_NSH_MMCSDMINOR
 #  else
 #    define SDIO_MINOR 0
-#  endif
-
-  /* SD card bringup does not work if performed on the IDLE thread because it
-   * will cause waiting.  Use either:
-   *
-   *  CONFIG_LIB_BOARDCTL=y, OR
-   *  CONFIG_BOARD_INITIALIZE=y && CONFIG_BOARD_INITTHREAD=y
-   */
-
-#  if defined(CONFIG_BOARD_INITIALIZE) && !defined(CONFIG_BOARD_INITTHREAD)
-#    warning "SDIO initialization cannot be perfomed on the IDLE thread"
-#    undef HAVE_SDIO
 #  endif
 #endif
 
@@ -184,8 +171,7 @@
 #endif
 
 #if !defined(CONFIG_NSH_NETINIT_THREAD) || !defined(CONFIG_ARCH_PHY_INTERRUPT) || \
-    !defined(CONFIG_NETDEV_PHY_IOCTL) || !defined(CONFIG_NET_UDP) || \
-     defined(CONFIG_DISABLE_SIGNALS)
+    !defined(CONFIG_NETDEV_PHY_IOCTL) || !defined(CONFIG_NET_UDP)
 #  undef HAVE_NETMONITOR
 #endif
 
@@ -416,10 +402,10 @@
  * Description:
  *   Perform architecture-specific initialization
  *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
+ *   CONFIG_BOARD_LATE_INITIALIZE=y :
+ *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
+ *   CONFIG_BOARD_LATE_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
  *     Called from the NSH library
  *
  ****************************************************************************/
@@ -512,6 +498,16 @@ int stm32_max7219init(FAR const char *devpath);
 #endif
 
 /****************************************************************************
+ * Name: stm32_st7032init
+ *
+ * Description:
+ *   Initialize and register the Sitronix ST7032i
+ *
+ ****************************************************************************/
+
+int stm32_st7032init(FAR const char *devpath);
+
+/****************************************************************************
  * Name: stm32_usbinitialize
  *
  * Description:
@@ -596,30 +592,6 @@ void stm32_extmemaddr(int naddrs);
 
 #ifdef CONFIG_STM32_FSMC
 void stm32_extmemdata(int ndata);
-#endif
-
-/****************************************************************************
- * Name: stm32_enablefsmc
- *
- * Description:
- *  enable clocking to the FSMC module
- *
- ****************************************************************************/
-
-#ifdef CONFIG_STM32_FSMC
-void stm32_enablefsmc(void);
-#endif
-
-/****************************************************************************
- * Name: stm32_disablefsmc
- *
- * Description:
- *  enable clocking to the FSMC module
- *
- ****************************************************************************/
-
-#ifdef CONFIG_STM32_FSMC
-void stm32_disablefsmc(void);
 #endif
 
 /****************************************************************************

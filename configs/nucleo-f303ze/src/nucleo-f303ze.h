@@ -84,6 +84,10 @@
 
 #define GPIO_BTN_USER  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTC|GPIO_PIN13)
 
+/* Oled configuration */
+
+#define OLED_I2C_PORT   1
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -91,5 +95,19 @@
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+
+int stm32_bringup(void);
+
+/************************************************************************************
+ * Name: stm32_adc_setup
+ *
+ * Description:
+ *   Initialize ADC and register the ADC driver.
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_ADC
+int stm32_adc_setup(void);
+#endif
 
 #endif /* __CONFIGS_NUCLEO_F303ZE_SRC_NUCLEO_F303ZE_H */

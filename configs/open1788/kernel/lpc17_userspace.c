@@ -56,8 +56,8 @@
 #  error "CONFIG_NUTTX_USERSPACE not defined"
 #endif
 
-#if CONFIG_NUTTX_USERSPACE != 0x00010000
-#  error "CONFIG_NUTTX_USERSPACE must be 0x00010000 to match memory.ld"
+#if CONFIG_NUTTX_USERSPACE != 0x00040000
+#  error "CONFIG_NUTTX_USERSPACE must be 0x00040000 to match memory.ld"
 #endif
 
 /****************************************************************************
@@ -114,9 +114,7 @@ const struct userspace_s userspace __attribute__ ((section (".userspace"))) =
 
   /* Signal handler trampoline */
 
-#ifndef CONFIG_DISABLE_SIGNALS
   .signal_handler   = up_signal_handler,
-#endif
 
   /* User-space work queue support (declared in include/nuttx/wqueue.h) */
 

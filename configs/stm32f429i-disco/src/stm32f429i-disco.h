@@ -205,10 +205,10 @@
  * Description:
  *   Perform architecture-specific initialization
  *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
+ *   CONFIG_BOARD_LATE_INITIALIZE=y :
+ *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
+ *   CONFIG_BOARD_LATE_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
  *     Called from the NSH library
  *
  ****************************************************************************/
@@ -274,30 +274,16 @@ int stm32_usbhost_initialize(void);
 int stm32_tsc_setup(int minor);
 #endif
 
-/****************************************************************************
-
- * Name: stm32_enablefsmc
+/************************************************************************************
+ * Name: stm32_sdram_initialize
  *
  * Description:
- *  enable clocking to the FSMC module
+ *   Called from stm32_bringup to initialize external SDRAM access.
  *
- ****************************************************************************/
+ ************************************************************************************/
 
-#ifdef CONFIG_STM32_FSMC
-void stm32_enablefsmc(void);
-#endif
-
-/****************************************************************************
-
- * Name: stm32_disablefsmc
- *
- * Description:
- *  enable clocking to the FSMC module
- *
- ****************************************************************************/
-
-#ifdef CONFIG_STM32_FSMC
-void stm32_disablefsmc(void);
+#ifdef CONFIG_STM32_FMC
+void stm32_sdram_initialize(void);
 #endif
 
 /****************************************************************************
@@ -401,6 +387,18 @@ int stm32_l3gd20initialize(FAR const char *devpath);
 
 #ifdef CONFIG_PWM
 int stm32_pwm_setup(void);
+#endif
+
+/****************************************************************************
+ * Name: stm32_adc_setup
+ *
+ * Description:
+ *   Initialize ADC and register the ADC device.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ADC
+int stm32_adc_setup(void);
 #endif
 
 #endif /* __ASSEMBLY__ */

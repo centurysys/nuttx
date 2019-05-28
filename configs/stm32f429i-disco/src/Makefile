@@ -56,7 +56,7 @@ ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
 
-ifeq ($(CONFIG_STM32_FSMC),y)
+ifeq ($(CONFIG_STM32_FMC),y)
 CSRCS += stm32_extmem.c
 endif
 
@@ -89,6 +89,14 @@ endif
 
 ifeq ($(CONFIG_PWM),y)
 CSRCS += stm32_pwm.c
+endif
+
+ifeq ($(CONFIG_ADC),y)
+CSRCS += stm32_adc.c
+endif
+
+ifeq ($(CONFIG_STM32F429I_DISCO_HIGHPRI),y)
+CSRCS += stm32_highpri.c
 endif
 
 include $(TOPDIR)/configs/Board.mk

@@ -44,15 +44,19 @@
 #include <errno.h>
 
 #if defined(CONFIG_VNCSERVER_DEBUG) && !defined(CONFIG_DEBUG_GRAPHICS)
-#  undef  CONFIG_DEBUG_FEATURES
 #  undef  CONFIG_DEBUG_ERROR
 #  undef  CONFIG_DEBUG_WARN
 #  undef  CONFIG_DEBUG_INFO
-#  define CONFIG_DEBUG_FEATURES 1
-#  define CONFIG_DEBUG_ERROR    1
-#  define CONFIG_DEBUG_WARN     1
-#  define CONFIG_DEBUG_INFO     1
-#  define CONFIG_DEBUG_GRAPHICS 1
+#  undef  CONFIG_DEBUG_GRAPHICS_ERROR
+#  undef  CONFIG_DEBUG_GRAPHICS_WARN
+#  undef  CONFIG_DEBUG_GRAPHICS_INFO
+#  define CONFIG_DEBUG_ERROR          1
+#  define CONFIG_DEBUG_WARN           1
+#  define CONFIG_DEBUG_INFO           1
+#  define CONFIG_DEBUG_GRAPHICS       1
+#  define CONFIG_DEBUG_GRAPHICS_ERROR 1
+#  define CONFIG_DEBUG_GRAPHICS_WARN  1
+#  define CONFIG_DEBUG_GRAPHICS_INFO  1
 #endif
 #include <debug.h>
 
@@ -192,8 +196,8 @@ ssize_t vnc_rre32(FAR struct vnc_session_s *session,
  *   rect  - Describes the rectangle in the local framebuffer.
  *
  * Returned Value:
- *   Zero is returned if RRE coding was not performed (but not error was)
- *   encountered.  Otherwise, the size of the framebuffer update message
+ *   Zero is returned if RRE coding was not performed (but no error was
+ *   encountered).  Otherwise, the size of the framebuffer update message
  *   is returned on success or a negated errno value is returned on failure
  *   that indicates the nature of the failure.  A failure is only
  *   returned in cases of a network failure and unexpected internal failures.

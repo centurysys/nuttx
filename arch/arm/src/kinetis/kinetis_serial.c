@@ -52,24 +52,23 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/fs/ioctl.h>
 #include <nuttx/serial/serial.h>
 
 #ifdef CONFIG_SERIAL_TERMIOS
 #  include <termios.h>
 #endif
 
-#include <arch/serial.h>
 #include <arch/board/board.h>
 
-#include "cache.h"
 #include "up_arch.h"
 #include "up_internal.h"
 
 #include "kinetis_config.h"
 #include "chip.h"
-#include "chip/kinetis_dmamux.h"
-#include "chip/kinetis_uart.h"
-#include "chip/kinetis_pinmux.h"
+#include "hardware/kinetis_dmamux.h"
+#include "hardware/kinetis_uart.h"
+#include "hardware/kinetis_pinmux.h"
 #include "kinetis.h"
 #include "kinetis_dma.h"
 #include "kinetis_uart.h"
@@ -1582,8 +1581,8 @@ static int up_dma_receive(struct uart_dev_s *dev, unsigned int *status)
     {
       /* Invalidate the DMA buffer */
 
-      arch_invalidate_dcache((uintptr_t)priv->rxfifo,
-                             (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE);
+      up_invalidate_dcache((uintptr_t)priv->rxfifo,
+                           (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE);
 
       /* Now read from the DMA buffer */
 

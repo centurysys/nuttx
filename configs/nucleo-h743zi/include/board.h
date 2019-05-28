@@ -1,7 +1,7 @@
 /************************************************************************************
  * configs/nucleo-h743zi/include/board.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2018, 2019 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *            Simon Laube <simon@leitwert.ch>
  *            Mateusz Szafoni <raiden00@railab.me>
@@ -55,7 +55,7 @@
 /* Clocking *************************************************************************/
 /* The Nucleo-144  board provides the following clock sources:
  *
- *   MCO: 8 MHz from MCO output of ST-LINK is used as input clock
+ *   MCO: 8 MHz from MCO output of ST-LINK is used as input clock (default)
  *   X2:  32.768 KHz crystal for LSE
  *   X3:  HSE crystal oscillator (not provided)
  *
@@ -67,7 +67,7 @@
  *   LSE: 32.768 kHz
  */
 
-#define STM32_BOARD_XTAL        8000000ul
+#define STM32_BOARD_XTAL        8000000ul /* ST-LINK MCO */
 
 #define STM32_HSI_FREQUENCY     16000000ul
 #define STM32_LSI_FREQUENCY     32000
@@ -111,9 +111,9 @@
  *
  *   PLL1_VCO = (8,000,000 / 2) * 200 = 800 MHz
  *
- *   PLL1P = PLL1_VCO/2 = 800 MHz / 2 = 400 MHz
- *   PLL1Q = PLL1_VCO/4 = 800 MHz / 4 = 200 MHz
- *   PLL1R = PLL1_VCO/8 = 800 MHz / 8 = 100 MHz
+ *   PLL1P = PLL1_VCO/2  = 800 MHz / 2   = 400 MHz
+ *   PLL1Q = PLL1_VCO/4  = 800 MHz / 4   = 200 MHz
+ *   PLL1R = PLL1_VCO/8  = 800 MHz / 8   = 100 MHz
  */
 
 #define STM32_PLLCFG_PLL1CFG     (RCC_PLLCFGR_PLL1VCOSEL_WIDE | \
@@ -164,6 +164,7 @@
  * CPUCLK = SYSCLK / 1 = 400 MHz
  */
 
+#define STM32_RCC_D1CFGR_D1CPRE  (RCC_D1CFGR_D1CPRE_SYSCLK)
 #define STM32_SYSCLK_FREQUENCY   (STM32_PLL1P_FREQUENCY)
 #define STM32_CPUCLK_FREQUENCY   (STM32_SYSCLK_FREQUENCY / 1)
 
@@ -198,6 +199,28 @@
 #define STM32_RCC_D3CFGR_D3PPRE   RCC_D3CFGR_D3PPRE_HCLKd4       /* PCLK4 = HCLK / 4 */
 #define STM32_PCLK4_FREQUENCY     (STM32_HCLK_FREQUENCY/4)
 
+/* Timer clock frequencies */
+
+/* Timers driven from APB1 will be twice PCLK1 */
+
+#define STM32_APB1_TIM2_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM3_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM4_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM5_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM6_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM7_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM12_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM13_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM14_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+
+/* Timers driven from APB2 will be twice PCLK2 */
+
+#define STM32_APB2_TIM1_CLKIN   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_APB2_TIM8_CLKIN   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_APB2_TIM15_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_APB2_TIM16_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_APB2_TIM17_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+
 /* Kernel Clock Configuration
  *
  * Note: look at Table 54 in ST Manual
@@ -211,7 +234,7 @@
 
 #define STM32_RCC_D2CCIP3R_I2C4SRC   RCC_D2CCIP3R_I2C4SEL_HSI
 
-/* SPI123 clock source - PLL1 */
+/* SPI123 clock source - PLL1Q */
 
 #define STM32_RCC_D2CCIP1R_SPI123SRC RCC_D2CCIP1R_SPI123SEL_PLL1
 
@@ -222,6 +245,10 @@
 /* SPI6 clock source - APB (PCLK4) */
 
 #define STM32_RCC_D3CCIP1R_SPI6SRC   RCC_D3CCIP1R_SPI6SEL_PCLK4
+
+/* USB 1 and 2 clock source - HSI48 */
+
+#define STM32_RCC_D2CCIP2R_USBSRC RCC_D2CCIP2R_USBSEL_HSI48
 
 /* FLASH wait states
  *
@@ -244,6 +271,25 @@
  */
 
 #define BOARD_FLASH_WAITSTATES 4
+
+/* SDMMC definitions ****************************************************************/
+
+/* Init 400kHz, PLL1Q/(2*250) */
+
+#define STM32_SDMMC_INIT_CLKDIV     (250 << STM32_SDMMC_CLKCR_CLKDIV_SHIFT)
+
+/* Just set these to 25 MHz for now, PLL1Q/(2*4), for default speed 12.5MB/s */
+
+#define STM32_SDMMC_MMCXFR_CLKDIV   (4 << STM32_SDMMC_CLKCR_CLKDIV_SHIFT)
+#define STM32_SDMMC_SDXFR_CLKDIV    (4 << STM32_SDMMC_CLKCR_CLKDIV_SHIFT)
+
+#define STM32_SDMMC_CLKCR_EDGE      STM32_SDMMC_CLKCR_NEGEDGE
+
+/* Ethernet definitions ****************************************************************/
+
+#define GPIO_ETH_RMII_TXD0    GPIO_ETH_RMII_TXD0_2    /* PG13 */
+#define GPIO_ETH_RMII_TXD1    GPIO_ETH_RMII_TXD1_1    /* PB 13 */
+#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_2
 
 /* LED definitions ******************************************************************/
 /* The Nucleo-144 board has numerous LEDs but only three, LD1 a Green LED, LD2 a Blue
@@ -316,10 +362,16 @@
 #define GPIO_USART6_RX     GPIO_USART6_RX_2  /* PG9 */
 #define GPIO_USART6_TX     GPIO_USART6_TX_2  /* PG14 */
 
-/* I2C1 Use Nucleo I2C pins */
+/* I2C1 Use Nucleo I2C1 pins */
 
-#define GPIO_I2C1_SCL GPIO_I2C1_SCL_2 /* PB8 */
-#define GPIO_I2C1_SDA GPIO_I2C1_SDA_2 /* PB9 */
+#define GPIO_I2C1_SCL GPIO_I2C1_SCL_2 /* PB8 - D15 */
+#define GPIO_I2C1_SDA GPIO_I2C1_SDA_2 /* PB9 - D14 */
+
+/* I2C2 Use Nucleo I2C2 pins */
+
+#define GPIO_I2C2_SCL  GPIO_I2C2_SCL_2  /* PF1 - D69 */
+#define GPIO_I2C2_SDA  GPIO_I2C2_SDA_2  /* PF0 - D68 */
+#define GPIO_I2C2_SMBA GPIO_I2C2_SMBA_2 /* PF2 - D70 */
 
 /* SPI3 */
 
@@ -327,6 +379,11 @@
 #define GPIO_SPI3_MOSI GPIO_SPI3_MOSI_4 /* PB5 */
 #define GPIO_SPI3_SCK  GPIO_SPI3_SCK_1  /* PB3 */
 #define GPIO_SPI3_NSS  GPIO_SPI3_NSS_2  /* PA4 */
+
+/* DMA ******************************************************************************/
+
+#define DMAMAP_SPI3_RX DMAMAP_DMA12_SPI3RX_0 /* DMA1 */
+#define DMAMAP_SPI3_TX DMAMAP_DMA12_SPI3TX_0 /* DMA1 */
 
 /************************************************************************************
  * Public Data

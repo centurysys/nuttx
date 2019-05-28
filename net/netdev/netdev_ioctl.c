@@ -1,7 +1,7 @@
 /****************************************************************************
  * net/netdev/netdev_ioctl.c
  *
- *   Copyright (C) 2007-2012, 2015-2018 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2012, 2015-2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,8 +89,6 @@
 #include "igmp/igmp.h"
 #include "icmpv6/icmpv6.h"
 #include "route/route.h"
-
-#if defined(CONFIG_NET) && CONFIG_NSOCKET_DESCRIPTORS > 0
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -899,7 +897,7 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
           dev = netdev_ifr_dev(req);
           if (dev)
             {
-              ret = icmpv6_autoconfig(dev);
+              ret = icmpv6_autoconfig(dev, psock);
             }
         }
         break;
@@ -1077,7 +1075,7 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
           dev = netdev_ifr_dev(req);
           if (dev && dev->d_ioctl)
             {
-              struct mii_iotcl_notify_s *notify = &req->ifr_ifru.ifru_mii_notify;
+              struct mii_ioctl_notify_s *notify = &req->ifr_ifru.ifru_mii_notify;
               ret = dev->d_ioctl(dev, cmd, ((unsigned long)(uintptr_t)notify));
             }
         }
@@ -1540,7 +1538,7 @@ ssize_t net_ioctl_arglen(int cmd)
         return sizeof(struct rtentry);
 
       case SIOCMIINOTIFY:
-        return sizeof(struct mii_iotcl_notify_s);
+        return sizeof(struct mii_ioctl_notify_s);
 
       case SIOCGMIIPHY:
       case SIOCGMIIREG:
@@ -1806,8 +1804,6 @@ void netdev_ifdown(FAR struct net_driver_s *dev)
 
       netdown_notifier_signal(dev);
 #endif
-
     }
 }
 
-#endif /* CONFIG_NET && CONFIG_NSOCKET_DESCRIPTORS */

@@ -55,12 +55,12 @@
 
 #include "chip.h"
 #include "mmu.h"
-#include "cache.h"
+#include "cp15_cacheops.h"
 #include "sctlr.h"
-#include "chip/sam_aic.h"
-#include "chip/sam_matrix.h"
-#include "chip/sam_aximx.h"
-#include "chip/sam_sfr.h"
+#include "hardware/sam_aic.h"
+#include "hardware/sam_matrix.h"
+#include "hardware/sam_aximx.h"
+#include "hardware/sam_sfr.h"
 
 #include "sam_irq.h"
 

@@ -114,13 +114,8 @@
 #  endif
 #endif
 
-#ifdef CONFIG_RTC_ALARM
-#  ifdef CONFIG_DISABLE_SIGNALS
-#    error RTC driver alarm support depends on signals
-#  endif
-#  ifndef CONFIG_RTC_NALARMS
-#    define CONFIG_RTC_NALARMS 1
-#  endif
+#if defined(CONFIG_RTC_ALARM) && !defined(CONFIG_RTC_NALARMS)
+#  define CONFIG_RTC_NALARMS 1
 #endif
 
 /* The remainder of the contain of this header file is only valid if the
@@ -262,9 +257,8 @@ struct rtc_rdalarm_s
 struct rtc_setalarm_s
 {
   uint8_t id;               /* Indicates the alarm to be set */
-  uint8_t signo;            /* Signal number for alarm notification */
   pid_t pid;                /* Identifies task to be notified (0=caller) */
-  union sigval sigvalue;    /* Data passed with notification */
+  struct sigevent event;    /* Describe the way a task is to be notified */
   struct rtc_time time;     /* Alarm time */
 };
 
@@ -273,9 +267,8 @@ struct rtc_setalarm_s
 struct rtc_setrelative_s
 {
   uint8_t id;               /* Indicates the alarm to be set */
-  uint8_t signo;            /* Signal number for alarm notification */
   pid_t pid;                /* Identifies task to be notified (0=caller) */
-  union sigval sigvalue;    /* Data passed with notification */
+  struct sigevent event;    /* Describe the way a task is to be notified */
   time_t reltime;           /* Relative time in seconds */
 };
 
@@ -322,9 +315,8 @@ struct lower_rdalarm_s
 struct rtc_setperiodic_s
 {
   uint8_t id;               /* Indicates the alarm to be set */
-  uint8_t signo;            /* Signal number for alarm notification */
   pid_t pid;                /* Identifies task to be notified (0=caller) */
-  union sigval sigvalue;    /* Data passed with notification */
+  struct sigevent event;    /* Describe the way a task is to be notified */
   struct timespec period;   /* Period between wakeups */
 };
 

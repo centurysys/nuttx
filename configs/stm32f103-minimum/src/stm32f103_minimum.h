@@ -70,6 +70,16 @@
 #  undef HAVE_AT24
 #endif
 
+/* procfs File System */
+
+#ifdef CONFIG_FS_PROCFS
+#  ifdef CONFIG_NSH_PROC_MOUNTPOINT
+#    define STM32_PROCFS_MOUNTPOINT CONFIG_NSH_PROC_MOUNTPOINT
+#  else
+#    define STM32_PROCFS_MOUNTPOINT "/proc"
+#  endif
+#endif
+
 /* If we are going to mount the AT24, then they user must also have told
  * us what to do with it by setting one of these.
  */
@@ -195,7 +205,7 @@
 /* USB Soft Connect Pullup: PC.13 */
 
 #define GPIO_USB_PULLUP   (GPIO_OUTPUT|GPIO_CNF_OUTPP|GPIO_MODE_50MHz|\
-                           GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN13)
+                           GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN12)
 
 /* GPIO pins used by the GPIO Subsystem */
 
@@ -226,8 +236,8 @@
  *       Called from the NSH library (or other application)
  *     Otherwise, assumed to be called from some other application.
  *
- *   Otherwise CONFIG_BOARD_INITIALIZE=y:
- *     Called from board_initialize().
+ *   Otherwise CONFIG_BOARD_LATE_INITIALIZE=y:
+ *     Called from board_late_initialize().
  *
  *   Otherise, bad news:  Never called
  *

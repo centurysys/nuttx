@@ -48,15 +48,19 @@
 #include <errno.h>
 
 #if defined(CONFIG_VNCSERVER_DEBUG) && !defined(CONFIG_DEBUG_GRAPHICS)
-#  undef  CONFIG_DEBUG_FEATURES
 #  undef  CONFIG_DEBUG_ERROR
 #  undef  CONFIG_DEBUG_WARN
 #  undef  CONFIG_DEBUG_INFO
-#  define CONFIG_DEBUG_FEATURES 1
-#  define CONFIG_DEBUG_ERROR    1
-#  define CONFIG_DEBUG_WARN     1
-#  define CONFIG_DEBUG_INFO     1
-#  define CONFIG_DEBUG_GRAPHICS 1
+#  undef  CONFIG_DEBUG_GRAPHICS_ERROR
+#  undef  CONFIG_DEBUG_GRAPHICS_WARN
+#  undef  CONFIG_DEBUG_GRAPHICS_INFO
+#  define CONFIG_DEBUG_ERROR          1
+#  define CONFIG_DEBUG_WARN           1
+#  define CONFIG_DEBUG_INFO           1
+#  define CONFIG_DEBUG_GRAPHICS       1
+#  define CONFIG_DEBUG_GRAPHICS_ERROR 1
+#  define CONFIG_DEBUG_GRAPHICS_WARN  1
+#  define CONFIG_DEBUG_GRAPHICS_INFO  1
 #endif
 #include <debug.h>
 
@@ -649,7 +653,7 @@ int vnc_update_rectangle(FAR struct vnc_session_s *session,
           update->whupd = whupd;
           nxgl_rectcopy(&update->rect, &intersection);
 
-          /* Add the upate to the end of the update queue. */
+          /* Add the update to the end of the update queue. */
 
           vnc_add_queue(session, update);
 
@@ -661,7 +665,7 @@ int vnc_update_rectangle(FAR struct vnc_session_s *session,
       sched_unlock();
     }
 
-  /* Since we ignore bad rectangles and wait for updata structures, there is
+  /* Since we ignore bad rectangles and wait for update structures, there is
    * really no way a failure can occur.
    */
 

@@ -46,17 +46,15 @@
 
 #include <nuttx/init.h>
 
+#include <arch/irq.h>
+
 #include "up_arch.h"
 #include "up_internal.h"
+#include "nvic.h"
 
 #include "lpc17_clockconfig.h"
 #include "lpc17_lowputc.h"
 #include "lpc17_userspace.h"
-
-#ifdef CONFIG_ARCH_FPU
-#  include "nvic.h"
-#endif
-
 #include "lpc17_start.h"
 
 /****************************************************************************
@@ -220,6 +218,10 @@ void __start(void)
   const uint32_t *src;
   uint32_t *dest;
 
+  /* Disable interrupts for the case that started by loader */
+
+  cpsid();
+
 #ifdef CONFIG_ARMV7M_STACKCHECK
   /* Set the stack limit before we attempt to call any functions */
 
@@ -284,7 +286,7 @@ void __start(void)
 
   showprogress('\r');
   showprogress('\n');
-  os_start();
+  nx_start();
 
   /* Shouldn't get here */
 

@@ -605,7 +605,7 @@ static void        stm32_ep_freereq(FAR struct usbdev_ep_s *ep,
 /* Endpoint buffer management */
 
 #ifdef CONFIG_USBDEV_DMA
-static void       *stm32_ep_allocbuffer(FAR struct usbdev_ep_s *ep, unsigned bytes);
+static void       *stm32_ep_allocbuffer(FAR struct usbdev_ep_s *ep, uint16_t bytes);
 static void        stm32_ep_freebuffer(FAR struct usbdev_ep_s *ep, FAR void *buf);
 #endif
 
@@ -4284,7 +4284,7 @@ static void stm32_ep_freereq(FAR struct usbdev_ep_s *ep, FAR struct usbdev_req_s
  ****************************************************************************/
 
 #ifdef CONFIG_USBDEV_DMA
-static void *stm32_ep_allocbuffer(FAR struct usbdev_ep_s *ep, unsigned bytes)
+static void *stm32_ep_allocbuffer(FAR struct usbdev_ep_s *ep, uint16_t bytes)
 {
   usbtrace(TRACE_EPALLOCBUFFER, privep->epphy);
 
@@ -5462,12 +5462,6 @@ void up_usbinitialize(void)
   /* Enable USB controller interrupts at the NVIC */
 
   up_enable_irq(STM32_IRQ_OTGHS);
-
-#ifdef CONFIG_ARCH_IRQPRIO
-  /* Set the interrupt priority */
-
-  up_prioritize_irq(STM32_IRQ_OTGHS, CONFIG_OTGHS_PRI);
-#endif
   return;
 
 errout:

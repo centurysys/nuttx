@@ -541,6 +541,10 @@ DRAMBOOT
   it will boot on power up and you can download NuttX directly into DRAM by
   sending the nuttx.hex file over the serial connection.
 
+  The configs/sama5d4-ek/README.txt also describes variants AT25BOOT and
+  SRAMBOOT.  This have not been ported to the SAMA5D3x-EK, but are available
+  if they are usefult too you.
+
 NAND FLASH Memory Map
 ---------------------
 
@@ -1143,8 +1147,7 @@ Networking
       that it supports arch_phy_irq().  This logic can be found at
       nuttx/configs/sama5d3x-ek/src/sam_ethernet.c.
 
-    - And a few other things: UDP support is required (CONFIG_NET_UDP) and
-      signals must not be disabled (CONFIG_DISABLE_SIGNALS).
+    - One other thing: UDP support is required (CONFIG_NET_UDP).
 
   Given those prerequisites, the newtork monitor can be selected with these additional settings.
 

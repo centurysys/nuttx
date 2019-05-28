@@ -52,12 +52,11 @@
 
 #include "up_internal.h"
 #include "up_arch.h"
-#include "cache.h"
 
 #include "chip.h"
 #include "lpc43_gpio.h"
-#include "chip/lpc43_can.h"
-#include "chip/lpc43_rgu.h"
+#include "hardware/lpc43_can.h"
+#include "hardware/lpc43_rgu.h"
 #include "lpc43_ccu.h"
 #include "lpc43_cgu.h"
 
@@ -725,7 +724,7 @@ static int can_send(FAR struct can_dev_s *dev, FAR struct can_msg_s *msg)
   uint32_t dlc;
   uint8_t txobj;
 
-  if(msg == NULL)
+  if (msg == NULL)
     {
       return ERROR;
     }

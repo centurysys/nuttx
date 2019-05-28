@@ -207,7 +207,7 @@ static int gpint_read(FAR struct gpio_dev_s *dev, FAR bool *value)
   FAR struct stm32gpint_dev_s *stm32gpint = (FAR struct stm32gpint_dev_s *)dev;
 
   DEBUGASSERT(stm32gpint != NULL && value != NULL);
-  DEBUGASSERT(stm32gpint->stm32gpio && stm32gpint->stm32gpio.id < BOARD_NGPIOINT);
+  DEBUGASSERT(stm32gpint->stm32gpio.id < BOARD_NGPIOINT);
   gpioinfo("Reading int pin...\n");
 
   *value = stm32l4_gpioread(g_gpiointinputs[stm32gpint->stm32gpio.id]);
@@ -264,7 +264,7 @@ static int gpint_enable(FAR struct gpio_dev_s *dev, bool enable)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: stm32_gpio_initialize
+ * Name: stm32l4_gpio_initialize
  *
  * Description:
  *   Initialize GPIO drivers for use with /apps/examples/gpio

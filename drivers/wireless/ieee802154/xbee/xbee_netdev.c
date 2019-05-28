@@ -85,18 +85,18 @@
 
 #if !defined(CONFIG_SCHED_WORKQUEUE)
 #  error Work queue support is required in this configuration (CONFIG_SCHED_WORKQUEUE)
-#else
-
-   /* Use the selected work queue */
-
-#  if defined(CONFIG_XBEE_NETDEV_HPWORK)
-#     define XBEENET_WORK HPWORK
-#  elif defined(CONFIG_XBEE_NETDEV_LPWORK)
-#     define XBEENET_WORK LPWORK
-#  else
-#     error Neither CONFIG_XBEE_NETDEV_HPWORK nor CONFIG_XBEE_NETDEV_LPWORK defined
-#  endif
 #endif
+
+/* The low priority work queue is preferred.  If it is not enabled, LPWORK
+ * will be the same as HPWORK.
+ *
+ * NOTE:  However, the network should NEVER run on the high priority work
+ * queue!  That queue is intended only to service short back end interrupt
+ * processing that never suspends.  Suspending the high priority work queue
+ * may bring the system to its knees!
+ */
+
+#define XBEENET_WORK LPWORK
 
 /* Preferred address size */
 
@@ -159,13 +159,12 @@ struct xbeenet_driver_s
   sem_t xd_eventsem;                /* Signaling semaphore for waiting get event */
   sq_queue_t primitive_queue;       /* For holding primitives to pass along */
 
-#ifndef CONFIG_DISABLE_SIGNALS
   /* MAC Service notification information */
 
   bool    xd_notify_registered;
-  uint8_t xd_notify_signo;
   pid_t   xd_notify_pid;
-#endif
+  struct sigevent xd_notify_event;
+  struct sigwork_s xd_notify_work;
 };
 
 /****************************************************************************
@@ -283,22 +282,34 @@ static int xbeenet_set_ipaddress(FAR struct net_driver_s *dev)
       /* Set the MAC address as the eaddr */
 
       eaddr = arg.getreq.attrval.mac.eaddr;
-      IEEE802154_EADDRCOPY(dev->d_mac.radio.nv_addr, eaddr);
+
+      /* Network layers expect address in Network Order (Big Endian) */
+
+      dev->d_mac.radio.nv_addr[0] = eaddr[7];
+      dev->d_mac.radio.nv_addr[1] = eaddr[6];
+      dev->d_mac.radio.nv_addr[2] = eaddr[5];
+      dev->d_mac.radio.nv_addr[3] = eaddr[4];
+      dev->d_mac.radio.nv_addr[4] = eaddr[3];
+      dev->d_mac.radio.nv_addr[5] = eaddr[2];
+      dev->d_mac.radio.nv_addr[6] = eaddr[1];
+      dev->d_mac.radio.nv_addr[7] = eaddr[0];
+
       dev->d_mac.radio.nv_addrlen = IEEE802154_EADDRSIZE;
 
-#ifdef CONFIG_NET_IPv6
       /* Set the IP address based on the eaddr */
 
       dev->d_ipv6addr[0]  = HTONS(0xfe80);
       dev->d_ipv6addr[1]  = 0;
       dev->d_ipv6addr[2]  = 0;
       dev->d_ipv6addr[3]  = 0;
-      dev->d_ipv6addr[4]  = (uint16_t)eaddr[0] << 8 |  (uint16_t)eaddr[1];
-      dev->d_ipv6addr[5]  = (uint16_t)eaddr[2] << 8 |  (uint16_t)eaddr[3];
-      dev->d_ipv6addr[6]  = (uint16_t)eaddr[4] << 8 |  (uint16_t)eaddr[5];
-      dev->d_ipv6addr[7]  = (uint16_t)eaddr[6] << 8 |  (uint16_t)eaddr[7];
-      dev->d_ipv6addr[4] ^= 0x200;
-#endif
+      dev->d_ipv6addr[4]  = HTONS((uint16_t)eaddr[7] << 8 | (uint16_t)eaddr[6]);
+      dev->d_ipv6addr[5]  = HTONS((uint16_t)eaddr[5] << 8 | (uint16_t)eaddr[4]);
+      dev->d_ipv6addr[6]  = HTONS((uint16_t)eaddr[3] << 8 | (uint16_t)eaddr[2]);
+      dev->d_ipv6addr[7]  = HTONS((uint16_t)eaddr[1] << 8 | (uint16_t)eaddr[0]);
+
+      /* Invert the U/L bit */
+
+      dev->d_ipv6addr[4] ^= HTONS(0x0200);
       return OK;
     }
 
@@ -323,10 +334,14 @@ static int xbeenet_set_ipaddress(FAR struct net_driver_s *dev)
       /* Set the MAC address as the saddr */
 
       saddr = arg.getreq.attrval.mac.saddr;
-      IEEE802154_SADDRCOPY(dev->d_mac.radio.nv_addr, saddr);
+
+      /* Network layers expect address in Network Order (Big Endian) */
+
+      dev->d_mac.radio.nv_addr[0] = saddr[1];
+      dev->d_mac.radio.nv_addr[1] = saddr[0];
+
       dev->d_mac.radio.nv_addrlen = IEEE802154_SADDRSIZE;
 
-#ifdef CONFIG_NET_IPv6
       /* Set the IP address based on the saddr */
 
       dev->d_ipv6addr[0]  = HTONS(0xfe80);
@@ -336,9 +351,7 @@ static int xbeenet_set_ipaddress(FAR struct net_driver_s *dev)
       dev->d_ipv6addr[4]  = 0;
       dev->d_ipv6addr[5]  = HTONS(0x00ff);
       dev->d_ipv6addr[6]  = HTONS(0xfe00);
-      dev->d_ipv6addr[7]  = (uint16_t)saddr[0] << 8 |  (uint16_t)saddr[1];
-      dev->d_ipv6addr[7] ^= 0x200;
-#endif
+      dev->d_ipv6addr[7]  = HTONS((uint16_t)saddr[1] << 8 |  (uint16_t)saddr[0]);
       return OK;
     }
 #endif
@@ -360,7 +373,6 @@ static int xbeenet_set_ipaddress(FAR struct net_driver_s *dev)
 
 static inline void xbeenet_netmask(FAR struct net_driver_s *dev)
 {
-#ifdef CONFIG_NET_IPv6
   dev->d_ipv6netmask[0]  = 0xffff;
   dev->d_ipv6netmask[1]  = 0xffff;
   dev->d_ipv6netmask[2]  = 0xffff;
@@ -375,7 +387,6 @@ static inline void xbeenet_netmask(FAR struct net_driver_s *dev)
   dev->d_ipv6netmask[5]  = 0xffff;
   dev->d_ipv6netmask[6]  = 0xffff;
   dev->d_ipv6netmask[7]  = 0;
-#endif
 #endif
 }
 
@@ -429,20 +440,12 @@ static int xbeenet_notify(FAR struct xbee_maccb_s *maccb,
           nxsem_post(&priv->xd_eventsem);
         }
 
-#ifndef CONFIG_DISABLE_SIGNALS
       if (priv->xd_notify_registered)
         {
-#ifdef CONFIG_CAN_PASS_STRUCTS
-          union sigval value;
-          value.sival_int = (int)primitive->type;
-          (void)nxsig_queue(priv->xd_notify_pid, priv->xd_notify_signo,
-                            value);
-#else
-          (void)nxsig_queue(priv->xd_notify_pid, priv->xd_notify_signo,
-                            (FAR void *)primitive->type);
-#endif
+          priv->xd_notify_event.sigev_value.sival_int = primitive->type;
+          nxsig_notification(priv->xd_notify_pid, &priv->xd_notify_event,
+                             SI_QUEUE, &priv->xd_notify_work);
         }
-#endif
 
       nxsem_post(&priv->xd_exclsem);
       return OK;
@@ -761,7 +764,6 @@ static int xbeenet_ifup(FAR struct net_driver_s *dev)
   ret = xbeenet_set_ipaddress(dev);
   if (ret >= 0)
     {
-#ifdef CONFIG_NET_IPv6
       wlinfo("Bringing up: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
              dev->d_ipv6addr[0], dev->d_ipv6addr[1], dev->d_ipv6addr[2],
              dev->d_ipv6addr[3], dev->d_ipv6addr[4], dev->d_ipv6addr[5],
@@ -777,28 +779,6 @@ static int xbeenet_ifup(FAR struct net_driver_s *dev)
       wlinfo("             Node: %02x:%02x\n",
              dev->d_mac.radio.nv_addr[0], dev->d_mac.radio.nv_addr[1]);
 #endif
-#else
-      if (dev->d_mac.radio.nv_addrlen == 8)
-        {
-          ninfo("Bringing up: Node: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x PANID=%02x:%02x\n",
-                 dev->d_mac.radio.nv_addr[0], dev->d_mac.radio.nv_addr[1],
-                 dev->d_mac.radio.nv_addr[2], dev->d_mac.radio.nv_addr[3],
-                 dev->d_mac.radio.nv_addr[4], dev->d_mac.radio.nv_addr[5],
-                 dev->d_mac.radio.nv_addr[6], dev->d_mac.radio.nv_addr[7],
-                 priv->lo_panid[0], priv->lo_panid[1]);
-        }
-      else if (dev->d_mac.radio.nv_addrlen == 2)
-        {
-          ninfo("Bringing up: Node: %02x:%02x PANID=%02x:%02x\n",
-                 dev->d_mac.radio.nv_addr[0], dev->d_mac.radio.nv_addr[1],
-                 priv->lo_panid[0], priv->lo_panid[1]);
-        }
-      else
-        {
-          nerr("ERROR: No address assigned\n");
-        }
-#endif
-
       /* Set and activate a timer process */
 
       (void)wd_start(priv->xd_txpoll, TXPOLL_WDDELAY, xbeenet_txpoll_expiry,
@@ -1050,7 +1030,6 @@ static int xbeenet_ioctl(FAR struct net_driver_s *dev, int cmd,
 
           switch (cmd)
             {
-        #ifndef CONFIG_DISABLE_SIGNALS
               /* Command:     MAC802154IOC_NOTIFY_REGISTER
                * Description: Register to receive a signal whenever there is a
                *              event primitive sent from the MAC layer.
@@ -1064,13 +1043,13 @@ static int xbeenet_ioctl(FAR struct net_driver_s *dev, int cmd,
                 {
                   /* Save the notification events */
 
-                  priv->xd_notify_signo       = netmac->u.signo;
+                  priv->xd_notify_event       = netmac->u.event;
                   priv->xd_notify_pid         = getpid();
                   priv->xd_notify_registered  = true;
                   ret = OK;
                 }
                 break;
-        #endif
+
               case MAC802154IOC_GET_EVENT:
                 {
                   FAR struct ieee802154_primitive_s *primitive;

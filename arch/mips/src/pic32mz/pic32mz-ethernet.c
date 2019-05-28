@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/mips/src/pic32mz/pic32mz_ethernet.c
  *
- *   Copyright (C) 2015-2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2015-2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * This driver derives from the PIC32MZ Ethernet Driver
@@ -72,7 +72,7 @@
 #include "up_internal.h"
 
 #include "pic32mz-config.h"
-#include "chip/pic32mz-ethernet.h"
+#include "hardware/pic32mz-ethernet.h"
 
 /* Does this chip have and Ethernet controller? */
 
@@ -88,18 +88,18 @@
 
 #if !defined(CONFIG_SCHED_WORKQUEUE)
 #  error Work queue support is required in this configuration (CONFIG_SCHED_WORKQUEUE)
-#else
-
-  /* Use the low priority work queue if possible */
-
-#  if defined(CONFIG_PIC32MZ_ETHERNET_HPWORK)
-#    define ETHWORK HPWORK
-#  elif defined(CONFIG_PIC32MZ_ETHERNET_LPWORK)
-#    define ETHWORK LPWORK
-#  else
-#    error Neither CONFIG_PIC32MZ_ETHERNET_HPWORK nor CONFIG_PIC32MZ_ETHERNET_LPWORK defined
-#  endif
 #endif
+
+/* The low priority work queue is preferred.  If it is not enabled, LPWORK
+ * will be the same as HPWORK.
+ *
+ * NOTE:  However, the network should NEVER run on the high priority work
+ * queue!  That queue is intended only to service short back end interrupt
+ * processing that never suspends.  Suspending the high priority work queue
+ * may bring the system to its knees!
+ */
+
+#define ETHWORK LPWORK
 
 /* CONFIG_PIC32MZ_NINTERFACES determines the number of physical interfaces
  * that will be supported -- unless it is more than actually supported by the
@@ -1048,7 +1048,7 @@ static int pic32mz_transmit(struct pic32mz_driver_s *priv)
    */
 
   DEBUGASSERT(priv->pd_dev.d_buf != NULL &&
-              priv->pd_dev.d_len < CONFIG_NET_ETH_PKTSIZE);
+              priv->pd_dev.d_len <= CONFIG_NET_ETH_PKTSIZE);
 
   /* Increment statistics and dump the packet (if so configured) */
 
@@ -3356,7 +3356,7 @@ static void pic32mz_ethreset(struct pic32mz_driver_s *priv)
  *
  ****************************************************************************/
 
-#if CONFIG_PIC32MZ_NINTERFACES > 1
+#if CONFIG_PIC32MZ_NINTERFACES > 1 || defined(CONFIG_NETDEV_LATEINIT)
 int pic32mz_ethinitialize(int intf)
 #else
 static inline int pic32mz_ethinitialize(int intf)
@@ -3433,7 +3433,7 @@ static inline int pic32mz_ethinitialize(int intf)
  *
  ****************************************************************************/
 
-#if CONFIG_PIC32MZ_NINTERFACES == 1
+#if CONFIG_PIC32MZ_NINTERFACES == 1 && !defined(CONFIG_NETDEV_LATEINIT)
 void up_netinitialize(void)
 {
   (void)pic32mz_ethinitialize(0);

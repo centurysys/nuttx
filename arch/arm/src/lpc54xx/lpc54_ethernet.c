@@ -88,9 +88,9 @@
 #endif
 
 #include "up_arch.h"
-#include "chip/lpc54_syscon.h"
-#include "chip/lpc54_pinmux.h"
-#include "chip/lpc54_ethernet.h"
+#include "hardware/lpc54_syscon.h"
+#include "hardware/lpc54_pinmux.h"
+#include "hardware/lpc54_ethernet.h"
 #include "lpc54_enableclk.h"
 #include "lpc54_reset.h"
 #include "lpc54_gpio.h"
@@ -123,6 +123,11 @@
 
 /* The low priority work queue is preferred.  If it is not enabled, LPWORK
  * will be the same as HPWORK.
+ *
+ * NOTE:  However, the network should NEVER run on the high priority work
+ * queue!  That queue is intended only to service short back end interrupt
+ * processing that never suspends.  Suspending the high priority work queue
+ * may bring the system to its knees!
  */
 
 #define ETHWORK LPWORK

@@ -78,10 +78,8 @@ static int        bluetooth_connect(FAR struct socket *psock,
 static int        bluetooth_accept(FAR struct socket *psock,
                     FAR struct sockaddr *addr, FAR socklen_t *addrlen,
                     FAR struct socket *newsock);
-#ifndef CONFIG_DISABLE_POLL
 static int        bluetooth_poll_local(FAR struct socket *psock,
                     FAR struct pollfd *fds, bool setup);
-#endif
 static ssize_t    bluetooth_send(FAR struct socket *psock,
                    FAR const void *buf, size_t len, int flags);
 static ssize_t    bluetooth_sendto(FAR struct socket *psock,
@@ -104,9 +102,7 @@ const struct sock_intf_s g_bluetooth_sockif =
   bluetooth_listen,      /* si_listen */
   bluetooth_connect,     /* si_connect */
   bluetooth_accept,      /* si_accept */
-#ifndef CONFIG_DISABLE_POLL
   bluetooth_poll_local,  /* si_poll */
-#endif
   bluetooth_send,        /* si_send */
   bluetooth_sendto,      /* si_sendto */
 #ifdef CONFIG_NET_SENDFILE
@@ -420,8 +416,9 @@ static int bluetooth_bind(FAR struct socket *psock,
 
   iaddr = (FAR const struct sockaddr_bt_s *)addr;
 
-  /* Very that some address was provided */
-  /* REVISIT: Currently and explict address must be assigned.  Should we
+  /* Very that some address was provided.
+   *
+   * REVISIT: Currently and explict address must be assigned.  Should we
    * support some moral equivalent to INADDR_ANY?
    */
 
@@ -618,7 +615,6 @@ int bluetooth_listen(FAR struct socket *psock, int backlog)
  *
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 static int bluetooth_poll_local(FAR struct socket *psock,
                                  FAR struct pollfd *fds, bool setup)
 {
@@ -629,7 +625,6 @@ static int bluetooth_poll_local(FAR struct socket *psock,
 #warning Missing logic
   return -ENOSYS;
 }
-#endif /* !CONFIG_DISABLE_POLL */
 
 /****************************************************************************
  * Name: bluetooth_send
@@ -667,7 +662,7 @@ static ssize_t bluetooth_send(FAR struct socket *psock, FAR const void *buf,
     {
       /* send() may be used only if the socket is has been connected. */
 
-      if (!_SS_ISCONNECTED( psock->s_flags))
+      if (!_SS_ISCONNECTED(psock->s_flags))
         {
           ret = -ENOTCONN;
         }

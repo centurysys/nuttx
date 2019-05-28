@@ -38,8 +38,8 @@
 #include "xtensa.h"
 #include "xtensa_attr.h"
 
-#include "chip/esp32_dport.h"
-#include "chip/esp32_rtccntl.h"
+#include "hardware/esp32_dport.h"
+#include "hardware/esp32_rtccntl.h"
 #include "esp32_clockconfig.h"
 #include "esp32_region.h"
 #include "esp32_start.h"
@@ -98,8 +98,8 @@ void IRAM_ATTR __start(void)
     register uint32_t *ptr;
     register int i;
 
-      /* If stack debug is enabled, then fill the stack with a recognizable value
-       * that we can use later to test for high water marks.
+      /* If stack debug is enabled, then fill the stack with a recognizable
+       * value that we can use later to test for high water marks.
        */
 
       for (i = 0, ptr = g_idlestack;  i < IDLETHREAD_STACKWORDS; i++)
@@ -152,6 +152,6 @@ void IRAM_ATTR __start(void)
 
   /* Bring up NuttX */
 
-  os_start();
-  for(; ; ); /* Should not return */
+  nx_start();
+  for (; ; ); /* Should not return */
 }

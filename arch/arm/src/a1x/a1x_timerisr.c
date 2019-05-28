@@ -49,7 +49,7 @@
 #include <arch/board/board.h>
 
 #include "up_arch.h"
-#include "chip/a1x_timer.h"
+#include "hardware/a1x_timer.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -94,7 +94,7 @@ static int a1x_timerisr(int irq, uint32_t *regs, void *arg)
 
   /* Process timer interrupt */
 
-  sched_process_timer();
+  nxsched_process_timer();
   return OK;
 }
 

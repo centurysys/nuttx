@@ -58,16 +58,15 @@
 #include <nuttx/i2c/i2c_master.h>
 #include <nuttx/lcd/lcd_ioctl.h>
 
+#include <signal.h>
+
 #ifdef CONFIG_LCD_FT80X
 
 /********************************************************************************************
  * Pre-processor Definitions
  ********************************************************************************************/
-/* Configuration ****************************************************************************/
 
-#ifdef CONFIG_DISABLE_SIGNALS
-#  error Signal support is required by this driver
-#endif
+/* Configuration ****************************************************************************/
 
 #if defined(CONFIG_LCD_FT80X_WQVGA)
 #  define FT80X_DISPLAY_WIDTH   480
@@ -1636,9 +1635,9 @@ enum ft80x_notify_e
 
 struct ft80x_notify_s
 {
-  int signo;                 /* Notify using this signal number */
   pid_t pid;                 /* Send the notification to this task */
-  enum ft80x_notify_e event; /* Notify on this event */
+  enum ft80x_notify_e id;    /* Notify on this event */
+  struct sigevent event;     /* Describe the way a task is to be notified */
   bool enable;               /* True: enable notification; false: disable */
 };
 

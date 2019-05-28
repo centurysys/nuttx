@@ -49,7 +49,7 @@
 
 #include "up_arch.h"
 #include "sam_periphclks.h"
-#include "chip/sam_pit.h"
+#include "hardware/sam_pit.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -103,7 +103,7 @@ static int sam_timerisr(int irq, uint32_t *regs, void *arg)
 
   while (picnt-- > 0)
     {
-      sched_process_timer();
+      nxsched_process_timer();
     }
 
   return OK;

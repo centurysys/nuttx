@@ -120,6 +120,11 @@ void mld_send(FAR struct net_driver_s *dev, FAR struct mld_group_s *group,
   FAR const uint16_t *destipaddr;
   unsigned int mldsize;
 
+  /* Only a general query message can have a NULL group */
+
+  DEBUGASSERT(dev != NULL);
+  DEBUGASSERT(msgtype == MLD_SEND_GENQUERY || group != NULL);
+
   /* Select IPv6 */
 
   IFF_SET_IPv6(dev->d_flags);
@@ -129,8 +134,10 @@ void mld_send(FAR struct net_driver_s *dev, FAR struct mld_group_s *group,
   switch (msgtype)
     {
       case MLD_SEND_GENQUERY:           /* Send General Query */
+      case MLD_SEND_MASQUERY:           /* Send Multicast Address Specific (MAS) Query */
         {
-          mldinfo("Send General Query, flags=%02x\n", group->flags);
+          mldinfo("Send General/MAS Query, flags=%02x\n",
+                  group != NULL ? group->flags : dev->d_mld.flags);
           mldsize = SIZEOF_MLD_MCAST_LISTEN_QUERY_S(0);
         }
         break;
@@ -201,9 +208,10 @@ void mld_send(FAR struct net_driver_s *dev, FAR struct mld_group_s *group,
    * being sent:
    *
    *   MESSAGE                 DESTINATION ADDRESS
-   *   General Query Message:  The link-local, all nodes multicast address
-   *   MAS Query Messages:     The group multicast address
-   *   Report Message:         The group multicast address
+   *   General Query Message:  The link-local, all nodes multicast address.
+   *   MAS Query Messages:     The group multicast address.
+   *   V1 Report Message:      The group multicast address.
+   *   V2 Report Message:      The link-local, all MLDv2 router multicast address.
    *   Done Message:           The link-local, all routers multicast address.
    */
 
@@ -213,6 +221,7 @@ void mld_send(FAR struct net_driver_s *dev, FAR struct mld_group_s *group,
         destipaddr = g_ipv6_allnodes;
         break;
 
+      case MLD_SEND_MASQUERY:           /* Send Multicast Address Specific (MAS) Query */
       case MLD_SEND_V1REPORT:           /* Send MLDv1 Report message */
         destipaddr = group->grpaddr;
         break;
@@ -253,7 +262,8 @@ void mld_send(FAR struct net_driver_s *dev, FAR struct mld_group_s *group,
 
   switch (msgtype)
     {
-      case MLD_SEND_GENQUERY:
+      case MLD_SEND_GENQUERY:           /* Send General Query */
+      case MLD_SEND_MASQUERY:           /* Send Multicast Address Specific (MAS) Query */
         {
           FAR struct mld_mcast_listen_query_s *query = QUERYBUF;
 
@@ -266,13 +276,27 @@ void mld_send(FAR struct net_driver_s *dev, FAR struct mld_group_s *group,
            */
 
           memset(query, 0, sizeof(struct mld_mcast_listen_query_s));
-          net_ipv6addr_hdrcopy(query->grpaddr, &group->grpaddr);
           query->type   = ICMPV6_MCAST_LISTEN_QUERY;
           query->mrc    = MLD_QRESP_MSEC;
 
+          /* The General Query and the MAS Query differ only in that the
+           * setting of the group multicast address field.  This field
+           * is the unspecified address for General Query, but the group
+           * multicast address for the MAS query.
+           */
+
+          if (msgtype == MLD_SEND_GENQUERY)
+            {
+              net_ipv6addr_hdrcopy(query->grpaddr, g_ipv6_unspecaddr);
+            }
+          else
+            {
+              net_ipv6addr_hdrcopy(query->grpaddr, group->grpaddr);
+            }
+
           /* Fields unique to the extended MLDv2 query */
 
-          if (!IS_MLD_V1COMPAT(group->flags))
+          if (!IS_MLD_V1COMPAT(dev->d_mld.flags))
             {
               query->flags  = MLD_ROBUSTNESS;
               query->qqic   = MLD_QRESP_SEC;
@@ -286,12 +310,24 @@ void mld_send(FAR struct net_driver_s *dev, FAR struct mld_group_s *group,
           MLD_STATINCR(g_netstats.mld.query_sent);
 
 #ifdef CONFIG_NET_MLD_ROUTER
-          /* Save the number of members that reported in the previous query cycle;
-           * reset the number of members that have reported in the new query cycle.
+          /* Save the number of members that reported in the previous query
+           * cycle;  reset the number of members that have reported in the
+           * new query cycle.
            */
 
-          group->lstmbrs = group->members;
-          group->members = 0;
+          if (msgtype == MLD_SEND_GENQUERY)
+            {
+              /* Update accumulated membership for all groups. */
+
+              mld_new_pollcycle(dev)
+            }
+          else
+            {
+              /* Updated accumulated membership only for this group */
+
+              group->lstmbrs = group->members;
+              group->members = 0;
+            }
 #endif
         }
         break;
@@ -371,4 +407,25 @@ void mld_send(FAR struct net_driver_s *dev, FAR struct mld_group_s *group,
           dev->d_len, (ipv6->len[0] << 8) | ipv6->len[1]);
 
   mld_dumppkt((FAR const uint8_t *)IPv6BUF, MLD_HDRLEN + mldsize);
+}
+
+/****************************************************************************
+ * Name: mld_report_msgtype
+ *
+ * Description:
+ *   Determine which type of Report to send, MLDv1 or MLDv2, depending on
+ *   current state of compatibility mode flag.
+ *
+ ****************************************************************************/
+
+uint8_t mld_report_msgtype(FAR struct net_driver_s *dev)
+{
+  if (IS_MLD_V1COMPAT(dev->d_mld.flags))
+    {
+      return MLD_SEND_V1REPORT;
+    }
+  else
+    {
+      return MLD_SEND_V2REPORT;
+    }
 }

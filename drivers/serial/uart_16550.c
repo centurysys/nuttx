@@ -103,11 +103,13 @@ static bool u16550_rxavailable(FAR struct uart_dev_s *dev);
 static bool u16550_rxflowcontrol(struct uart_dev_s *dev, unsigned int nbuffered,
                                  bool upper);
 #endif
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_TXDMA
 static void u16550_dmasend(FAR struct uart_dev_s *dev);
+static void u16550_dmatxavail(FAR struct uart_dev_s *dev);
+#endif
+#ifdef CONFIG_SERIAL_RXDMA
 static void u16550_dmareceive(FAR struct uart_dev_s *dev);
 static void u16550_dmarxfree(FAR struct uart_dev_s *dev);
-static void u16550_dmatxavail(FAR struct uart_dev_s *dev);
 #endif
 static void u16550_send(FAR struct uart_dev_s *dev, int ch);
 static void u16550_txint(FAR struct uart_dev_s *dev, bool enable);
@@ -131,10 +133,14 @@ static const struct uart_ops_s g_uart_ops =
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
   .rxflowcontrol  = u16550_rxflowcontrol,
 #endif
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_TXDMA
   .dmasend        = u16550_dmasend,
+#endif
+#ifdef CONFIG_SERIAL_RXDMA
   .dmareceive     = u16550_dmareceive,
   .dmarxfree      = u16550_dmarxfree,
+#endif
+#ifdef CONFIG_SERIAL_TXDMA
   .dmatxavail     = u16550_dmatxavail,
 #endif
   .send           = u16550_send,
@@ -215,7 +221,7 @@ static struct u16550_s g_uart1priv =
   .parity         = CONFIG_16550_UART1_PARITY,
   .bits           = CONFIG_16550_UART1_BITS,
   .stopbits2      = CONFIG_16550_UART1_2STOP,
-#if defined(CONFIG_16550_UART1_IFLOWCONTROL) || defined(CONFIG_16551_UART1_OFLOWCONTROL)
+#if defined(CONFIG_16550_UART1_IFLOWCONTROL) || defined(CONFIG_16550_UART1_OFLOWCONTROL)
   .flow           = true,
 #endif
 #endif
@@ -391,7 +397,7 @@ static uart_dev_t g_uart3port =
 #  elif defined(CONFIG_16550_UART1_SERIAL_CONSOLE)
 #    define CONSOLE_DEV     g_uart1port    /* UART1=console */
 #    define TTYS0_DEV       g_uart1port    /* UART1=ttyS0 */
-#    ifdef CONFIG_16550_UART
+#    ifdef CONFIG_16550_UART0
 #      define TTYS1_DEV     g_uart0port    /* UART1=ttyS0;UART0=ttyS1 */
 #      ifdef CONFIG_16550_UART2
 #        define TTYS2_DEV   g_uart2port    /* UART1=ttyS0;UART0=ttyS1;UART2=ttyS2 */
@@ -430,7 +436,7 @@ static uart_dev_t g_uart3port =
 #  elif defined(CONFIG_16550_UART2_SERIAL_CONSOLE)
 #    define CONSOLE_DEV     g_uart2port    /* UART2=console */
 #    define TTYS0_DEV       g_uart2port    /* UART2=ttyS0 */
-#    ifdef CONFIG_16550_UART
+#    ifdef CONFIG_16550_UART0
 #      define TTYS1_DEV     g_uart0port    /* UART2=ttyS0;UART0=ttyS1 */
 #      ifdef CONFIG_16550_UART1
 #        define TTYS2_DEV   g_uart1port    /* UART2=ttyS0;UART0=ttyS1;UART1=ttyS2 */
@@ -469,7 +475,7 @@ static uart_dev_t g_uart3port =
 #  elif defined(CONFIG_16550_UART3_SERIAL_CONSOLE)
 #    define CONSOLE_DEV     g_uart3port    /* UART3=console */
 #    define TTYS0_DEV       g_uart3port    /* UART3=ttyS0 */
-#    ifdef CONFIG_16550_UART
+#    ifdef CONFIG_16550_UART0
 #      define TTYS1_DEV     g_uart0port    /* UART3=ttyS0;UART0=ttyS1 */
 #      ifdef CONFIG_16550_UART1
 #        define TTYS2_DEV   g_uart1port    /* UART3=ttyS0;UART0=ttyS1;UART1=ttyS2 */
@@ -712,6 +718,8 @@ static int u16550_setup(FAR struct uart_dev_s *dev)
     {
       mcr &= ~UART_MCR_AFCE;
     }
+
+  mcr |= UART_MCR_RTS;
 
   u16550_serialout(priv, UART_MCR_OFFSET, mcr);
 #endif /* defined(CONFIG_SERIAL_IFLOWCONTROL) || defined(CONFIG_SERIAL_OFLOWCONTROL) */
@@ -1162,11 +1170,13 @@ static bool u16550_rxflowcontrol(struct uart_dev_s *dev, unsigned int nbuffered,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_TXDMA
 static void u16550_dmasend(FAR struct uart_dev_s *dev)
 {
 }
+#endif
 
+#ifdef CONFIG_SERIAL_RXDMA
 static void u16550_dmareceive(FAR struct uart_dev_s *dev)
 {
 }
@@ -1174,7 +1184,9 @@ static void u16550_dmareceive(FAR struct uart_dev_s *dev)
 static void u16550_dmarxfree(FAR struct uart_dev_s *dev)
 {
 }
+#endif
 
+#ifdef CONFIG_SERIAL_TXDMA
 static void u16550_dmatxavail(FAR struct uart_dev_s *dev)
 {
 }
@@ -1291,21 +1303,6 @@ static void u16550_putc(FAR struct u16550_s *priv, int ch)
 
 void up_earlyserialinit(void)
 {
-  /* Configure all UARTs (except the CONSOLE UART) and disable interrupts */
-
-#ifdef CONFIG_16550_UART0
-  u16550_disableuartint(&g_uart0priv, NULL);
-#endif
-#ifdef CONFIG_16550_UART1
-  u16550_disableuartint(&g_uart1priv, NULL);
-#endif
-#ifdef CONFIG_16550_UART2
-  u16550_disableuartint(&g_uart2priv, NULL);
-#endif
-#ifdef CONFIG_16550_UART3
-  u16550_disableuartint(&g_uart3priv, NULL);
-#endif
-
   /* Configuration whichever one is the console */
 
 #ifdef CONSOLE_DEV

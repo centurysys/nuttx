@@ -1,7 +1,7 @@
 /****************************************************************************
  * nuttx/graphics/nxterm/nxterm_driver.c
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,14 @@
  ****************************************************************************/
 
 static int     nxterm_open(FAR struct file *filep);
+static int     nxterm_close(FAR struct file *filep);
 static ssize_t nxterm_write(FAR struct file *filep, FAR const char *buffer,
                  size_t buflen);
+static int     nxterm_ioctl(FAR struct file *filep, int cmd,
+                            unsigned long arg);
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+static int     nxterm_unlink(FAR struct inode *inode);
+#endif
 
 /****************************************************************************
  * Public Data
@@ -70,14 +76,15 @@ static ssize_t nxterm_write(FAR struct file *filep, FAR const char *buffer,
 const struct file_operations g_nxterm_drvrops =
 {
   nxterm_open,  /* open */
-  0,           /* close */
+  nxterm_close, /* close */
   nxterm_read,  /* read */
   nxterm_write, /* write */
-  0,           /* seek */
-  0            /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  ,
+  NULL,         /* seek */
+  nxterm_ioctl, /* ioctl */
   nxterm_poll   /* poll */
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  ,
+  nxterm_unlink /* unlink */
 #endif
 };
 
@@ -86,14 +93,15 @@ const struct file_operations g_nxterm_drvrops =
 const struct file_operations g_nxterm_drvrops =
 {
   nxterm_open,  /* open */
-  0,           /* close */
-  0,           /* read */
+  nxterm_close, /* close */
+  NULL,         /* read */
   nxterm_write, /* write */
-  0,           /* seek */
-  0            /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
+  NULL,         /* seek */
+  nxterm_ioctl, /* ioctl */
+  NULL          /* poll */
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   ,
-  0            /* poll */
+  nxterm_unlink /* unlink */
 #endif
 };
 
@@ -130,9 +138,63 @@ static int nxterm_open(FAR struct file *filep)
     }
 #endif
 
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  /* Increment the count of open file references */
+
+  DEBUGASSERT(priv->orefs != UINT8_MAX);
+  priv->orefs++;
+#endif
+
   /* Assign the driver structure to the file */
 
   filep->f_priv = priv;
+  return OK;
+}
+
+/****************************************************************************
+ * Name: nxterm_close
+ ****************************************************************************/
+
+static int nxterm_close(FAR struct file *filep)
+{
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  FAR struct nxterm_state_s *priv;
+  int ret;
+
+  /* Recover our private state structure */
+
+  DEBUGASSERT(filep != NULL && filep->f_priv != NULL);
+  priv = (FAR struct nxterm_state_s *)filep->f_priv;
+
+  /* Get exclusive access */
+
+  ret = nxterm_semwait(priv);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Has the driver been unlinked?  Was this the last open refernce to the
+   * terminal driver?
+   */
+
+  DEBUGASSERT(priv->orefs > 0);
+  if (priv->unlinked && priv->orefs <= 1)
+    {
+      /* Yes.. Unregister the terminal device */
+
+      nxterm_unregister(priv);
+    }
+  else
+    {
+      /* No.. Just decrement the count of open file references */
+
+      priv->orefs--;
+    }
+
+  nxterm_sempost(priv);
+#endif
+
   return OK;
 }
 
@@ -151,7 +213,7 @@ static ssize_t nxterm_write(FAR struct file *filep, FAR const char *buffer,
 
   /* Recover our private state structure */
 
-  DEBUGASSERT(filep && filep->f_priv);
+  DEBUGASSERT(filep != NULL && filep->f_priv != NULL);
   priv = (FAR struct nxterm_state_s *)filep->f_priv;
 
   /* Get exclusive access */
@@ -228,6 +290,7 @@ static ssize_t nxterm_write(FAR struct file *filep, FAR const char *buffer,
                   {
                     priv->seq[i-1] = priv->seq[i];
                   }
+
                 priv->nseq--;
 
                 /* Then loop again and check if what remains is part of a
@@ -249,6 +312,150 @@ static ssize_t nxterm_write(FAR struct file *filep, FAR const char *buffer,
 }
 
 /****************************************************************************
+ * Name: nxterm_ioctl
+ ****************************************************************************/
+
+static int nxterm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
+{
+  /* NOTE:  We don't need driver context here because the NXTERM handle
+   * provided within each of the NXTERM IOCTL command data.  Mutual
+   * exclusion is similar managed by the IOCTL cmmand hendler.
+   *
+   * This permits the IOCTL to be called in abnormal context (such as
+   * from boardctl())
+   */
+
+  return nxterm_ioctl_tap(cmd, arg);
+}
+
+/****************************************************************************
+ * Name: nxterm_unlink
+ ****************************************************************************/
+
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+static int nxterm_unlink(FAR struct inode *inode)
+{
+  FAR struct nxterm_state_s *priv;
+  int ret;
+
+  DEBUGASSERT(inode != NULL && inode->i_private != NULL);
+  priv = inode->i_private;
+
+  /* Get exclusive access */
+
+  ret = nxterm_semwait(priv);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Are there open references to the terminal driver? */
+
+  if (priv->orefs > 0)
+    {
+      /* Yes.. Just mark the driver unlinked.  Resources will be cleaned up
+       * when the final reference is close.
+       */
+
+      priv->unlinked = true;
+    }
+  else
+    {
+      /* No.. Unregister the terminal device now */
+
+      nxterm_unregister(priv);
+    }
+
+  nxterm_sempost(priv);
+  return OK;
+}
+#endif
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: nxterm_ioctl_tap
+ *
+ * Description:
+ *   Execute an NXTERM IOCTL command from an external caller.
+ *
+ * NOTE:  We don't need driver context here because the NXTERM handle
+ * provided within each of the NXTERM IOCTL command data.  Mutual
+ * exclusion is similar managed by the IOCTL cmmand hendler.
+ *
+ * This permits the IOCTL to be called in abnormal context (such as
+ * from boardctl())
+ *
+ ****************************************************************************/
+
+int nxterm_ioctl_tap(int cmd, uintptr_t arg)
+{
+  int ret;
+
+  switch (cmd)
+    {
+      /* CMD:           NXTERMIOC_NXTERM_REDRAW
+       * DESCRIPTION:   Re-draw a portion of the NX console.  This function
+       *                should be called from the appropriate window callback
+       *                logic.
+       * ARG:           A reference readable instance of struct
+       *                nxtermioc_redraw_s
+       * CONFIGURATION: CONFIG_NXTERM
+       */
+
+       case NXTERMIOC_NXTERM_REDRAW:
+         {
+           FAR struct nxtermioc_redraw_s *redraw =
+             (FAR struct nxtermioc_redraw_s *)((uintptr_t)arg);
+
+           nxterm_redraw(redraw->handle, &redraw->rect, redraw->more);
+           ret = OK;
+         }
+         break;
+
+      /* CMD:           NXTERMIOC_NXTERM_KBDIN
+       * DESCRIPTION:   Provide NxTerm keyboard input to NX.
+       * ARG:           A reference readable instance of struct
+       *                nxtermioc_kbdin_s
+       * CONFIGURATION: CONFIG_NXTERM_NXKBDIN
+       */
+
+       case NXTERMIOC_NXTERM_KBDIN:
+         {
+#ifdef CONFIG_NXTERM_NXKBDIN
+           FAR struct nxtermioc_kbdin_s *kbdin =
+             (FAR struct nxtermioc_kbdin_s *)((uintptr_t)arg);
+
+           nxterm_kbdin(kbdin->handle, kbdin->buffer, kbdin->buflen);
+           ret = OK;
+#else
+           ret = -ENOSYS;
+#endif
+         }
+         break;
+
+      /* CMD:           NXTERMIOC_NXTERM_RESIZE
+       * DESCRIPTION:   Inform NxTerm keyboard the the size of the window has
+       *                changed
+       * ARG:           A reference readable instance of struct nxtermioc_resize_s
+       * CONFIGURATION: CONFIG_NXTERM
+       */
+
+       case NXTERMIOC_NXTERM_RESIZE:
+         {
+           FAR struct nxtermioc_resize_s *resize =
+             (FAR struct nxtermioc_resize_s *)((uintptr_t)arg);
+
+           ret = nxterm_resize(resize->handle, &resize->size);
+         }
+         break;
+
+      default:
+        ret = -ENOTTY;
+        break;
+    }
+
+  return ret;
+}

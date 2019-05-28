@@ -56,7 +56,8 @@
  * Private Function Prototypes
  ****************************************************************************/
 
-static int        usrsock_sockif_setup(FAR struct socket *psock, int protocol);
+static int        usrsock_sockif_setup(FAR struct socket *psock,
+                                       int protocol);
 static sockcaps_t usrsock_sockif_sockcaps(FAR struct socket *psock);
 static void       usrsock_sockif_addref(FAR struct socket *psock);
 static ssize_t    usrsock_sockif_send(FAR struct socket *psock,
@@ -79,9 +80,7 @@ const struct sock_intf_s g_usrsock_sockif =
   usrsock_listen,             /* si_listen */
   usrsock_connect,            /* si_connect */
   usrsock_accept,             /* si_accept */
-#ifndef CONFIG_DISABLE_POLL
   usrsock_poll,               /* si_poll */
-#endif
   usrsock_sockif_send,        /* si_send */
   usrsock_sendto,             /* si_sendto */
 #ifdef CONFIG_NET_SENDFILE
@@ -105,8 +104,9 @@ const struct sock_intf_s g_usrsock_sockif =
  *   specific socket fields.
  *
  * Input Parameters:
- *   psock    A pointer to a user allocated socket structure to be initialized.
- *   protocol (see sys/socket.h)
+ *   psock    - A pointer to a user allocated socket structure to be
+ *              initialized.
+ *   protocol - (see sys/socket.h)
  *
  * Returned Value:
  *   Zero (OK) is returned on success.  Otherwise, a negated errno value is

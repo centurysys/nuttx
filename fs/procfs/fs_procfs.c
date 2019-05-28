@@ -73,15 +73,17 @@
 #define PROCFS_NATTRS  2
 
 /****************************************************************************
- * External Definitons
+ * External Definitions
  ****************************************************************************/
 
 extern const struct procfs_operations proc_operations;
 extern const struct procfs_operations irq_operations;
 extern const struct procfs_operations cpuload_operations;
+extern const struct procfs_operations critmon_operations;
 extern const struct procfs_operations meminfo_operations;
 extern const struct procfs_operations module_operations;
 extern const struct procfs_operations uptime_operations;
+extern const struct procfs_operations version_operations;
 
 /* This is not good.  These are implemented in other sub-systems.  Having to
  * deal with them here is not a good coupling. What is really needed is a
@@ -91,7 +93,6 @@ extern const struct procfs_operations uptime_operations;
 
 extern const struct procfs_operations net_procfsoperations;
 extern const struct procfs_operations net_procfs_routeoperations;
-extern const struct procfs_operations mtd_procfsoperations;
 extern const struct procfs_operations part_procfsoperations;
 extern const struct procfs_operations mount_procfsoperations;
 extern const struct procfs_operations smartfs_procfsoperations;
@@ -108,6 +109,7 @@ extern const struct procfs_operations ccm_procfsoperations;
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
 /* Table of all known / pre-registered procfs handlers / participants. */
 
 #ifdef CONFIG_FS_PROCFS_REGISTER
@@ -123,6 +125,10 @@ static const struct procfs_entry_s g_procfs_entries[] =
 
 #if defined(CONFIG_SCHED_CPULOAD) && !defined(CONFIG_FS_PROCFS_EXCLUDE_CPULOAD)
   { "cpuload",       &cpuload_operations,         PROCFS_FILE_TYPE   },
+#endif
+
+#if defined(CONFIG_SCHED_CRITMONITOR)
+  { "critmon",       &critmon_operations,         PROCFS_FILE_TYPE   },
 #endif
 
 #ifdef CONFIG_SCHED_IRQMONITOR
@@ -153,10 +159,6 @@ static const struct procfs_entry_s g_procfs_entries[] =
   { "fs/smartfs**",  &smartfs_procfsoperations,   PROCFS_UNKOWN_TYPE },
 #endif
 
-#if defined(CONFIG_MTD) && !defined(CONFIG_FS_PROCFS_EXCLUDE_MTD)
-  { "mtd",           &mtd_procfsoperations,       PROCFS_FILE_TYPE   },
-#endif
-
 #if defined(CONFIG_NET) && !defined(CONFIG_FS_PROCFS_EXCLUDE_NET)
   { "net",           &net_procfsoperations,       PROCFS_DIR_TYPE    },
 #if defined(CONFIG_NET_ROUTE) && !defined(CONFIG_FS_PROCFS_EXCLUDE_ROUTE)
@@ -178,22 +180,27 @@ static const struct procfs_entry_s g_procfs_entries[] =
 #if !defined(CONFIG_FS_PROCFS_EXCLUDE_UPTIME)
   { "uptime",        &uptime_operations,          PROCFS_FILE_TYPE   },
 #endif
+
+#if !defined(CONFIG_FS_PROCFS_EXCLUDE_VERSION)
+  { "version",       &version_operations,         PROCFS_FILE_TYPE   },
+#endif
 };
 
 #ifdef CONFIG_FS_PROCFS_REGISTER
 static const uint8_t g_base_entrycount = sizeof(g_base_entries) /
-                                        sizeof(struct procfs_entry_s);
+                                         sizeof(struct procfs_entry_s);
 
 static FAR struct procfs_entry_s *g_procfs_entries;
 static uint8_t g_procfs_entrycount;
 #else
 static const uint8_t g_procfs_entrycount = sizeof(g_procfs_entries) /
-                                          sizeof(struct procfs_entry_s);
+                                           sizeof(struct procfs_entry_s);
 #endif
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /* Helpers */
 
 static void    procfs_enum(FAR struct tcb_s *tcb, FAR void *arg);
@@ -237,14 +244,8 @@ static int     procfs_stat(FAR struct inode *mountpt,
 /* Initialization */
 
 #ifdef CONFIG_FS_PROCFS_REGISTER
-int procfs_initialize(void);
-#else
-#  define procfs_initialize()
+static int     procfs_initialize(void);
 #endif
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
 
 /****************************************************************************
  * Public Data
@@ -353,7 +354,8 @@ static void procfs_enum(FAR struct tcb_s *tcb, FAR void *arg)
 static int procfs_open(FAR struct file *filep, FAR const char *relpath,
                       int oflags, mode_t mode)
 {
-  int x, ret = -ENOENT;
+  int x;
+  int ret = -ENOENT;
 
   finfo("Open '%s'\n", relpath);
 
@@ -548,7 +550,6 @@ static int procfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
   FAR struct procfs_level0_s *level0;
   FAR struct procfs_dir_priv_s *dirpriv;
   FAR void *priv = NULL;
-  irqstate_t flags;
 
   finfo("relpath: \"%s\"\n", relpath ? relpath : "NULL");
   DEBUGASSERT(mountpt && relpath && dir && !dir->u.procfs);
@@ -582,9 +583,7 @@ static int procfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
        */
 
 #ifndef CONFIG_FS_PROCFS_EXCLUDE_PROCESS
-      flags = enter_critical_section();
       sched_foreach(procfs_enum, level0);
-      leave_critical_section(flags);
 #else
       level0->base.index = 0;
       level0->base.nentries = 0;
@@ -611,12 +610,14 @@ static int procfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
 
           if (match(g_procfs_entries[x].pathpattern, relpath))
             {
-              /* Match found!  Call the handler's opendir routine.  If successful,
-               * this opendir routine will create an entry derived from struct
-               * procfs_dir_priv_s as dir->u.procfs.
+              /* Match found!  Call the handler's opendir routine.  If
+               * successful, this opendir routine will create an entry
+               * derived from struct procfs_dir_priv_s as dir->u.procfs.
                */
 
-              DEBUGASSERT(g_procfs_entries[x].ops && g_procfs_entries[x].ops->opendir);
+              DEBUGASSERT(g_procfs_entries[x].ops != NULL &&
+                          g_procfs_entries[x].ops->opendir != NULL);
+
               ret = g_procfs_entries[x].ops->opendir(relpath, dir);
 
               if (ret == OK)
@@ -634,14 +635,15 @@ static int procfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
 
             /* Test for a sub-string match (e.g. "ls /proc/fs") */
 
-          else if (strncmp(g_procfs_entries[x].pathpattern, relpath, len) == 0)
+          else if (strncmp(g_procfs_entries[x].pathpattern, relpath,
+                           len) == 0)
             {
               FAR struct procfs_level1_s *level1;
 
               /* Doing an intermediate directory search */
 
-              /* The path refers to the top level directory.  Allocate the level1
-               * dirent structure.
+              /* The path refers to the top level directory.  Allocate
+               * the level1 dirent structure.
                */
 
               level1 = (FAR struct procfs_level1_s *)
@@ -649,7 +651,8 @@ static int procfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
 
               if (!level1)
                 {
-                  ferr("ERROR: Failed to allocate the level0 directory structure\n");
+                  ferr("ERROR: Failed to allocate the level0 directory "
+                       "structure\n");
                   return -ENOMEM;
                 }
 
@@ -710,7 +713,6 @@ static int procfs_readdir(struct inode *mountpt, struct fs_dirent_s *dir)
   FAR struct tcb_s *tcb;
   FAR const char *name = NULL;
   unsigned int index;
-  irqstate_t flags;
   pid_t pid;
   int ret = -ENOENT;
 
@@ -834,10 +836,7 @@ static int procfs_readdir(struct inode *mountpt, struct fs_dirent_s *dir)
 
           pid = level0->pid[index];
 
-          flags = enter_critical_section();
           tcb = sched_gettcb(pid);
-          leave_critical_section(flags);
-
           if (!tcb)
             {
               ferr("ERROR: PID %d is no longer valid\n", (int)pid);
@@ -847,10 +846,10 @@ static int procfs_readdir(struct inode *mountpt, struct fs_dirent_s *dir)
           /* Save the filename=pid and file type=directory */
 
           dir->fd_dir.d_type = DTYPE_DIRECTORY;
-          snprintf(dir->fd_dir.d_name, NAME_MAX+1, "%d", (int)pid);
+          snprintf(dir->fd_dir.d_name, NAME_MAX + 1, "%d", (int)pid);
 
-          /* Set up the next directory entry offset.  NOTE that we could use the
-           * standard f_pos instead of our own private index.
+          /* Set up the next directory entry offset.  NOTE that we could use
+           * the standard f_pos instead of our own private index.
            */
 
           level0->base.index = index + 1;
@@ -958,8 +957,8 @@ static int procfs_rewinddir(struct inode *mountpt, struct fs_dirent_s *dir)
  *
  * Description: This implements a portion of the mount operation. This
  *  function allocates and initializes the mountpoint private data and
- *  binds the blockdriver inode to the filesystem private data.  The final
- *  binding of the private data (containing the blockdriver) to the
+ *  binds the block driver inode to the filesystem private data.  The final
+ *  binding of the private data (containing the block driver) to the
  *  mountpoint is performed by mount().
  *
  ****************************************************************************/
@@ -967,9 +966,12 @@ static int procfs_rewinddir(struct inode *mountpt, struct fs_dirent_s *dir)
 static int procfs_bind(FAR struct inode *blkdriver, const void *data,
                        void **handle)
 {
+#ifdef CONFIG_FS_PROCFS_REGISTER
   /* Make sure that we are properly initialized */
 
   procfs_initialize();
+#endif
+
   return OK;
 }
 
@@ -1032,8 +1034,9 @@ static int procfs_stat(struct inode *mountpt, const char *relpath,
   memset(buf, 0, sizeof(struct stat));
   if (!relpath || relpath[0] == '\0')
     {
-      /* The path refers to the top level directory */
-      /* It's a read-only directory */
+      /* The path refers to the top level directory.
+       * It's a read-only directory.
+       */
 
       buf->st_mode = S_IFDIR | S_IROTH | S_IRGRP | S_IRUSR;
       ret = OK;
@@ -1061,7 +1064,8 @@ static int procfs_stat(struct inode *mountpt, const char *relpath,
 
           /* Test for an internal subdirectory stat */
 
-          else if (strncmp(g_procfs_entries[x].pathpattern, relpath, len) == 0)
+          else if (strncmp(g_procfs_entries[x].pathpattern, relpath,
+                           len) == 0)
             {
               /* It's an internal subdirectory */
 
@@ -1096,7 +1100,7 @@ int procfs_initialize(void)
 
   if (g_procfs_entries == NULL)
     {
-      /* No.. allocate a modifyable list of entries */
+      /* No.. allocate a modifiable list of entries */
 
       g_procfs_entries = (FAR struct procfs_entry_s *)
         kmm_malloc(sizeof(g_base_entries));
@@ -1166,7 +1170,9 @@ int procfs_register(FAR const struct procfs_entry_s *entry)
   newsize  = newcount * sizeof(struct procfs_entry_s);
 
   sched_lock();
-  newtable = (FAR struct procfs_entry_s *)kmm_realloc(g_procfs_entries, newsize);
+  newtable = (FAR struct procfs_entry_s *)
+    kmm_realloc(g_procfs_entries, newsize);
+
   if (newtable == NULL)
     {
       /* Reallocation failed! */
@@ -1177,7 +1183,8 @@ int procfs_register(FAR const struct procfs_entry_s *entry)
     {
       /* Copy the new entry at the end of the reallocated table */
 
-      memcpy(&newtable[g_procfs_entrycount], entry, sizeof(struct procfs_entry_s));
+      memcpy(&newtable[g_procfs_entrycount], entry,
+             sizeof(struct procfs_entry_s));
 
       /* Instantiate the reallocated table */
 

@@ -1,7 +1,7 @@
 /****************************************************************************
  * include/nuttx/nx/nxmu.h
  *
- *   Copyright (C) 2008-2013 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2013, 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,16 +49,13 @@
 
 #include <nuttx/semaphore.h>
 #include <nuttx/nx/nx.h>
+#include <nuttx/nx/nxcursor.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 /* Configuration ************************************************************/
-
-#ifdef CONFIG_DISABLE_MQUEUE
-#  error "Message queues are disabled(CONFIG_DISABLE_MQUEUE)"
-#endif
 
 #ifndef CONFIG_NX_MXSERVERMSGS
 #  define CONFIG_NX_MXSERVERMSGS 32 /* Number of pending messages in server MQ */
@@ -105,7 +102,7 @@ enum nx_clistate_e
 
 /* This structure represents a connection between the client and the server */
 
-struct nxfe_conn_s
+struct nxmu_conn_s
 {
   /* This number uniquely identifies the client */
 
@@ -134,7 +131,7 @@ enum nxmsg_e
   NX_CLIMSG_NEWPOSITION,      /* New window size/position */
   NX_CLIMSG_MOUSEIN,          /* New mouse positional data available for window */
   NX_CLIMSG_KBDIN,            /* New keypad input available for window */
-  NX_CLIMSG_BLOCKED,          /* The window is blocked */
+  NX_CLIMSG_EVENT,            /* Server->client event */
 
   /* Client-to-Server Messages **********************************************/
 
@@ -143,6 +140,10 @@ enum nxmsg_e
   NX_SVRMSG_OPENWINDOW,       /* Create a new window */
   NX_SVRMSG_CLOSEWINDOW,      /* Close an existing window */
   NX_SVRMSG_BLOCKED,          /* The window is blocked */
+  NX_SVRMSG_SYNCH,            /* Window syncrhonization request */
+  NX_SVRMSG_CURSOR_ENABLE,    /* Enable/disablel cursor presentation */
+  NX_SVRMSG_CURSOR_IMAGE,     /* Set cursor image */
+  NX_SVRMSG_CURSOR_SETPOS,    /* Set cursor position */
   NX_SVRMSG_REQUESTBKGD,      /* Open the background window */
   NX_SVRMSG_RELEASEBKGD,      /* Release the background window */
   NX_SVRMSG_SETPOSITION,      /* Window position has changed */
@@ -150,6 +151,8 @@ enum nxmsg_e
   NX_SVRMSG_GETPOSITION,      /* Get the current window position and size */
   NX_SVRMSG_RAISE,            /* Move the window to the top */
   NX_SVRMSG_LOWER,            /* Move the window to the bottom */
+  NX_SVRMSG_MODAL,            /* Select/de-slect window modal state */
+  NX_SVRMSG_SETVISIBILITY,          /* Show or hide a window */
   NX_SVRMSG_SETPIXEL,         /* Set a single pixel in the window with a color */
   NX_SVRMSG_FILL,             /* Fill a rectangle in the window with a color */
   NX_SVRMSG_GETRECTANGLE,     /* Get a rectangular region in the window */
@@ -185,8 +188,9 @@ struct nxclimsg_disconnected_s
   uint32_t msgid;                  /* NX_CLIMSG_REDRAW_DISCONNECTED */
 };
 
-/* This message is received when a requested window has been opened.  If wnd is NULL
- * then errorcode is the errno value that provides the explanation of the error.
+/* This message is received when a requested window has been opened.  If wnd
+ * is NULL then errorcode is the errno value that provides the explanation of
+ * the error.
  */
 
 struct nxclimsg_redraw_s
@@ -232,15 +236,14 @@ struct nxclimsg_kbdin_s
 };
 #endif
 
-/* This message confirms that that all queued window messages have been
- * flushed and that the all further window messages are blocked.
- */
+/* This message provides server event notifications to the client. */
 
-struct nxclimsg_blocked_s
+struct nxclimsg_event_s
 {
   uint32_t msgid;                /* NX_CLIMSG_BLOCKED */
   FAR struct nxbe_window_s *wnd; /* The window that is blocked */
   FAR void *arg;                 /* User argument */
+  enum nx_event_e event;         /* Server event */
 };
 
 /* Client-to-Server Message Structures **************************************/
@@ -253,7 +256,7 @@ struct nxclimsg_blocked_s
 struct nxsvrmsg_s                 /* Generic server message */
 {
   uint32_t msgid;                 /* One of enum nxsvrmsg_e */
-  FAR struct nxfe_conn_s *conn;   /* The specific connection sending the message */
+  FAR struct nxmu_conn_s *conn;   /* The specific connection sending the message */
 };
 
 /* This message requests the server to create a new window */
@@ -285,12 +288,52 @@ struct nxsvrmsg_blocked_s
   FAR void *arg;                 /* User argument */
 };
 
+/* Synchronization request.  This is essentially an 'echo':  The NX server
+ * will receive the synchronization request and simply respond with a
+ * synchronized event.
+ */
+
+struct nxsvrmsg_synch_s
+{
+  uint32_t msgid;                /* NX_SVRMSG_SYNCH */
+  FAR struct nxbe_window_s *wnd; /* The window that requires synch'ing */
+  FAR void *arg;                 /* User argument */
+};
+
+#if defined(CONFIG_NX_SWCURSOR) || defined(CONFIG_NX_HWCURSOR)
+/* Enable/disable cursor */
+
+struct nxsvrmsg_curenable_s
+{
+  uint32_t msgid;                /* NX_SVRMSG_CURSOR_ENABLE */
+  bool enable;                   /* True: show the cursor, false: hide the cursor */
+};
+
+#if defined(CONFIG_NX_HWCURSORIMAGE) || defined(CONFIG_NX_SWCURSOR)
+/* Set cursor image. */
+
+struct nxsvrmsg_curimage_s
+{
+  uint32_t msgid;                    /* NX_SVRMSG_CURSOR_IMAGE */
+  FAR struct nx_cursorimage_s image  /* Describes the cursor image */
+};
+#endif
+
+/* Set cursor position. */
+
+struct nxsvrmsg_curpos_s
+{
+  uint32_t msgid;                  /* NX_SVRMSG_CURSOR_SETPOS */
+  FAR struct nxgl_point_s pos;     /* The new cursor position */
+};
+#endif
+
 /* This message requests the server to create a new window */
 
 struct nxsvrmsg_requestbkgd_s
 {
   uint32_t msgid;                  /* NX_SVRMSG_REQUESTBKGD */
-  FAR struct nxfe_conn_s *conn;    /* The specific connection sending the message */
+  FAR struct nxmu_conn_s *conn;    /* The specific connection sending the message */
   FAR const struct nx_callback_s *cb; /* Event handling callbacks */
   FAR void *arg;                   /* Client argument used with callbacks */
 };
@@ -341,7 +384,29 @@ struct nxsvrmsg_raise_s
 struct nxsvrmsg_lower_s
 {
   uint32_t msgid;                  /* NX_SVRMSG_LOWER */
-  FAR struct nxbe_window_s *wnd;   /* The window to be lowered  */
+  FAR struct nxbe_window_s *wnd;   /* The window to be lowered */
+};
+
+/* This message either (1) raises a window to the top of the display and
+ * selects the modal state, or (2) de-selects the modal state.
+ */
+
+struct nxsvrmsg_modal_s
+{
+  uint32_t msgid;                  /* NX_SVRMSG_MODAL */
+  FAR struct nxbe_window_s *wnd;   /* The window to be modified */
+  bool modal;                      /* True: enter modal state; False: leave modal state */
+};
+
+/* This message either (1) hides a visible window, or (2) makes a hidden
+ * window visible.
+ */
+
+struct nxsvrmsg_setvisibility_s
+{
+  uint32_t msgid;                  /* NX_SVRMSG_SETVISIBILITY */
+  FAR struct nxbe_window_s *wnd;   /* The window to be modified */
+  bool hide;                       /* True: Hide window; False: show window */
 };
 
 /* Set a single pixel in the window with a color */
@@ -474,37 +539,30 @@ extern "C"
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nxfe_constructwindow
+ * Name: nxmu_start
  *
  * Description:
- *   This function is the same a nx_openwindow EXCEPT that the client provides
- *   the window structure instance.  nx_constructwindow will initialize the
- *   the pre-allocated window structure for use by NX.  This function is
- *   provided in addition to nx_openwindow in order to support a kind of
- *   inheritance:  The caller's window structure may include extensions that
- *   are not visible to NX.
+ *   nxmu_start() provides a wrapper function to simplify and standardize
+ *   the starting of the NX server.
  *
- *   NOTE:  wnd must have been allocated using kmm_malloc() (or related allocators)
- *   Once provided to nxfe_constructwindow() that memory is owned and managed
- *   by NX.  On certain error conditions or when the window is closed, NX will
- *   free the window.
+ *   nxmu_start() can be called (indirectly) from applications via the
+ *   boardctl() interface with the BOARDIOC_NX_START command.
  *
  * Input Parameters:
- *   handle - The handle returned by nx_connect
- *   wnd    - The pre-allocated window structure.
- *   cb     - Callbacks used to process window events
- *   arg    - User provided value that will be returned with NX callbacks.
+ *   display - Display number served by this NXMU instance.
+ *   plane   - Plane number to use for display info
  *
  * Returned Value:
- *   OK on success; ERROR on failure with errno set appropriately.  In the
- *   case of ERROR, NX will have deallocated the pre-allocated window.
+ *   Zero (OK) is returned on success.  This indicates that the NX server
+ *   has been successfully started, is running, and waiting to accept
+ *   connections from NX clients.
+ *
+ *   A negated errno value is returned on failure.  The errno value indicates
+ *   the nature of the failure.
  *
  ****************************************************************************/
 
-int nxfe_constructwindow(NXHANDLE handle,
-                         FAR struct nxbe_window_s *wnd,
-                         FAR const struct nx_callback_s *cb,
-                         FAR void *arg);
+int nxmu_start(int display, int plane);
 
 /****************************************************************************
  * Name: nxmu_semtake
@@ -538,7 +596,7 @@ void nxmu_semtake(sem_t *sem);
  *
  ****************************************************************************/
 
-int nxmu_sendserver(FAR struct nxfe_conn_s *conn,
+int nxmu_sendserver(FAR struct nxmu_conn_s *conn,
                     FAR const void *msg, size_t msglen);
 
 /****************************************************************************

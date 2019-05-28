@@ -59,7 +59,6 @@ include shm/Make.defs
 
 # Additional files required is mount-able file systems are supported
 
-ifneq ($(CONFIG_NFILE_DESCRIPTORS),0)
 ifneq ($(CONFIG_DISABLE_MOUNTPOINT),y)
 
 include mount/Make.defs
@@ -77,8 +76,8 @@ include spiffs/Make.defs
 include unionfs/Make.defs
 include userfs/Make.defs
 include hostfs/Make.defs
+include littlefs/Make.defs
 
-endif
 endif
 
 COBJS = $(CSRCS:.c=$(OBJEXT))

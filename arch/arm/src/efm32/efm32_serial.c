@@ -56,13 +56,12 @@
 #  include <termios.h>
 #endif
 
-#include <arch/serial.h>
 #include <arch/board/board.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
 
-#include "chip/efm32_usart.h"
+#include "hardware/efm32_usart.h"
 #include "efm32_config.h"
 #include "efm32_gpio.h"
 #include "efm32_lowputc.h"

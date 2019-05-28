@@ -183,10 +183,10 @@ extern const uint16_t g_commonconfig[NCOMMON_CONFIG];
  * Description:
  *   Perform architecture-specific initialization
  *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
+ *   CONFIG_BOARD_LATE_INITIALIZE=y :
+ *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
+ *   CONFIG_BOARD_LATE_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
  *     Called from the NSH library
  *
  ************************************************************************************/
@@ -267,26 +267,6 @@ void stm32_extcontextrestore(struct extmem_save_s *restore);
  ************************************************************************************/
 
 void stm32_extmemgpios(const uint16_t *gpios, int ngpios);
-
-/************************************************************************************
- * Name: stm32_enablefsmc
- *
- * Description:
- *  enable clocking to the FSMC module
- *
- ************************************************************************************/
-
-void stm32_enablefsmc(void);
-
-/************************************************************************************
- * Name: stm32_disablefsmc
- *
- * Description:
- *  enable clocking to the FSMC module
- *
- ************************************************************************************/
-
-void stm32_disablefsmc(void);
 
 /************************************************************************************
  * Name: stm32_selectnor

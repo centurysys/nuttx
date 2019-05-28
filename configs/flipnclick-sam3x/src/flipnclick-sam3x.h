@@ -48,7 +48,7 @@
 #include <arch/irq.h>
 #include <nuttx/irq.h>
 
-#include "chip/sam_pinmap.h"
+#include "hardware/sam_pinmap.h"
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -250,10 +250,10 @@
  * Description:
  *   Perform architecture-specific initialization
  *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
+ *   CONFIG_BOARD_LATE_INITIALIZE=y :
+ *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
+ *   CONFIG_BOARD_LATE_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
  *     Called from the NSH library
  *
  ****************************************************************************/

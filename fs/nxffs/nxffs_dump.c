@@ -76,8 +76,10 @@ struct nxffs_blkinfo_s
  * Private Data
  ****************************************************************************/
 
+#if defined(CONFIG_DEBUG_FEATURES) && defined(CONFIG_DEBUG_FS)
 static const char g_hdrformat[] = "  BLOCK:OFFS  TYPE  STATE   LENGTH\n";
 static const char g_format[]    = "  %5d:%-5d %s %s %5d\n";
+#endif
 
 /****************************************************************************
  * Private Functions
@@ -100,7 +102,9 @@ static inline ssize_t nxffs_analyzeinode(FAR struct nxffs_blkinfo_s *blkinfo,
   uint8_t  state;
   uint32_t noffs;
   uint32_t doffs;
-//uint32_t utc;
+#if 0
+  uint32_t utc;
+#endif
   uint32_t ecrc;
   uint32_t datlen;
   uint32_t crc;
@@ -120,7 +124,9 @@ static inline ssize_t nxffs_analyzeinode(FAR struct nxffs_blkinfo_s *blkinfo,
   memcpy(&inode, &blkinfo->buffer[offset], SIZEOF_NXFFS_INODE_HDR);
   noffs  = nxffs_rdle32(inode.noffs);
   doffs  = nxffs_rdle32(inode.doffs);
-//utc    = nxffs_rdle32(inode.utc);
+#if 0
+  utc    = nxffs_rdle32(inode.utc);
+#endif
   ecrc   = nxffs_rdle32(inode.crc);
   datlen = nxffs_rdle32(inode.datlen);
 
@@ -134,7 +140,6 @@ static inline ssize_t nxffs_analyzeinode(FAR struct nxffs_blkinfo_s *blkinfo,
 
       return ERROR;
     }
-
 
   /* Can we verify the inode?  We need to have the inode name in the same
    * block to do that (or get access to the next block)
@@ -348,7 +353,7 @@ static inline void nxffs_analyze(FAR struct nxffs_blkinfo_s *blkinfo)
              blkinfo->geo.blocksize);
     }
 
-  /* Serach for Inode and data block headers.  */
+  /* Search for Inode and data block headers.  */
 
   inndx = 0;
   datndx = 0;

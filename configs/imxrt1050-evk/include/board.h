@@ -4,6 +4,7 @@
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *            David Sidrane <david_s5@nscdg.com>
+ *            Dave Marples <dave@marples.net>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -97,6 +98,10 @@
 #define IMXRT_PERCLK_CLK_SEL      CCM_CSCMR1_PERCLK_CLK_SEL_IPG_CLK_ROOT
 #define IMXRT_PERCLK_PODF_DIVIDER 9
 #define IMXRT_SEMC_PODF_DIVIDER   8
+#define IMXRT_LPSPI_CLK_SELECT    CCM_CBCMR_LPSPI_CLK_SEL_PLL3_PFD0
+#define IMXRT_LSPI_PODF_DIVIDER   8
+#define IMXRT_USDHC1_CLK_SELECT    CCM_CSCMR1_USDHC1_CLK_SEL_PLL2_PFD0
+#define IMXRT_USDHC1_PODF_DIVIDER 2
 
 #define IMXRT_SYS_PLL_SELECT      CCM_ANALOG_PLL_SYS_DIV_SELECT_22
 
@@ -104,6 +109,7 @@
   (BOARD_XTAL_FREQUENCY * (IMXRT_ARM_PLL_DIV_SELECT / 2)) / IMXRT_ARM_PODF_DIVIDER
 
 /* LED definitions ******************************************************************/
+
 /* There are four LED status indicators located on the EVK Board.  The functions of
  * these LEDs include:
  *
@@ -152,6 +158,7 @@
  */
 
 /* Button definitions ***************************************************************/
+
 /* The IMXRT board has one external user button
  *
  * 1. SW8 (IRQ88)   GPIO5-00
@@ -163,20 +170,25 @@
 
 /* SDIO *****************************************************************************/
 
-/* Pin drive characteristics - drive strength in particular may need tuning for specific boards */
+/* Pin drive characteristics - drive strength in particular may need tuning for
+ * specific boards, but has been checked by scope on the EVKB to make sure shapes
+ * are square with minimal ringing.
+ */
 
-#define PADCTL_USDHC1_DATAX (PADCTL_SRE|PADCTL_DSE_60OHM|PADCTL_HYS)
-#define PADCTL_USDHC1_CMD    PADCTL_USDHC1_DATAX
-#define PADCTL_USDHC1_CLK   (PADCTL_SRE|PADCTL_DSE_60OHM|PADCTL_SPEED_MAX)
-#define PADCTL_USDHC1_CD    (0)
+#define USDHC1_DATAX_IOMUX  (IOMUX_SLEW_FAST | IOMUX_DRIVE_130OHM | \
+                             IOMUX_PULL_UP_47K | IOMUX_SCHMITT_TRIGGER)
+#define USDHC1_CMD_IOMUX    (IOMUX_SLEW_FAST | IOMUX_DRIVE_130OHM | \
+                             IOMUX_PULL_UP_47K | IOMUX_SCHMITT_TRIGGER)
+#define USDHC1_CLK_IOMUX    (IOMUX_SLEW_FAST | IOMUX_DRIVE_130OHM | IOMUX_SPEED_MAX)
+#define USDHC1_CD_IOMUX     (0)
 
-#define PIN_USDHC1_D0 GPIO_USDHC1_DATA0
-#define PIN_USDHC1_D1 GPIO_USDHC1_DATA1
-#define PIN_USDHC1_D2 GPIO_USDHC1_DATA2
-#define PIN_USDHC1_D3 GPIO_USDHC1_DATA3
-#define PIN_USDHC1_DCLK GPIO_USDHC1_CLK
-#define PIN_USDHC1_CMD GPIO_USDHC1_CMD
-#define PIN_USDHC1_CD GPIO_USDHC1_CD_2
+#define PIN_USDHC1_D0       (GPIO_USDHC1_DATA0 | USDHC1_DATAX_IOMUX)
+#define PIN_USDHC1_D1       (GPIO_USDHC1_DATA1 | USDHC1_DATAX_IOMUX)
+#define PIN_USDHC1_D2       (GPIO_USDHC1_DATA2 | USDHC1_DATAX_IOMUX)
+#define PIN_USDHC1_D3       (GPIO_USDHC1_DATA3 | USDHC1_DATAX_IOMUX)
+#define PIN_USDHC1_DCLK     (GPIO_USDHC1_CLK   | USDHC1_CLK_IOMUX)
+#define PIN_USDHC1_CMD      (GPIO_USDHC1_CMD   | USDHC1_CMD_IOMUX)
+#define PIN_USDHC1_CD       (GPIO_USDHC1_CD_2  | USDHC1_CD_IOMUX)
 
 /* 386 KHz for initial inquiry stuff */
 
@@ -194,7 +206,16 @@
 #define BOARD_USDHC_SD4MODE_PRESCALER   USDHC_SYSCTL_SDCLKFS_DIV8
 #define BOARD_USDHC_SD4MODE_DIVISOR     USDHC_SYSCTL_DVS_DIV(1)
 
+/* ETH Disambiguation ***************************************************************/
+#define GPIO_ENET_MDIO                  GPIO_ENET_MDIO_3
+#define GPIO_ENET_MDC                   GPIO_ENET_MDC_3
+#define GPIO_ENET_RX_EN                 GPIO_ENET_RX_EN_1
+#define GPIO_ENET_RX_ER                 GPIO_ENET_RX_ER_1
+#define GPIO_ENET_TX_CLK                GPIO_ENET_TX_CLK_1
+#define GPIO_ENET_TX_EN                 GPIO_ENET_TX_EN_1
+
 /* PIO Disambiguation ***************************************************************/
+
 /* LPUARTs
  *
  * Virtual console port provided by OpenSDA:

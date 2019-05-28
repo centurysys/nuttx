@@ -60,7 +60,7 @@
 #include "up_arch.h"
 #include "up_internal.h"
 
-#include "chip/efm32_cmu.h"
+#include "hardware/efm32_cmu.h"
 
 #include "efm32_usb.h"
 
@@ -5507,12 +5507,6 @@ void up_usbinitialize(void)
   /* Enable USB controller interrupts at the NVIC */
 
   up_enable_irq(EFM32_IRQ_USB);
-
-#ifdef CONFIG_ARCH_IRQPRIO
-  /* Set the interrupt priority */
-
-  up_prioritize_irq(EFM32_IRQ_USB, CONFIG_OTGFS_PRI);
-#endif
   return;
 
 errout:

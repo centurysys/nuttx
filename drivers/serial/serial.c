@@ -58,6 +58,7 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/serial/serial.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/power/pm.h>
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -81,7 +82,6 @@
 
 /* Timing */
 
-#define POLL_DELAY_MSEC 1
 #define POLL_DELAY_USEC 1000
 
 /************************************************************************************
@@ -93,9 +93,7 @@
  ************************************************************************************/
 
 static int     uart_takesem(FAR sem_t *sem, bool errout);
-#ifndef CONFIG_DISABLE_POLL
 static void    uart_pollnotify(FAR uart_dev_t *dev, pollevent_t eventset);
-#endif
 
 /* Write support */
 
@@ -111,9 +109,7 @@ static int     uart_close(FAR struct file *filep);
 static ssize_t uart_read(FAR struct file *filep, FAR char *buffer, size_t buflen);
 static ssize_t uart_write(FAR struct file *filep, FAR const char *buffer, size_t buflen);
 static int     uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
-#ifndef CONFIG_DISABLE_POLL
 static int     uart_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup);
-#endif
 
 /************************************************************************************
  * Private Data
@@ -126,10 +122,8 @@ static const struct file_operations g_serialops =
   uart_read,  /* read */
   uart_write, /* write */
   0,          /* seek */
-  uart_ioctl  /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  , uart_poll /* poll */
-#endif
+  uart_ioctl, /* ioctl */
+  uart_poll   /* poll */
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   , NULL      /* unlink */
 #endif
@@ -185,7 +179,6 @@ static int uart_takesem(FAR sem_t *sem, bool errout)
  * Name: uart_pollnotify
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 static void uart_pollnotify(FAR uart_dev_t *dev, pollevent_t eventset)
 {
   int i;
@@ -208,9 +201,6 @@ static void uart_pollnotify(FAR uart_dev_t *dev, pollevent_t eventset)
         }
     }
 }
-#else
-#  define uart_pollnotify(dev,event)
-#endif
 
 /************************************************************************************
  * Name: uart_putxmitchar
@@ -301,7 +291,7 @@ static int uart_putxmitchar(FAR uart_dev_t *dev, int ch, bool oktoblock)
                * the semaphore.
                */
 
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_TXDMA
               uart_dmatxavail(dev);
 #endif
               uart_enabletxint(dev);
@@ -378,12 +368,34 @@ static inline ssize_t uart_irqwrite(FAR uart_dev_t *dev, FAR const char *buffer,
     {
       int ch = *buffer++;
 
+#ifdef CONFIG_SERIAL_TERMIOS
+      /* Do output post-processing */
+
+      if ((dev->tc_oflag & OPOST) != 0)
+        {
+          /* Mapping CR to NL? */
+
+          if ((ch == '\r') && (dev->tc_oflag & OCRNL) != 0)
+            {
+              ch = '\n';
+            }
+
+          /* Are we interested in newline processing? */
+
+          if ((ch == '\n') && (dev->tc_oflag & (ONLCR | ONLRET)) != 0)
+            {
+              uart_putc(dev, '\r');
+            }
+        }
+
+#else /* !CONFIG_SERIAL_TERMIOS */
       /* If this is the console, then we should replace LF with CR-LF */
 
       if (dev->isconsole && ch == '\n')
         {
           uart_putc(dev, '\r');
         }
+#endif
 
       /* Output the character, using the low-level direct UART interfaces */
 
@@ -462,7 +474,7 @@ static int uart_tcdrain(FAR uart_dev_t *dev, clock_t timeout)
                * the semaphore.
                */
 
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_TXDMA
               uart_dmatxavail(dev);
 #endif
               uart_enabletxint(dev);
@@ -493,11 +505,7 @@ static int uart_tcdrain(FAR uart_dev_t *dev, clock_t timeout)
             {
               clock_t elapsed;
 
-#ifndef CONFIG_DISABLE_SIGNALS
               nxsig_usleep(POLL_DELAY_USEC);
-#else
-              up_mdelay(POLL_DELAY_MSEC);
-#endif
 
               /* Check for a timeout */
 
@@ -601,23 +609,7 @@ static int uart_open(FAR struct file *filep)
            goto errout_with_sem;
         }
 
-#ifdef CONFIG_SERIAL_TERMIOS
-      /* Initialize termios state */
-
-      dev->tc_iflag = 0;
-      if (dev->isconsole)
-        {
-          /* Enable \n -> \r\n translation for the console */
-
-          dev->tc_oflag = OPOST | ONLCR;
-        }
-      else
-        {
-          dev->tc_oflag = 0;
-        }
-#endif
-
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_RXDMA
       /* Notify DMA that there is free space in the RX buffer */
 
       uart_dmarxfree(dev);
@@ -683,13 +675,6 @@ static int uart_close(FAR struct file *filep)
 
       (void)uart_tcdrain(dev, 4 * TICK_PER_SEC);
     }
-
-  /* Mark the I/O buffers empty */
-
-  dev->xmit.head = 0;
-  dev->xmit.tail = 0;
-  dev->recv.head = 0;
-  dev->recv.tail = 0;
 
   /* Free the IRQ and disable the UART */
 
@@ -887,7 +872,7 @@ static ssize_t uart_read(FAR struct file *filep, FAR char *buffer, size_t buflen
 
       else
         {
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_RXDMA
           /* Disable all interrupts and test again...
            * uart_disablerxint() is insufficient for the check in DMA mode.
            */
@@ -910,7 +895,7 @@ static ssize_t uart_read(FAR struct file *filep, FAR char *buffer, size_t buflen
                * additional data to be received.
                */
 
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_RXDMA
               /* Notify DMA that there is free space in the RX buffer */
 
               uart_dmarxfree(dev);
@@ -991,7 +976,7 @@ static ssize_t uart_read(FAR struct file *filep, FAR char *buffer, size_t buflen
                * the loop.
                */
 
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_RXDMA
               leave_critical_section(flags);
 #else
               uart_enablerxint(dev);
@@ -1000,7 +985,7 @@ static ssize_t uart_read(FAR struct file *filep, FAR char *buffer, size_t buflen
         }
     }
 
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_RXDMA
   /* Notify DMA that there is free space in the RX buffer */
 
   flags = enter_critical_section();
@@ -1008,7 +993,7 @@ static ssize_t uart_read(FAR struct file *filep, FAR char *buffer, size_t buflen
   leave_critical_section(flags);
 #endif
 
-#ifndef CONFIG_SERIAL_DMA
+#ifndef CONFIG_SERIAL_RXDMA
   /* RX interrupt could be disabled by RX buffer overflow. Enable it now. */
 
   uart_enablerxint(dev);
@@ -1224,7 +1209,7 @@ static ssize_t uart_write(FAR struct file *filep, FAR const char *buffer,
 
   if (dev->xmit.head != dev->xmit.tail)
     {
-#ifdef CONFIG_SERIAL_DMA
+#ifdef CONFIG_SERIAL_TXDMA
       uart_dmatxavail(dev);
 #endif
       uart_enabletxint(dev);
@@ -1459,7 +1444,6 @@ static int uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  * Name: uart_poll
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 static int uart_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup)
 {
   FAR struct inode *inode = filep->f_inode;
@@ -1472,7 +1456,7 @@ static int uart_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup)
   /* Some sanity checking */
 
 #ifdef CONFIG_DEBUG_FEATURES
-  if (!dev || !fds)
+  if (dev == NULL || fds == NULL)
     {
       return -ENODEV;
     }
@@ -1571,11 +1555,11 @@ static int uart_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup)
         }
 
     }
-  else if (fds->priv)
+  else if (fds->priv != NULL)
     {
       /* This is a request to tear down the poll. */
 
-      struct pollfd **slot = (struct pollfd **)fds->priv;
+      FAR struct pollfd **slot = (FAR struct pollfd **)fds->priv;
 
 #ifdef CONFIG_DEBUG_FEATURES
       if (!slot)
@@ -1595,7 +1579,6 @@ errout:
   uart_givesem(&dev->pollsem);
   return ret;
 }
-#endif
 
 /************************************************************************************
  * Public Functions
@@ -1611,16 +1594,24 @@ errout:
 
 int uart_register(FAR const char *path, FAR uart_dev_t *dev)
 {
-#if defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGSTP)
+#ifdef CONFIG_SERIAL_TERMIOS
+#  if defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGSTP)
   /* Initialize  of the task that will receive SIGINT signals. */
 
   dev->pid = (pid_t)-1;
+#  endif
 
-  /* If this UART is a serial console, then enable signals by default */
+  /* If this UART is a serial console */
 
   if (dev->isconsole)
     {
+      /* Enable signals by default */
+
       dev->tc_lflag |= ISIG;
+
+      /* Enable \n -> \r\n translation for the console */
+
+      dev->tc_oflag = OPOST | ONLCR;
     }
 #endif
 
@@ -1631,9 +1622,7 @@ int uart_register(FAR const char *path, FAR uart_dev_t *dev)
   nxsem_init(&dev->closesem, 0, 1);
   nxsem_init(&dev->xmitsem,  0, 0);
   nxsem_init(&dev->recvsem,  0, 0);
-#ifndef CONFIG_DISABLE_POLL
   nxsem_init(&dev->pollsem,  0, 1);
-#endif
 
   /* The recvsem and xmitsem are used for signaling and, hence, should not have
    * priority inheritance enabled.
@@ -1673,6 +1662,16 @@ void uart_datareceived(FAR uart_dev_t *dev)
   /* Notify all poll/select waiters that they can read from the recv buffer */
 
   uart_pollnotify(dev, POLLIN);
+
+#ifdef CONFIG_PM
+  /* Call pm_activity when characters are received on the console device */
+
+  if (dev->isconsole)
+    {
+      pm_activity(CONFIG_SERIAL_PM_ACTIVITY_DOMAIN,
+                  CONFIG_SERIAL_PM_ACTIVITY_PRIORITY);
+    }
+#endif
 }
 
 /************************************************************************************
@@ -1784,7 +1783,6 @@ void uart_reset_sem(FAR uart_dev_t *dev)
   nxsem_reset(&dev->recvsem,  0);
   nxsem_reset(&dev->xmit.sem, 1);
   nxsem_reset(&dev->recv.sem, 1);
-#ifndef CONFIG_DISABLE_POLL
   nxsem_reset(&dev->pollsem,  1);
-#endif
 }
+

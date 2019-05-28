@@ -502,8 +502,7 @@ configdata
 
 cxxtest
 
-
-  The C++ standard libary test at apps/examples/cxxtest configuration.  This
+  The C++ standard libary test at apps/testing/cxxtest configuration.  This
   test is used to verify the uClibc++ port to NuttX.
 
   NOTES
@@ -673,6 +672,9 @@ nsh2
      may not even be usable in all of those environments without some "tweaking"
      See discussion below under the nx11 configuration).
 
+     For examples, it expects to be able to include X11/Xlib.h.  That currently
+     fails on my Linux box.
+
 nx
 
   Configures to use apps/examples/nx.
@@ -785,7 +787,7 @@ nx11
 
 nxffs
 
-  This is a test of the NXFFS file system using the apps/examples/nxffs
+  This is a test of the NXFFS file system using the apps/testing/nxffs
   test with an MTD RAM driver to simulate the FLASH part.
 
 nxlines
@@ -850,7 +852,12 @@ nxwm
      the serial console.  So I do not believe that problem exists and
      I think that the above workaround should no longer be necessary.
      However, I will leave the above text in place until I get then
-     oppotunity to verify that the new UART simulation fixes the problem.
+     opportunity to verify that the new UART simulation fixes the problem.
+
+  2019-05-04:  Something has changed.  Today this configuration failed
+    to build because is requires CONFIG_NX_XYINPUT=y in the configuration.
+    That indicates mouse or touchscreen support.  Apparently, the current
+    NxWM will not build without this support.
 
 ostest
 
@@ -894,7 +901,7 @@ sixlowpan
 
 spiffs
 
-  This is a test of the SPIFFS file system using the apps/examples/fstest
+  This is a test of the SPIFFS file system using the apps/testing/fstest
   test with an MTD RAM driver to simulate the FLASH part.
 
 touchscreen

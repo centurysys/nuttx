@@ -54,16 +54,16 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/fs/ioctl.h>
 #include <nuttx/serial/serial.h>
 
-#include <arch/serial.h>
 #include <arch/board/board.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
 
 #include "chip.h"
-#include "chip/sam_uart.h"
+#include "hardware/sam_uart.h"
 #include "sam_config.h"
 #include "sam_dbgu.h"
 #include "sam_serial.h"

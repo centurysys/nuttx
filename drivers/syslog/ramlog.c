@@ -88,9 +88,7 @@ struct ramlog_dev_s
    * retained in the f_priv field of the 'struct file'.
    */
 
-#ifndef CONFIG_DISABLE_POLL
   FAR struct pollfd *rl_fds[CONFIG_RAMLOG_NPOLLWAITERS];
-#endif
 };
 
 /****************************************************************************
@@ -105,10 +103,8 @@ static int ramlog_flush(void);
 
 /* Helper functions */
 
-#ifndef CONFIG_DISABLE_POLL
 static void ramlog_pollnotify(FAR struct ramlog_dev_s *priv,
                               pollevent_t eventset);
-#endif
 static ssize_t ramlog_addchar(FAR struct ramlog_dev_s *priv, char ch);
 
 /* Character driver methods */
@@ -117,10 +113,8 @@ static ssize_t ramlog_read(FAR struct file *filep, FAR char *buffer,
                            size_t buflen);
 static ssize_t ramlog_write(FAR struct file *filep, FAR const char *buffer,
                             size_t buflen);
-#ifndef CONFIG_DISABLE_POLL
 static int     ramlog_poll(FAR struct file *filep, FAR struct pollfd *fds,
                            bool setup);
-#endif
 
 /****************************************************************************
  * Private Data
@@ -129,9 +123,6 @@ static int     ramlog_poll(FAR struct file *filep, FAR struct pollfd *fds,
 #ifdef CONFIG_RAMLOG_SYSLOG
 static const struct syslog_channel_s g_ramlog_syslog_channel =
 {
-#ifdef CONFIG_SYSLOG_WRITE
-  syslog_default_write,
-#endif
   ramlog_putc,
   ramlog_putc,
   ramlog_flush
@@ -149,10 +140,8 @@ static const struct file_operations g_ramlogfops =
   ramlog_read,  /* read */
   ramlog_write, /* write */
   NULL,         /* seek */
-  NULL          /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  , ramlog_poll /* poll */
-#endif
+  NULL,         /* ioctl */
+  ramlog_poll   /* poll */
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   , NULL        /* unlink */
 #endif
@@ -205,7 +194,6 @@ static int ramlog_flush(void)
  * Name: ramlog_pollnotify
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 static void ramlog_pollnotify(FAR struct ramlog_dev_s *priv,
                               pollevent_t eventset)
 {
@@ -230,15 +218,12 @@ static void ramlog_pollnotify(FAR struct ramlog_dev_s *priv,
       leave_critical_section(flags);
     }
 }
-#else
-#  define ramlog_pollnotify(priv,event)
-#endif
 
 /****************************************************************************
  * Name: ramlog_addchar
  ****************************************************************************/
 
-static int ramlog_addchar(FAR struct ramlog_dev_s *priv, char ch)
+static ssize_t ramlog_addchar(FAR struct ramlog_dev_s *priv, char ch)
 {
   irqstate_t flags;
   size_t nexthead;
@@ -431,12 +416,10 @@ static ssize_t ramlog_read(FAR struct file *filep, FAR char *buffer, size_t len)
 errout_without_sem:
 #endif
 
-#ifndef CONFIG_DISABLE_POLL
   if (nread > 0)
     {
       ramlog_pollnotify(priv, POLLOUT);
     }
-#endif
 
   /* Return the number of characters actually read */
 
@@ -516,7 +499,6 @@ static ssize_t ramlog_write(FAR struct file *filep, FAR const char *buffer, size
 
   /* Was anything written? */
 
-#if !defined(CONFIG_RAMLOG_NONBLOCKING) || !defined(CONFIG_DISABLE_POLL)
   if (nwritten > 0)
     {
       irqstate_t flags;
@@ -541,7 +523,6 @@ static ssize_t ramlog_write(FAR struct file *filep, FAR const char *buffer, size
       ramlog_pollnotify(priv, POLLIN);
       leave_critical_section(flags);
     }
-#endif
 
   /* We always have to return the number of bytes requested and NOT the
    * number of bytes that were actually written.  Otherwise, callers
@@ -555,7 +536,6 @@ static ssize_t ramlog_write(FAR struct file *filep, FAR const char *buffer, size
  * Name: ramlog_poll
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 int ramlog_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup)
 {
   FAR struct inode *inode = filep->f_inode;
@@ -661,7 +641,6 @@ errout:
   nxsem_post(&priv->rl_exclsem);
   return ret;
 }
-#endif
 
 /****************************************************************************
  * Public Functions

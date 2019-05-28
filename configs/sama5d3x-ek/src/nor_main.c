@@ -42,16 +42,17 @@
 #include <stdio.h>
 #include <debug.h>
 
+#include <nuttx/cache.h>
 #include <arch/irq.h>
 
 #include "up_arch.h"
 #include "mmu.h"
-#include "cache.h"
+#include "cp15_cacheops.h"
 
 #include "sam_periphclks.h"
-#include "chip/sam_hsmc.h"
-#include "chip/sam_matrix.h"
-#include "chip/sam_aximx.h"
+#include "hardware/sam_hsmc.h"
+#include "hardware/sam_matrix.h"
+#include "hardware/sam_aximx.h"
 
 #include "sama5d3x-ek.h"
 
@@ -179,12 +180,13 @@ int nor_main(int argc, char *argv)
    */
 
   cp15_disable_mmu();
-  cp15_disable_caches();
+  up_disable_icache();
+  up_disable_dcache();
 
   /* Invalidate caches and TLBs */
 
-  arch_invalidate_icache();
-  arch_invalidate_dcache_all();
+  up_invalidate_icache_all();
+  up_invalidate_dcache_all();
   cp15_invalidate_tlbs();
 
   /* Then jump into NOR flash */

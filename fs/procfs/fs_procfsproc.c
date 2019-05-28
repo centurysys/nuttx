@@ -53,6 +53,10 @@
 #include <errno.h>
 #include <debug.h>
 
+#ifdef CONFIG_SCHED_CRITMONITOR
+#  include <time.h>
+#endif
+
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/sched.h>
@@ -62,7 +66,7 @@
 #include <nuttx/fs/procfs.h>
 #include <nuttx/fs/dirent.h>
 
-#ifdef CONFIG_SCHED_CPULOAD
+#if defined(CONFIG_SCHED_CPULOAD) || defined(CONFIG_SCHED_CRITMONITOR)
 #  include <nuttx/clock.h>
 #endif
 
@@ -72,6 +76,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* See include/nuttx/sched.h: */
 
 #undef HAVE_GROUPID
@@ -105,6 +110,9 @@ enum proc_node_e
   PROC_CMDLINE,                       /* Task command line */
 #ifdef CONFIG_SCHED_CPULOAD
   PROC_LOADAVG,                       /* Average CPU utilization */
+#endif
+#ifdef CONFIG_SCHED_CRITMONITOR
+  PROC_CRITMON,                       /* Critical section monitor */
 #endif
   PROC_STACK,                         /* Task stack info */
   PROC_GROUP,                         /* Group directory */
@@ -170,6 +178,7 @@ static FAR const char *g_policy[4] =
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /* Helpers */
 
 static FAR const struct proc_node_s *
@@ -182,6 +191,11 @@ static ssize_t proc_cmdline(FAR struct proc_file_s *procfile,
                  off_t offset);
 #ifdef CONFIG_SCHED_CPULOAD
 static ssize_t proc_loadavg(FAR struct proc_file_s *procfile,
+                 FAR struct tcb_s *tcb, FAR char *buffer, size_t buflen,
+                 off_t offset);
+#endif
+#ifdef CONFIG_SCHED_CRITMONITOR
+static ssize_t proc_critmon(FAR struct proc_file_s *procfile,
                  FAR struct tcb_s *tcb, FAR char *buffer, size_t buflen,
                  off_t offset);
 #endif
@@ -273,6 +287,13 @@ static const struct proc_node_s g_loadavg =
 };
 #endif
 
+#ifdef CONFIG_SCHED_CRITMONITOR
+static const struct proc_node_s g_critmon =
+{
+  "critmon",       "critmon", (uint8_t)PROC_CRITMON,     DTYPE_FILE        /* Critical Section Monitor */
+};
+#endif
+
 static const struct proc_node_s g_stack =
 {
   "stack",        "stack",   (uint8_t)PROC_STACK,        DTYPE_FILE        /* Task stack info */
@@ -310,6 +331,9 @@ static FAR const struct proc_node_s * const g_nodeinfo[] =
 #ifdef CONFIG_SCHED_CPULOAD
   &g_loadavg,      /* Average CPU utilization */
 #endif
+#ifdef CONFIG_SCHED_CRITMONITOR
+  &g_critmon,      /* Critical section Monitor */
+#endif
   &g_stack,        /* Task stack info */
   &g_group,        /* Group directory */
   &g_groupstatus,  /* Task group status */
@@ -329,6 +353,9 @@ static const struct proc_node_s * const g_level0info[] =
   &g_cmdline,      /* Task command line */
 #ifdef CONFIG_SCHED_CPULOAD
   &g_loadavg,      /* Average CPU utilization */
+#endif
+#ifdef CONFIG_SCHED_CRITMONITOR
+  &g_critmon,      /* Critical section monitor */
 #endif
   &g_stack,        /* Task stack info */
   &g_group,        /* Group directory */
@@ -359,10 +386,8 @@ static FAR const char *g_statenames[] =
 #endif
   "Running",
   "Inactive",
-  "Waiting,Semaphore"
-#ifndef CONFIG_DISABLE_SIGNALS
-  , "Waiting,Signal"
-#endif
+  "Waiting,Semaphore",
+  "Waiting,Signal"
 #ifndef CONFIG_DISABLE_MQUEUE
   , "Waiting,MQ empty"
   , "Waiting,MQ full"
@@ -601,14 +626,11 @@ static ssize_t proc_status(FAR struct proc_file_s *procfile,
 
   /* Show the signal mask */
 
-#ifndef CONFIG_DISABLE_SIGNALS
   linesize = snprintf(procfile->line, STATUS_LINELEN, "%-12s%08x\n", "SigMask:",
                       tcb->sigprocmask);
   copysize = procfs_memcpy(procfile->line, linesize, buffer, remaining, &offset);
 
   totalsize += copysize;
-#endif
-
   return totalsize;
 }
 
@@ -740,6 +762,84 @@ static ssize_t proc_loadavg(FAR struct proc_file_s *procfile,
   copysize = procfs_memcpy(procfile->line, linesize, buffer, buflen, &offset);
 
   return copysize;
+}
+#endif
+
+/****************************************************************************
+ * Name: proc_critmon
+ ****************************************************************************/
+
+#ifdef CONFIG_SCHED_CRITMONITOR
+static ssize_t proc_critmon(FAR struct proc_file_s *procfile,
+                            FAR struct tcb_s *tcb, FAR char *buffer,
+                            size_t buflen, off_t offset)
+{
+  struct timespec maxtime;
+  size_t remaining;
+  size_t linesize;
+  size_t copysize;
+  size_t totalsize;
+
+  remaining = buflen;
+  totalsize = 0;
+
+  /* Convert the for maximum time pre-emption disabled */
+
+  if (tcb->premp_max > 0)
+    {
+      up_critmon_convert(tcb->premp_max, &maxtime);
+    }
+  else
+    {
+      maxtime.tv_sec = 0;
+      maxtime.tv_nsec = 0;
+    }
+
+  /* Reset the maximum */
+
+  tcb->premp_max = 0;
+
+  /* Generate output for maximum time pre-emption disabled */
+
+  linesize = snprintf(procfile->line, STATUS_LINELEN, "%lu.%09lu,",
+                     (unsigned long)maxtime.tv_sec,
+                     (unsigned long)maxtime.tv_nsec);
+  copysize = procfs_memcpy(procfile->line, linesize, buffer, buflen, &offset);
+
+  totalsize += copysize;
+  buffer    += copysize;
+  remaining -= copysize;
+
+  if (totalsize >= buflen)
+    {
+      return totalsize;
+    }
+
+  /* Convert and generate output for maximum time in a critical section */
+
+  if (tcb->crit_max > 0)
+    {
+      up_critmon_convert(tcb->crit_max, &maxtime);
+    }
+  else
+    {
+      maxtime.tv_sec = 0;
+      maxtime.tv_nsec = 0;
+    }
+
+  /* Reset the maximum */
+
+  tcb->crit_max = 0;
+
+  /* Generate output for maximum time in a critical section */
+
+  linesize = snprintf(procfile->line, STATUS_LINELEN, "%lu.%09lu\n",
+                     (unsigned long)maxtime.tv_sec,
+                     (unsigned long)maxtime.tv_nsec);
+  copysize = procfs_memcpy(procfile->line, linesize, buffer, buflen, &offset);
+
+  totalsize += copysize;
+  return totalsize;
 }
 #endif
 
@@ -945,10 +1045,8 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
                             size_t buflen, off_t offset)
 {
   FAR struct task_group_s *group = tcb->group;
-#if CONFIG_NFILE_DESCRIPTORS > 0 /* Guaranteed to be true */
   FAR struct file *file;
-#endif
-#if CONFIG_NSOCKET_DESCRIPTORS > 0
+#ifdef CONFIG_NET
   FAR struct socket *socket;
 #endif
   size_t remaining;
@@ -962,7 +1060,6 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
   remaining = buflen;
   totalsize = 0;
 
-#if CONFIG_NFILE_DESCRIPTORS > 0 /* Guaranteed to be true */
   linesize   = snprintf(procfile->line, STATUS_LINELEN, "\n%-3s %-8s %s\n",
                         "FD", "POS", "OFLAGS");
   copysize   = procfs_memcpy(procfile->line, linesize, buffer, remaining, &offset);
@@ -978,7 +1075,9 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
 
   /* Examine each open file descriptor */
 
-  for (i = 0, file = group->tg_filelist.fl_files; i < CONFIG_NFILE_DESCRIPTORS; i++, file++)
+  for (i = 0, file = group->tg_filelist.fl_files;
+       i < CONFIG_NFILE_DESCRIPTORS;
+       i++, file++)
     {
       /* Is there an inode associated with the file descriptor? */
 
@@ -998,9 +1097,8 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
             }
         }
     }
-#endif
 
-#if CONFIG_NSOCKET_DESCRIPTORS > 0
+#ifdef CONFIG_NET
   linesize   = snprintf(procfile->line, STATUS_LINELEN, "\n%-3s %-2s %-3s %s\n",
                         "SD", "RF", "TYP", "FLAGS");
   copysize   = procfs_memcpy(procfile->line, linesize, buffer, remaining, &offset);
@@ -1016,7 +1114,9 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
 
   /* Examine each open socket descriptor */
 
-  for (i = 0, socket = group->tg_socketlist.sl_sockets; i < CONFIG_NSOCKET_DESCRIPTORS; i++, socket++)
+  for (i = 0, socket = group->tg_socketlist.sl_sockets;
+       i < CONFIG_NSOCKET_DESCRIPTORS;
+       i++, socket++)
     {
       /* Is there an connection associated with the socket descriptor? */
 
@@ -1150,7 +1250,6 @@ static int proc_open(FAR struct file *filep, FAR const char *relpath,
   FAR const struct proc_node_s *node;
   FAR struct tcb_s *tcb;
   FAR char *ptr;
-  irqstate_t flags;
   unsigned long tmp;
   pid_t pid;
 
@@ -1208,10 +1307,7 @@ static int proc_open(FAR struct file *filep, FAR const char *relpath,
 
   pid = (pid_t)tmp;
 
-  flags = enter_critical_section();
   tcb = sched_gettcb(pid);
-  leave_critical_section(flags);
-
   if (tcb == NULL)
     {
       ferr("ERROR: PID %d is no longer valid\n", (int)pid);
@@ -1286,7 +1382,6 @@ static ssize_t proc_read(FAR struct file *filep, FAR char *buffer,
 {
   FAR struct proc_file_s *procfile;
   FAR struct tcb_s *tcb;
-  irqstate_t flags;
   ssize_t ret;
 
   finfo("buffer=%p buflen=%d\n", buffer, (int)buflen);
@@ -1298,13 +1393,10 @@ static ssize_t proc_read(FAR struct file *filep, FAR char *buffer,
 
   /* Verify that the thread is still valid */
 
-  flags = enter_critical_section();
   tcb = sched_gettcb(procfile->pid);
-
   if (tcb == NULL)
     {
       ferr("ERROR: PID %d is not valid\n", (int)procfile->pid);
-      leave_critical_section(flags);
       return -ENODEV;
     }
 
@@ -1323,6 +1415,11 @@ static ssize_t proc_read(FAR struct file *filep, FAR char *buffer,
 #ifdef CONFIG_SCHED_CPULOAD
     case PROC_LOADAVG: /* Average CPU utilization */
       ret = proc_loadavg(procfile, tcb, buffer, buflen, filep->f_pos);
+      break;
+#endif
+#ifdef CONFIG_SCHED_CRITMONITOR
+    case PROC_CRITMON: /* Critical section monitor */
+      ret = proc_critmon(procfile, tcb, buffer, buflen, filep->f_pos);
       break;
 #endif
     case PROC_STACK: /* Task stack info */
@@ -1347,8 +1444,6 @@ static ssize_t proc_read(FAR struct file *filep, FAR char *buffer,
       ret = -EINVAL;
       break;
     }
-
-  leave_critical_section(flags);
 
   /* Update the file offset */
 
@@ -1412,7 +1507,6 @@ static int proc_opendir(FAR const char *relpath, FAR struct fs_dirent_s *dir)
   FAR struct proc_dir_s *procdir;
   FAR const struct proc_node_s *node;
   FAR struct tcb_s *tcb;
-  irqstate_t flags;
   unsigned long tmp;
   FAR char *ptr;
   pid_t pid;
@@ -1463,10 +1557,7 @@ static int proc_opendir(FAR const char *relpath, FAR struct fs_dirent_s *dir)
 
   pid = (pid_t)tmp;
 
-  flags = enter_critical_section();
   tcb = sched_gettcb(pid);
-  leave_critical_section(flags);
-
   if (tcb == NULL)
     {
       ferr("ERROR: PID %d is not valid\n", (int)pid);
@@ -1567,7 +1658,6 @@ static int proc_readdir(struct fs_dirent_s *dir)
   FAR const struct proc_node_s *node = NULL;
   FAR struct tcb_s *tcb;
   unsigned int index;
-  irqstate_t flags;
   pid_t pid;
   int ret;
 
@@ -1595,18 +1685,18 @@ static int proc_readdir(struct fs_dirent_s *dir)
 
       pid = procdir->pid;
 
-      flags = enter_critical_section();
       tcb = sched_gettcb(pid);
-      leave_critical_section(flags);
-
       if (tcb == NULL)
         {
           ferr("ERROR: PID %d is no longer valid\n", (int)pid);
           return -ENOENT;
         }
 
-      /* The TCB is still valid (or at least was when we entered this function) */
-      /* Handle the directory listing by the node type */
+      /* The TCB is still valid (or at least was when we entered this
+       * function)
+       *
+       * Handle the directory listing by the node type.
+       */
 
       switch (procdir->node->node)
         {
@@ -1627,7 +1717,7 @@ static int proc_readdir(struct fs_dirent_s *dir)
       /* Save the filename and file type */
 
       dir->fd_dir.d_type = node->dtype;
-      strncpy(dir->fd_dir.d_name, node->name, NAME_MAX+1);
+      strncpy(dir->fd_dir.d_name, node->name, NAME_MAX + 1);
 
       /* Set up the next directory entry offset.  NOTE that we could use the
        * standard f_pos instead of our own private index.
@@ -1671,7 +1761,6 @@ static int proc_stat(const char *relpath, struct stat *buf)
   FAR struct tcb_s *tcb;
   unsigned long tmp;
   FAR char *ptr;
-  irqstate_t flags;
   pid_t pid;
 
   /* Two path forms are accepted:
@@ -1714,10 +1803,7 @@ static int proc_stat(const char *relpath, struct stat *buf)
 
   pid = (pid_t)tmp;
 
-  flags = enter_critical_section();
   tcb = sched_gettcb(pid);
-  leave_critical_section(flags);
-
   if (tcb == NULL)
     {
       ferr("ERROR: PID %d is no longer valid\n", (int)pid);

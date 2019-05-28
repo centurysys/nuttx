@@ -67,7 +67,7 @@
 
 #define IPv6BUF         ((FAR struct ipv6_hdr_s *)&dev->d_buf[NET_LL_HDRLEN(dev)])
 #define ICMPv6BUF        ((FAR struct icmpv6_hdr_s *) \
-                          (&dev->d_buf[NET_LL_HDRLEN(dev)]) + iplen)
+                          (&dev->d_buf[NET_LL_HDRLEN(dev)] + iplen))
 #define ICMPv6REPLY      ((FAR struct icmpv6_echo_reply_s *)icmpv6)
 #define ICMPv6SIZE       ((dev)->d_len - iplen)
 
@@ -105,11 +105,13 @@
 
 #ifdef CONFIG_NET_ICMPv6_SOCKET
 static uint16_t icmpv6_datahandler(FAR struct net_driver_s *dev,
-                                   FAR struct icmpv6_conn_s *conn)
+                                   FAR struct icmpv6_conn_s *conn,
+                                   unsigned int iplen)
 {
   FAR struct ipv6_hdr_s *ipv6;
-  struct sockaddr_in6 inaddr;
+  FAR struct icmpv6_hdr_s *icmpv6;
   FAR struct iob_s *iob;
+  struct sockaddr_in6 inaddr;
   uint16_t offset;
   uint16_t buflen;
   uint8_t addrsize;
@@ -170,6 +172,8 @@ static uint16_t icmpv6_datahandler(FAR struct net_driver_s *dev,
   /* Copy the new ICMPv6 reply into the I/O buffer chain (without waiting) */
 
   buflen = ICMPv6SIZE;
+  icmpv6 = ICMPv6BUF;
+
   ret = iob_trycopyin(iob, (FAR uint8_t *)ICMPv6REPLY, buflen, offset, true);
   if (ret < 0)
     {
@@ -261,6 +265,13 @@ void icmpv6_input(FAR struct net_driver_s *dev, unsigned int iplen)
         sol = ICMPv6SOLICIT;
         if (net_ipv6addr_cmp(sol->tgtaddr, dev->d_ipv6addr))
           {
+            if (sol->opttype == ICMPv6_OPT_SRCLLADDR)
+              {
+                /* Save the sender's address mapping in our Neighbor Table. */
+
+                neighbor_add(dev, ipv6->srcipaddr, sol->srclladdr);
+              }
+
             /* Yes..  Send a neighbor advertisement back to where the neighbor
              * solicitation came from.
              */
@@ -304,19 +315,19 @@ void icmpv6_input(FAR struct net_driver_s *dev, unsigned int iplen)
                 /* Save the sender's address mapping in our Neighbor Table. */
 
                 neighbor_add(dev, ipv6->srcipaddr, adv->tgtlladdr);
+              }
 
 #ifdef CONFIG_NET_ICMPv6_NEIGHBOR
-                /* Then notify any logic waiting for the Neighbor Advertisement */
+            /* Then notify any logic waiting for the Neighbor Advertisement */
 
-                icmpv6_notify(ipv6->srcipaddr);
+            icmpv6_notify(ipv6->srcipaddr);
 #endif
 
-                /* We consumed the packet but we don't send anything in
-                 * response.
-                 */
+            /* We consumed the packet but we don't send anything in
+             * response.
+             */
 
-                goto icmpv6_send_nothing;
-              }
+            goto icmpv6_send_nothing;
           }
 
         goto icmpv6_drop_packet;
@@ -347,6 +358,7 @@ void icmpv6_input(FAR struct net_driver_s *dev, unsigned int iplen)
       {
         FAR struct icmpv6_router_advertise_s *adv;
         FAR uint8_t *options;
+        bool prefix = false;
         uint16_t pktlen;
         uint16_t optlen;
         int ndx;
@@ -376,7 +388,7 @@ void icmpv6_input(FAR struct net_driver_s *dev, unsigned int iplen)
             FAR struct icmpv6_srclladdr_s *sllopt =
               (FAR struct icmpv6_srclladdr_s *)&options[ndx];
 
-            if (sllopt->opttype == 1 && sllopt->optlen == 1)
+            if (sllopt->opttype == ICMPv6_OPT_SRCLLADDR)
               {
                 neighbor_add(dev, ipv6->srcipaddr, sllopt->srclladdr);
               }
@@ -388,19 +400,23 @@ void icmpv6_input(FAR struct net_driver_s *dev, unsigned int iplen)
              * the "A" flag set?
              */
 
-            if (opt->opttype &&
-                opt->optlen == 4 &&
+            if (opt->opttype == ICMPv6_OPT_PREFIX &&
                (opt->flags & ICMPv6_PRFX_FLAG_A) != 0)
               {
                 /* Yes.. Notify any waiting threads */
 
                 icmpv6_rnotify(dev, ipv6->srcipaddr, opt->prefix, opt->preflen);
-                goto icmpv6_send_nothing;
+                prefix = true;
               }
 
             /* Skip to the next option (units of octets) */
 
             ndx += (opt->optlen << 3);
+          }
+
+        if (prefix)
+          {
+            goto icmpv6_send_nothing;
           }
 
         goto icmpv6_drop_packet;
@@ -434,41 +450,41 @@ void icmpv6_input(FAR struct net_driver_s *dev, unsigned int iplen)
 
     case ICMPv6_ECHO_REPLY:
       {
+        FAR struct icmpv6_echo_reply_s *reply;
+        FAR struct icmpv6_conn_s *conn;
         uint16_t flags = ICMPv6_ECHOREPLY;
+
+        /* Nothing consumed the ICMP reply.  That might be because this is
+         * an old, invalid reply or simply because the ping application
+         * has not yet put its poll or recv in place.
+         */
+
+        /* Is there any connection that might expect this reply? */
+
+        reply = ICMPv6REPLY;
+        conn = icmpv6_findconn(dev, reply->id);
+        if (conn == NULL)
+          {
+            /* No.. drop the packet */
+
+            goto icmpv6_drop_packet;
+          }
 
         /* Dispatch the ECHO reply to the waiting thread */
 
-        flags = devif_conn_event(dev, NULL, flags, dev->d_conncb);
+        flags = devif_conn_event(dev, conn, flags, conn->list);
 
         /* Was the ECHO reply consumed by any waiting thread? */
 
         if ((flags & ICMPv6_ECHOREPLY) != 0)
           {
-            FAR struct icmpv6_echo_reply_s *reply;
-            FAR struct icmpv6_conn_s *conn;
             uint16_t nbuffered;
-
-            /* Nothing consumed the ICMP reply.  That might because this is
-             * an old, invalid reply or simply because the ping application
-             * has not yet put its poll or recv in place.
-             */
-
-            /* Is there any connection that might expect this reply? */
-
-            reply = ICMPv6REPLY;
-            conn = icmpv6_findconn(dev, reply->id);
-            if (conn == NULL)
-              {
-                /* No.. drop the packet */
-
-                goto icmpv6_drop_packet;
-              }
 
             /* Yes.. Add the ICMP echo reply to the IPPROTO_ICMP socket read
              * ahead buffer.
              */
 
-            nbuffered = icmpv6_datahandler(dev, conn);
+            nbuffered = icmpv6_datahandler(dev, conn, iplen);
             if (nbuffered == 0)
               {
                 /* Could not buffer the data.. drop the packet */
@@ -510,7 +526,6 @@ void icmpv6_input(FAR struct net_driver_s *dev, unsigned int iplen)
           }
       }
       break;
-
 
     case ICMPV6_MCAST_LISTEN_REPORT_V2:  /* Version 2 Multicast Listener Report, RFC 3810 */
       {

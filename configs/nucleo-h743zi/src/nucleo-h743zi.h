@@ -49,6 +49,16 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
+/* procfs File System */
+
+#ifdef CONFIG_FS_PROCFS
+#  ifdef CONFIG_NSH_PROC_MOUNTPOINT
+#    define STM32_PROCFS_MOUNTPOINT CONFIG_NSH_PROC_MOUNTPOINT
+#  else
+#    define STM32_PROCFS_MOUNTPOINT "/proc"
+#  endif
+#endif
+
 /* Configuration ********************************************************************/
 /* LED
  *
@@ -82,6 +92,29 @@
 
 #define GPIO_BTN_USER  (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | GPIO_PORTC | GPIO_PIN13)
 
+/* USB OTG FS
+ *
+ * PA9  OTG_FS_VBUS VBUS sensing (also connected to the green LED)
+ * PG6  OTG_FS_PowerSwitchOn
+ * PG7  OTG_FS_Overcurrent
+ */
+
+#define GPIO_OTGFS_VBUS   (GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz| \
+                           GPIO_OPENDRAIN|GPIO_PORTA|GPIO_PIN9)
+
+#define GPIO_OTGFS_PWRON  (GPIO_OUTPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|  \
+                           GPIO_PUSHPULL|GPIO_PORTG|GPIO_PIN6)
+
+#ifdef CONFIG_USBHOST
+#  define GPIO_OTGFS_OVER (GPIO_INPUT|GPIO_EXTI|GPIO_FLOAT| \
+                           GPIO_SPEED_100MHz|GPIO_PUSHPULL| \
+                           GPIO_PORTG|GPIO_PIN7)
+
+#else
+#  define GPIO_OTGFS_OVER (GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz| \
+                           GPIO_PUSHPULL|GPIO_PORTG|GPIO_PIN7)
+#endif
+
 /* X-NUCLEO IKS01A2 */
 
 #define GPIO_LPS22HB_INT1 (GPIO_INPUT | GPIO_FLOAT | GPIO_PORTB | GPIO_PIN10)
@@ -100,6 +133,19 @@
                             GPIO_OUTPUT_CLEAR | GPIO_PORTF | GPIO_PIN12)
 #define GPIO_NRF24L01_IRQ  (GPIO_INPUT | GPIO_FLOAT | GPIO_PORTD | GPIO_PIN15)
 
+/* LMS9DS1 configuration */
+
+#define LMS9DS1_I2CBUS 1
+
+/* PCA9635 configuration */
+
+#define PCA9635_I2CBUS  1
+#define PCA9635_I2CADDR 0x40
+
+/* Oled configuration */
+
+#define OLED_I2C_PORT   2
+
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
@@ -110,10 +156,10 @@
  * Description:
  *   Perform architecture-specific initialization
  *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
+ *   CONFIG_BOARD_LATE_INITIALIZE=y :
+ *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
+ *   CONFIG_BOARD_LATE_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
  *     Called from the NSH library
  *
  ************************************************************************************/
@@ -146,12 +192,25 @@ void stm32_spidev_initialize(void);
 int stm32_adc_setup(void);
 #endif
 
+/************************************************************************************
+ * Name: stm32_usbinitialize
+ *
+ * Description:
+ *   Called from stm32_usbinitialize very early in inialization to setup USB-related
+ *   GPIO pins for the nucleo-144 board.
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_STM32H7_OTGFS
+void stm32_usbinitialize(void);
+#endif
 
 /*****************************************************************************
  * Name: stm32_lsm6dsl_initialize
  *
  * Description:
  *   Initialize I2C-based LSM6DSL.
+ *
  ****************************************************************************/
 
 #ifdef CONFIG_SENSORS_LSM303AGR
@@ -163,6 +222,7 @@ int stm32_lsm6dsl_initialize(char *devpath);
  *
  * Description:
  *   Initialize I2C-based LSM303AGR.
+ *
  ****************************************************************************/
 
 #ifdef CONFIG_SENSORS_LSM6DSL
@@ -178,6 +238,28 @@ int stm32_lsm303agr_initialize(char *devpath);
 
 #ifdef CONFIG_WL_NRF24L01
 int stm32_wlinitialize(void);
+#endif
+
+/*****************************************************************************
+ * Name: stm32_lsm9ds1_initialize
+ *
+ * Description:
+ *   Initialize I2C-based LSM9DS1.
+ ****************************************************************************/
+
+#ifdef CONFIG_SENSORS_LSM9DS1
+int stm32_lsm9ds1_initialize(char *devpath);
+#endif
+
+/****************************************************************************
+ * Name: stm32_pca9635_initialize
+ *
+ * Description:
+ *   Initialize I2C-based PCA9635PW LED driver.
+ ****************************************************************************/
+
+#ifdef CONFIG_PCA9635PW
+int stm32_pca9635_initialize(void);
 #endif
 
 #endif /* __CONFIGS_NUCLEO_H743ZI_SRC_NUCLEO_H743ZI_H */

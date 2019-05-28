@@ -92,6 +92,7 @@
 /* Peripherals */
 
 #  define STM32H7_NGPIO                   (11)        /* GPIOA-GPIOK */
+#  define STM32H7_NDMA                    (4)         /* (4) DMA1, DMA2, BDMA and MDMA */
 #  define STM32H7_NADC                    (3)         /* (3) ADC1-3*/
 #  define STM32H7_NDAC                    (2)         /* (2) DAC1-2*/
 #  define STM32H7_NCMP                    (2)         /* (2) ultra-low power comparators */
@@ -121,70 +122,24 @@
 
 /* Diversification based on Family and package */
 
-// TODO:
-// #if defined(CONFIG_STM32F7_HAVE_FMC)
-// #  define STM32F7_NFMC                 1           /* Have FMC memory controller */
-// #else
-// #  define STM32F7_NFMC                 0           /* No FMC memory controller */
-// #endif
+#if defined(CONFIG_STM32H7_HAVE_ETHERNET)
+#  define STM32H7_NETHERNET                1   /* 100/100 Ethernet MAC */
+#else
+#  define STM32H7_NETHERNET                0   /* No 100/100 Ethernet MAC */
+#endif
 
-/* NVIC priority levels *************************************************************/
+#if defined(CONFIG_STM32F7_HAVE_FMC)
+#  define STM32F7_NFMC                     1   /* Have FMC memory controller */
+#else
+#  define STM32F7_NFMC                     0   /* No FMC memory controller */
+#endif
+
+/* NVIC priority levels **********************************************************o***/
 /* 16 Programmable interrupt levels */
 
-// TODO: check this
 #define NVIC_SYSH_PRIORITY_MIN     0xf0 /* All bits set in minimum priority */
 #define NVIC_SYSH_PRIORITY_DEFAULT 0x80 /* Midpoint is the default */
 #define NVIC_SYSH_PRIORITY_MAX     0x00 /* Zero is maximum priority */
 #define NVIC_SYSH_PRIORITY_STEP    0x10 /* Four bits of interrupt priority used */
-
-/* If CONFIG_ARMV7M_USEBASEPRI is selected, then interrupts will be disabled
- * by setting the BASEPRI register to NVIC_SYSH_DISABLE_PRIORITY so that most
- * interrupts will not have execution priority.  SVCall must have execution
- * priority in all cases.
- *
- * In the normal cases, interrupts are not nest-able and all interrupts run
- * at an execution priority between NVIC_SYSH_PRIORITY_MIN and
- * NVIC_SYSH_PRIORITY_MAX (with NVIC_SYSH_PRIORITY_MAX reserved for SVCall).
- *
- * If, in addition, CONFIG_ARCH_HIPRI_INTERRUPT is defined, then special
- * high priority interrupts are supported.  These are not "nested" in the
- * normal sense of the word.  These high priority interrupts can interrupt
- * normal processing but execute outside of OS (although they can "get back
- * into the game" via a PendSV interrupt).
- *
- * In the normal course of things, interrupts must occasionally be disabled
- * using the up_irq_save() inline function to prevent contention in use of
- * resources that may be shared between interrupt level and non-interrupt
- * level logic.  Now the question arises, if CONFIG_ARCH_HIPRI_INTERRUPT,
- * do we disable all interrupts (except SVCall), or do we only disable the
- * "normal" interrupts.  Since the high priority interrupts cannot interact
- * with the OS, you may want to permit the high priority interrupts even if
- * interrupts are disabled.  The setting CONFIG_ARCH_INT_DISABLEALL can be
- * used to select either behavior:
- *
- *   ----------------------------+--------------+----------------------------
- *   CONFIG_ARCH_HIPRI_INTERRUPT |      NO      |             YES
- *   ----------------------------+--------------+--------------+-------------
- *   CONFIG_ARCH_INT_DISABLEALL  |     N/A      |     YES      |      NO
- *   ----------------------------+--------------+--------------+-------------
- *                               |              |              |    SVCall
- *                               |    SVCall    |    SVCall    |    HIGH
- *   Disable here and below --------> MAXNORMAL ---> HIGH --------> MAXNORMAL
- *                               |              |    MAXNORMAL |
- *   ----------------------------+--------------+--------------+-------------
- */
-
-// TODO: check this
-#if defined(CONFIG_ARCH_HIPRI_INTERRUPT) && defined(CONFIG_ARCH_INT_DISABLEALL)
-#  define NVIC_SYSH_MAXNORMAL_PRIORITY  (NVIC_SYSH_PRIORITY_MAX + 2*NVIC_SYSH_PRIORITY_STEP)
-#  define NVIC_SYSH_HIGH_PRIORITY       (NVIC_SYSH_PRIORITY_MAX + NVIC_SYSH_PRIORITY_STEP)
-#  define NVIC_SYSH_DISABLE_PRIORITY    NVIC_SYSH_HIGH_PRIORITY
-#  define NVIC_SYSH_SVCALL_PRIORITY     NVIC_SYSH_PRIORITY_MAX
-#else
-#  define NVIC_SYSH_MAXNORMAL_PRIORITY  (NVIC_SYSH_PRIORITY_MAX + NVIC_SYSH_PRIORITY_STEP)
-#  define NVIC_SYSH_HIGH_PRIORITY       NVIC_SYSH_PRIORITY_MAX
-#  define NVIC_SYSH_DISABLE_PRIORITY    NVIC_SYSH_MAXNORMAL_PRIORITY
-#  define NVIC_SYSH_SVCALL_PRIORITY     NVIC_SYSH_PRIORITY_MAX
-#endif
 
 #endif /* __ARCH_ARM_INCLUDE_STM32H7_CHIP_H */

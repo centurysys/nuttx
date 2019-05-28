@@ -47,8 +47,8 @@
 
 #include "up_arch.h"
 #include "gic.h"
-#include "chip/imx_ccm.h"
-#include "chip/imx_gpt.h"
+#include "hardware/imx_ccm.h"
+#include "hardware/imx_gpt.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -117,7 +117,7 @@ static void imx_output_compare(uint32_t sr, uint32_t of)
     {
       /* Process timer interrupt event */
 
-      sched_process_timer();
+      nxsched_process_timer();
     }
 }
 

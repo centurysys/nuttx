@@ -53,16 +53,16 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/fs/ioctl.h>
 #include <nuttx/serial/serial.h>
 
-#include <arch/serial.h>
 #include <arch/board/board.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
 
 #include "chip.h"
-#include "chip/a1x_uart.h"
+#include "hardware/a1x_uart.h"
 #include "a1x_pio.h"
 #include "a1x_serial.h"
 
