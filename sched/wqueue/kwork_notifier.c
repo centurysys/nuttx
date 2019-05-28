@@ -1,7 +1,7 @@
 /****************************************************************************
  * sched/wqueue/kwork_notifier.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2018-2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -211,7 +211,7 @@ int work_notifier_setup(FAR struct work_notifier_s *info)
        */
 
       dq_addlast((FAR dq_entry_t *)notifier, &g_notifier_pending);
-      ret = work_notifier_key();
+      ret = notifier->key;
     }
 
   (void)nxsem_post(&g_notifier_sem);
@@ -310,11 +310,12 @@ void work_notifier_signal(enum work_evtype_e evtype,
 
   /* Get exclusive access to the notifier data structure */
 
-  ret = nxsem_wait(&g_notifier_sem);
-  while (ret < 0)
+  do
     {
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
+      ret = nxsem_wait(&g_notifier_sem);
+      DEBUGASSERT(ret >= 0 || ret == -EINTR || ret == -ECANCELED);
     }
+  while (ret < 0);
 
   /* Don't let any newly started threads block this thread until all of
    * the notifications and been sent.
@@ -323,9 +324,8 @@ void work_notifier_signal(enum work_evtype_e evtype,
   sched_lock();
 
   /* Process the notification at the head of the pending list until the
-   * pending list is empty  */
-
-  /* Find the entry matching this key in the g_notifier_pending list. */
+   * pending list is empty
+   */
 
   for (entry = dq_peek(&g_notifier_pending);
        entry != NULL;

@@ -56,12 +56,12 @@
 
 #include "up_arch.h"
 
-#include "chip/saml_pm.h"
-#include "chip/saml_supc.h"
-#include "chip/saml_oscctrl.h"
-#include "chip/saml_osc32kctrl.h"
-#include "chip/saml_gclk.h"
-#include "chip/saml_nvmctrl.h"
+#include "hardware/saml_pm.h"
+#include "hardware/saml_supc.h"
+#include "hardware/saml_oscctrl.h"
+#include "hardware/saml_osc32kctrl.h"
+#include "hardware/saml_gclk.h"
+#include "hardware/saml_nvmctrl.h"
 #include "sam_gclk.h"
 
 #include <arch/board/board.h>
@@ -805,12 +805,6 @@ static inline void sam_osc16m_config(void)
  *   BOARD_DFLL48M_QUICKLOCK           - Boolean (defined / not defined)
  *   BOARD_DFLL48M_RUNINSTDBY          - Boolean (defined / not defined)
  *   BOARD_DFLL48M_ONDEMAND            - Boolean (defined / not defined)
- *   BOARD_DFLL48M_COARSEVALUE         - Value
- *   BOARD_DFLL48M_FINEVALUE           - Value
- *
- * Open Loop mode only:
- *   BOARD_DFLL48M_COARSEVALUE         - Value
- *   BOARD_DFLL48M_FINEVALUE           - Value
  *
  * Closed loop mode only:
  *   BOARD_DFLL48M_REFCLK_CLKGEN       - GCLK index in the range {0..8}
@@ -829,8 +823,11 @@ static inline void sam_osc16m_config(void)
 #ifdef BOARD_DFLL48M_ENABLE
 static inline void sam_dfll48m_config(void)
 {
-  uint16_t control;
-  uint32_t regval;
+  uint16_t  control;
+  uint32_t  regval;
+  uint32_t *nvm_cal = (uint32_t *)SAM_NVMCALIB_AREA;
+  uint32_t  coarse  = ((nvm_cal[1]) >> 26) & 0x3f;
+  uint32_t  fine    = ((nvm_cal[2]) >> 0) & 0x7ff;
 
   /* Disable ONDEMAND mode while writing configurations (Errata 9905).  This
    * is probably not necessary on the first time configuration after reset.
@@ -907,8 +904,8 @@ static inline void sam_dfll48m_config(void)
 
   /* Set up the DFLL value register */
 
-  regval = OSCCTRL_DFLLVAL_COARSE(BOARD_DFLL48M_COARSEVALUE) |
-           OSCCTRL_DFLLVAL_FINE(BOARD_DFLL48M_FINEVALUE);
+  regval = OSCCTRL_DFLLVAL_COARSE(coarse) |
+           OSCCTRL_DFLLVAL_FINE(fine);
   putreg32(regval, SAM_OSCCTRL_DFLLVAL);
 }
 #else

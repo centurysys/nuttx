@@ -49,8 +49,6 @@
 
 #include "libc.h"
 
-#if CONFIG_NSOCKET_DESCRIPTORS > 0 || CONFIG_NFILE_DESCRIPTORS > 0
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -174,13 +172,11 @@ ssize_t sendfile(int outfd, int infd, off_t *offset, size_t count)
 
           else if (nbytesread < 0)
             {
-#ifndef CONFIG_DISABLE_SIGNALS
               int errcode = _NX_GETERRNO(nbytesread);
 
               /* EINTR is not an error (but will still stop the copy) */
 
               if (errcode != EINTR || ntransferred == 0)
-#endif
                 {
                   /* Read error.  Break out and return the error condition. */
 
@@ -231,7 +227,6 @@ ssize_t sendfile(int outfd, int infd, off_t *offset, size_t count)
 
               else
                 {
-#ifndef CONFIG_DISABLE_SIGNALS
                   int errcode = _NX_GETERRNO(nbyteswritten);
 
                   /* Check for a read ERROR.  EINTR is a special case.  This
@@ -242,7 +237,6 @@ ssize_t sendfile(int outfd, int infd, off_t *offset, size_t count)
                    */
 
                   if (errcode != EINTR || ntransferred == 0)
-#endif
                     {
                       /* Write error.  Break out and return the error
                        * condition.
@@ -294,4 +288,3 @@ ssize_t sendfile(int outfd, int infd, off_t *offset, size_t count)
   return ntransferred;
 }
 
-#endif /* CONFIG_NSOCKET_DESCRIPTORS > 0 || CONFIG_NFILE_DESCRIPTORS > 0 */

@@ -48,7 +48,7 @@
 #include <arch/irq.h>
 #include <nuttx/irq.h>
 
-#include "chip/sam_pinmap.h"
+#include "hardware/sam_pinmap.h"
 
 /************************************************************************************
  * Public Types
@@ -72,7 +72,7 @@
  *
  ************************************************************************************/
 
-#if defined(CONFIG_LIB_BOARDCTL) || defined(CONFIG_BOARD_INITIALIZE)
+#if defined(CONFIG_LIB_BOARDCTL) || defined(CONFIG_BOARD_LATE_INITIALIZE)
 int sam_bringup(void);
 #endif
 

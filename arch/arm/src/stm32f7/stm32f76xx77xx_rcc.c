@@ -39,6 +39,7 @@
  ****************************************************************************/
 
 #include "stm32_pwr.h"
+#include "stm32_dbgmcu.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -235,7 +236,7 @@ static inline void rcc_enableahb1(void)
 #endif
 #endif
 
-#ifdef CONFIG_STM32F7_OTGHS
+#ifdef CONFIG_STM32F7_OTGFSHS
 #ifdef BOARD_ENABLE_USBOTG_HSULPI
   /* Enable clocking for  USB OTG HS and external PHY */
 
@@ -245,7 +246,7 @@ static inline void rcc_enableahb1(void)
 
   regval |= RCC_AHB1ENR_OTGHSEN;
 #endif
-#endif  /* CONFIG_STM32F7_OTGHS */
+#endif  /* CONFIG_STM32F7_OTGFSHS */
 
   putreg32(regval, STM32_RCC_AHB1ENR);   /* Enable peripherals */
 }
@@ -496,6 +497,12 @@ static inline void rcc_enableapb1(void)
   regval |= (RCC_APB1ENR_CAN1EN | RCC_APB1ENR_CAN2EN);
 #endif
 
+#ifdef CONFIG_STM32F7_CAN3
+  /* CAN3 clock enable. */
+
+  regval |= (RCC_APB1ENR_CAN3EN);
+#endif
+
 #ifdef CONFIG_STM32F7_CEC
   /* CEC clock enable. */
 
@@ -715,6 +722,11 @@ static void stm32_stdclockconfig(void)
   /* Enable External High-Speed Clock (HSE) */
 
   regval  = getreg32(STM32_RCC_CR);
+#ifdef STM32_HSEBYP_ENABLE          /* May be defined in board.h header file */
+  regval |= RCC_CR_HSEBYP;          /* Enable HSE clock bypass */
+#else
+  regval &= ~RCC_CR_HSEBYP;         /* Disable HSE clock bypass */
+#endif
   regval |= RCC_CR_HSEON;           /* Enable HSE */
   putreg32(regval, STM32_RCC_CR);
 
@@ -842,8 +854,8 @@ static void stm32_stdclockconfig(void)
       regval = FLASH_ACR_LATENCY(BOARD_FLASH_WAITSTATES);
 
 #ifdef CONFIG_STM32F7_FLASH_ART_ACCELERATOR
-      /* The Flash memory interface accelerates code execution with a system of
-       * instruction prefetch and cache lines on ITCM interface (ART
+      /* The Flash memory interface accelerates code execution with a system
+       * of instruction prefetch and cache lines on ITCM interface (ART
        * Accelerator™).
        */
 
@@ -871,7 +883,7 @@ static void stm32_stdclockconfig(void)
       /* Configure PLLSAI */
 
       regval = getreg32(STM32_RCC_PLLSAICFGR);
-      regval &= ~(  RCC_PLLSAICFGR_PLLSAIN_MASK
+      regval &= ~(RCC_PLLSAICFGR_PLLSAIN_MASK
                   | RCC_PLLSAICFGR_PLLSAIP_MASK
                   | RCC_PLLSAICFGR_PLLSAIQ_MASK
                   | RCC_PLLSAICFGR_PLLSAIR_MASK);
@@ -919,7 +931,7 @@ static void stm32_stdclockconfig(void)
       /* Configure PLLI2S */
 
       regval = getreg32(STM32_RCC_PLLI2SCFGR);
-      regval &= ~(  RCC_PLLI2SCFGR_PLLI2SN_MASK
+      regval &= ~(RCC_PLLI2SCFGR_PLLI2SN_MASK
                   | RCC_PLLI2SCFGR_PLLI2SP_MASK
                   | RCC_PLLI2SCFGR_PLLI2SQ_MASK
                   | RCC_PLLI2SCFGR_PLLI2SR_MASK);
@@ -943,7 +955,7 @@ static void stm32_stdclockconfig(void)
 #endif
 
       regval  = getreg32(STM32_RCC_DCKCFGR2);
-      regval &= ~(  RCC_DCKCFGR2_USART1SEL_MASK
+      regval &= ~(RCC_DCKCFGR2_USART1SEL_MASK
                   | RCC_DCKCFGR2_USART2SEL_MASK
                   | RCC_DCKCFGR2_UART4SEL_MASK
                   | RCC_DCKCFGR2_UART5SEL_MASK
@@ -961,7 +973,7 @@ static void stm32_stdclockconfig(void)
                   | RCC_DCKCFGR2_SDMMC2SEL_MASK
                   | RCC_DCKCFGR2_DSISEL_MASK);
 
-      regval |= (  STM32_RCC_DCKCFGR2_USART1SRC
+      regval |= (STM32_RCC_DCKCFGR2_USART1SRC
                  | STM32_RCC_DCKCFGR2_USART2SRC
                  | STM32_RCC_DCKCFGR2_UART4SRC
                  | STM32_RCC_DCKCFGR2_UART5SRC
@@ -1000,6 +1012,18 @@ static void stm32_stdclockconfig(void)
 }
 #endif
 
+#ifdef CONFIG_ARMV7M_ITMSYSLOG
+static inline void rcc_itm_syslog(void)
+{
+  /* Enable SWO output */
+
+  modifyreg32(STM32_DBGMCU_CR, DBGMCU_CR_TRACEMODE_MASK,
+              DBGMCU_CR_ASYNCH | DBGMCU_CR_TRACEIOEN);
+}
+#else
+#  define rcc_itm_syslog()
+#endif
+
 /****************************************************************************
  * Name: rcc_enableperiphals
  ****************************************************************************/
@@ -1011,6 +1035,7 @@ static inline void rcc_enableperipherals(void)
   rcc_enableahb3();
   rcc_enableapb1();
   rcc_enableapb2();
+  rcc_itm_syslog();
 }
 
 /****************************************************************************

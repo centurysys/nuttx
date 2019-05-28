@@ -1,7 +1,8 @@
 /****************************************************************************
  * graphics/nxbe/nxbe_move.c
  *
- *   Copyright (C) 2008-2009, 2011-2012, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009, 2011-2012, 2016, 2019 Gregory Nutt. All rights
+ *     reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,11 +41,12 @@
 #include <nuttx/config.h>
 
 #include <stdint.h>
+#include <assert.h>
 
 #include <nuttx/nx/nxglib.h>
 
 #include "nxbe.h"
-#include "nxfe.h"
+#include "nxmu.h"
 
 /****************************************************************************
  * Private Types
@@ -79,6 +81,7 @@ static void nxbe_clipmovesrc(FAR struct nxbe_clipops_s *cops,
   struct nxbe_move_s *info = (struct nxbe_move_s *)cops;
   struct nxgl_point_s offset;
 #ifdef CONFIG_NX_UPDATE
+  FAR struct nxbe_window_s *wnd;
   struct nxgl_rect_s update;
 #endif
 
@@ -89,17 +92,22 @@ static void nxbe_clipmovesrc(FAR struct nxbe_clipops_s *cops,
       offset.x = rect->pt1.x + info->offset.x;
       offset.y = rect->pt1.y + info->offset.y;
 
-      /* Move the source rectangle to the destination position */
+      /* Move the source rectangle to the destination position in the device */
 
-      plane->moverectangle(&plane->pinfo, rect, &offset);
+      plane->dev.moverectangle(&plane->pinfo, rect, &offset);
 
 #ifdef CONFIG_NX_UPDATE
-      /* Notify external logic that the display has been updated */
+      /* Move the source rectangle back to window relative coordinates and
+       * apply the offset.
+       */
 
-      update.pt1.x = offset.x;
-      update.pt1.y = offset.y;
-      update.pt2.x = rect->pt2.x + info->offset.x;
-      update.pt2.y = rect->pt2.y + info->offset.y;
+      wnd = info->wnd;
+      nxgl_rectoffset(&update, rect, offset.x - wnd->bounds.pt1.x,
+                      offset.y - wnd->bounds.pt1.y);
+
+      /* Notify any listeners that the graphic content in the update
+       * rectangle has changed.
+       */
 
       nx_notify_rectangle(&plane->pinfo, &update);
 #endif
@@ -123,7 +131,7 @@ static void nxbe_clipmoveobscured(FAR struct nxbe_clipops_s *cops,
   struct nxgl_rect_s dst;
 
   nxgl_rectoffset(&dst, rect, info->offset.x, info->offset.y);
-  nxfe_redrawreq(info->wnd, &dst);
+  nxmu_redraw(info->wnd, &dst);
 }
 
 /****************************************************************************
@@ -160,7 +168,7 @@ static void nxbe_clipmovedest(FAR struct nxbe_clipops_s *cops,
     {
       if (!nxgl_nullrect(&nonintersecting[i]))
         {
-          nxfe_redrawreq(dstdata->wnd, &nonintersecting[i]);
+          nxmu_redraw(dstdata->wnd, &nonintersecting[i]);
         }
     }
 
@@ -171,6 +179,8 @@ static void nxbe_clipmovedest(FAR struct nxbe_clipops_s *cops,
   if (!nxgl_nullrect(&src))
     {
       struct nxbe_move_s srcinfo;
+
+      /* Move the visible part of window */
 
       srcinfo.cops.visible  = nxbe_clipmovesrc;
       srcinfo.cops.obscured = nxbe_clipmoveobscured;
@@ -183,18 +193,15 @@ static void nxbe_clipmovedest(FAR struct nxbe_clipops_s *cops,
 }
 
 /****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: nxbe_move
+ * Name: nxbe_move_dev
  *
  * Description:
  *   Move a rectangular region within the window
  *
  * Input Parameters:
  *   wnd    - The window within which the move is to be done
- *   rect   - Describes the rectangular region to move
+ *   rect   - Describes the rectangular region to move (absolute device
+ *            positions)
  *   offset - The offset to move the region
  *
  * Returned Value:
@@ -202,38 +209,23 @@ static void nxbe_clipmovedest(FAR struct nxbe_clipops_s *cops,
  *
  ****************************************************************************/
 
-void nxbe_move(FAR struct nxbe_window_s *wnd, FAR const struct nxgl_rect_s *rect,
-               FAR const struct nxgl_point_s *offset)
+static inline void nxbe_move_dev(FAR struct nxbe_window_s *wnd,
+                                 FAR const struct nxgl_rect_s *rect,
+                                 FAR const struct nxgl_point_s *offset)
 {
   struct nxbe_move_s info;
-  int i;
-
-#ifdef CONFIG_DEBUG_FEATURES
-  if (!wnd || !rect)
-    {
-      return;
-    }
+#ifdef CONFIG_NX_SWCURSOR
+  struct nxgl_rect_s dest;
 #endif
-
-  /* Offset the rectangle by the window origin to create a bounding box */
-
-  nxgl_rectoffset(&info.srcrect, rect, wnd->bounds.pt1.x, wnd->bounds.pt1.y);
-
-  /* Clip to the limits of the window and of the background screen */
-
-  nxgl_rectintersect(&info.srcrect, &info.srcrect, &wnd->bounds);
-  nxgl_rectintersect(&info.srcrect, &info.srcrect, &wnd->be->bkgd.bounds);
-
-  if (nxgl_nullrect(&info.srcrect))
-    {
-      return;
-    }
+  int i;
 
   info.cops.visible  = nxbe_clipmovedest;
   info.cops.obscured = nxbe_clipnull;
   info.offset.x      = offset->x;
   info.offset.y      = offset->y;
   info.wnd           = wnd;
+
+  nxgl_rectcopy(&info.srcrect, rect);
 
   /* The clip order depends up the direction that the rectangle is being
    * moved.
@@ -274,6 +266,12 @@ void nxbe_move(FAR struct nxbe_window_s *wnd, FAR const struct nxgl_rect_s *rect
         }
     }
 
+#ifdef CONFIG_NX_SWCURSOR
+  /* Apply the offsets to the source window to get the destination window */
+
+  nxgl_rectoffset(&dest, rect, offset->x, offset->y);
+#endif
+
   /* Then perform the move */
 
 #if CONFIG_NX_NPLANES > 1
@@ -282,7 +280,199 @@ void nxbe_move(FAR struct nxbe_window_s *wnd, FAR const struct nxgl_rect_s *rect
   i = 0;
 #endif
     {
+#ifdef CONFIG_NX_SWCURSOR
+      /* Is the cursor visible? */
+
+      if (wnd->be->cursor.visible)
+        {
+          /* Remove the cursor from the source region */
+
+          wnd->be->plane[i].cursor.erase(wnd->be, rect, i);
+        }
+#endif
+
       nxbe_clipper(wnd->above, &info.srcrect, info.order,
                    &info.cops, &wnd->be->plane[i]);
+
+#ifdef CONFIG_NX_SWCURSOR
+      /* Backup and redraw the cursor in the modified region.
+       *
+       * REVISIT:  This and the following logic belongs in the function
+       * nxbe_clipfill().  It is here only because the struct nxbe_state_s
+       * (wnd->be) is not available at that point.  This may result in an
+       * excessive number of cursor updates.
+       */
+
+      nxbe_cursor_backupdraw_dev(wnd->be, &dest, i);
+#endif
+    }
+}
+
+/****************************************************************************
+ * Name: nxbe_move_pwfb
+ *
+ * Description:
+ *   Move a rectangular region within the window
+ *
+ * Input Parameters:
+ *   wnd    - The window within which the move is to be done
+ *   rect   - Describes the rectangular region to move (absolute positions)
+ *   offset - The offset to move the region
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NX_RAMBACKED
+static inline void nxbe_move_pwfb(FAR struct nxbe_window_s *wnd,
+                                  FAR const struct nxgl_rect_s *rect,
+                                  FAR const struct nxgl_point_s *offset)
+{
+  FAR const void *src[CONFIG_NX_NPLANES];
+  struct nxgl_point_s destpos;
+  struct nxgl_point_s origin;
+  struct nxgl_rect_s srcrect;
+  struct nxgl_rect_s destrect;
+  unsigned int bpp;
+
+  /* The rectangle that we receive here is in abolute device coordinates.  We
+   * need to restore this to windows relative coordinates.
+   */
+
+  nxgl_rectoffset(&srcrect, rect, -wnd->bounds.pt1.x, -wnd->bounds.pt1.y);
+
+  /* Offset is the destination position of the moved rectangle */
+
+  destpos.x = srcrect.pt1.x + offset->x;
+  destpos.y = srcrect.pt1.y + offset->y;
+
+  /* Move the source rectangle to the destination position in the
+   * frambebuffer.
+   * REVISIT:  Assumes a single color plane.
+   */
+
+  DEBUGASSERT(wnd->be->plane[0].pwfb.moverectangle != NULL);
+  wnd->be->plane[0].pwfb.moverectangle(wnd, &srcrect, &destpos);
+
+  /* Construct the destination bounding box in relative window
+   * coordinates.  This derives from the source bounding box with
+   * an offset distination.
+   */
+
+  nxgl_rectoffset(&destrect, &srcrect, offset->x, offset->y);
+
+  /* Get the source of address of the moved rectangle in the framebuffer. */
+
+  bpp    = wnd->be->plane[0].pinfo.bpp;
+  src[0] = (FAR const void *)
+           ((FAR uint8_t *)wnd->fbmem +
+            destrect.pt1.y * wnd->stride +
+            ((bpp * destrect.pt1.x) >> 3));
+
+  /* For resolutions less than 8-bits, the starting pixel will be contained
+   * in the byte pointed to by src[0]but may not be properly aligned for
+   * the transfer.  We fix this by modifying the origin.
+   */
+
+  origin.x = destrect.pt1.x;
+  origin.y = destrect.pt1.y;
+
+  switch (bpp)
+    {
+#ifndef CONFIG_NX_DISABLE_1BPP
+      case 1:  /* 1 bit per pixel */
+        {
+          origin.x &= ~7;
+        }
+        break;
+#endif
+
+#ifndef CONFIG_NX_DISABLE_2BPP
+      case 2:  /* 2 bits per pixel */
+        {
+          origin.x &= ~3;
+        }
+        break;
+#endif
+
+#ifndef CONFIG_NX_DISABLE_4BPP
+      case 4:  /* 4 bits per pixel */
+        {
+          origin.x &= ~1;
+        }
+        break;
+#endif
+
+      default:
+        break;
+    }
+
+  /* Update the physical device by just copying the rectangle from the
+   * framebuffer to the destination rectangle device graphics memory.
+   */
+
+  nxbe_flush(wnd, &destrect, src, &origin, wnd->stride);
+}
+#endif
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: nxbe_move
+ *
+ * Description:
+ *   Move a rectangular region within the window
+ *
+ * Input Parameters:
+ *   wnd    - The window within which the move is to be done
+ *   rect   - Describes the rectangular region to move (window relative)
+ *   offset - The offset to move the region
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void nxbe_move(FAR struct nxbe_window_s *wnd,
+               FAR const struct nxgl_rect_s *rect,
+               FAR const struct nxgl_point_s *offset)
+{
+  struct nxgl_rect_s srcrect;
+
+  DEBUGASSERT(wnd != NULL && rect != NULL && offset != 0);
+  if (offset->x != 0 || offset->y != 0)
+    {
+      /* Offset the rectangle by the window origin to create a bounding box */
+
+      nxgl_rectoffset(&srcrect, rect, wnd->bounds.pt1.x, wnd->bounds.pt1.y);
+
+      /* Clip to the limits of the window and of the background screen */
+
+      nxgl_rectintersect(&srcrect, &srcrect, &wnd->bounds);
+      nxgl_rectintersect(&srcrect, &srcrect, &wnd->be->bkgd.bounds);
+
+      if (!nxgl_nullrect(&srcrect))
+        {
+#ifdef CONFIG_NX_RAMBACKED
+          /* Update the pre-window framebuffer first, then the device memory. */
+
+          if (NXBE_ISRAMBACKED(wnd))
+            {
+              nxbe_move_pwfb(wnd, &srcrect, offset);
+            }
+          else
+#endif
+          /* Don't update hidden windows */
+
+          if (!NXBE_ISHIDDEN(wnd))
+            {
+              /* Update only the graphics device memory. */
+
+              nxbe_move_dev(wnd, &srcrect, offset);
+            }
+        }
     }
 }

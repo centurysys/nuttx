@@ -16,7 +16,7 @@ SYSLOG Interfaces
   Prototypes:
 
     int syslog(int priority, FAR const IPTR char *format, ...);
-    int vsyslog(int priority, FAR const IPTR char *src, va_list ap);
+    void vsyslog(int priority, FAR const IPTR char *src, va_list ap);
 
   Description:
 
@@ -227,7 +227,7 @@ SYSLOG Channels
       up_initialize() function as some as basic hardware resources have been
       initialized: Timers, interrupts, etc.  In this case,
       syslog_initialize() is called with the argument SYSLOG_INIT_EARLY.
-    * syslog_initialize() is called again from os_start() when the full OS
+    * syslog_initialize() is called again from nx_start() when the full OS
       initialization has completed, just before the application main entry
       point is spawned.  In this case, syslog_initialize() is called with
       the argument SYSLOG_INIT_LATE.

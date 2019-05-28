@@ -331,7 +331,7 @@ int board_app_initialize(uintptr_t arg)
 #  ifndef CONFIG_CENTURYSYS_XG50_ADDON_NONE
 static void enable_b2b(void)
 {
-#    ifdef CONFIG_CENTURYSYS_XG50_ADDON_OB_KM
+#    if defined(CONFIG_CENTURYSYS_XG50_ADDON_OB_KM)
   stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
   stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
   stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
@@ -339,22 +339,47 @@ static void enable_b2b(void)
   usleep(500 * 1000);
 
   stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
+#    elif defined(CONFIG_CENTURYSYS_XG50_ADDON_OB_SM)
+  /* SORACOM BG96 */
+  stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
+  stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
+  stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
+
+  usleep(50 * 1000);
+
+  stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
+
+  usleep(550 * 1000);
+
+  stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
 #    else
   stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
   stm32l4_gpiowrite(GPIO_B2B_DCDC, 0);
   stm32l4_gpiowrite(GPIO_B2B_POWER, 1);
-#    endif /* CONFIG_CENTURYSYS_XG50_ADDON_OB_KM */
+#    endif
 }
 
 static void disable_b2b(void)
 {
+#    if defined(CONFIG_CENTURYSYS_XG50_ADDON_OB_SM)
+  stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
+#    else
   stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
+#    endif
   stm32l4_gpiowrite(GPIO_B2B_POWER, 0);
   stm32l4_gpiowrite(GPIO_B2B_DCDC, 1);
 }
 
 static void reset_b2b(uint32_t wait_msec)
 {
+  bool reset_val;
+
+#    if defined(CONFIG_CENTURYSYS_XG50_ADDON_OB_SM)
+  reset_val = 1;
+#    else
+  reset_val = 0;
+#    endif
+
   if (wait_msec == 0)
     {
       wait_msec = 100;
@@ -364,9 +389,9 @@ static void reset_b2b(uint32_t wait_msec)
       wait_msec = 1000;
     }
 
-  stm32l4_gpiowrite(GPIO_B2B_RESET, 0);
+  stm32l4_gpiowrite(GPIO_B2B_RESET, (int) reset_val);
   usleep(wait_msec * 1000);
-  stm32l4_gpiowrite(GPIO_B2B_RESET, 1);
+  stm32l4_gpiowrite(GPIO_B2B_RESET, (int) !reset_val);
 }
 #  endif /* CONFIG_CENTURYSYS_XG50_ADDON_NONE */
 

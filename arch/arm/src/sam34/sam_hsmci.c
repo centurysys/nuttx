@@ -70,15 +70,15 @@
 #  include "sam_dmac.h"
 #endif
 
-#include "chip/sam_pmc.h"
-#include "chip/sam_hsmci.h"
-#include "chip/sam_pinmap.h"
+#include "hardware/sam_pmc.h"
+#include "hardware/sam_hsmci.h"
+#include "hardware/sam_pinmap.h"
 
 #ifdef CONFIG_SAM34_DMAC
-#  include "chip/sam_dmac.h"
+#  include "hardware/sam_dmac.h"
 #endif
 #ifdef CONFIG_SAM34_PDCA
-#  include "chip/sam_pdc.h"
+#  include "hardware/sam_pdc.h"
 #endif
 
 #ifdef CONFIG_SAM34_HSMCI
@@ -106,10 +106,6 @@
 #ifndef CONFIG_SDIO_BLOCKSETUP
 #  error "This driver requires CONFIG_SDIO_BLOCKSETUP"
 #endif
-
-/* Nested interrupts not supported */
-
-#define SAM34_HSMCI_PRIO NVIC_SYSH_PRIORITY_DEFAULT
 
 #ifndef CONFIG_DEBUG_MEMCARD_INFO
 #  undef CONFIG_SAM34_HSMCI_CMDDEBUG
@@ -1659,12 +1655,6 @@ static int sam_attach(FAR struct sdio_dev_s *dev)
        */
 
       up_enable_irq(SAM_IRQ_HSMCI);
-
-#ifdef CONFIG_ARCH_IRQPRIO
-      /* Set the interrupt priority */
-
-      up_prioritize_irq(SAM_IRQ_HSMCI, SAM34_HSMCI_PRIO);
-#endif
     }
 
   return ret;

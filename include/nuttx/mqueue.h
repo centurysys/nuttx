@@ -43,13 +43,13 @@
 
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
+#include <nuttx/signal.h>
 
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <mqueue.h>
 #include <queue.h>
-#include <signal.h>
 
 #if CONFIG_MQ_MAXMSGSIZE > 0
 
@@ -113,11 +113,10 @@ struct mqueue_inode_s
 #else
   uint16_t maxmsgsize;        /* Max size of message in message queue */
 #endif
-#ifndef CONFIG_DISABLE_SIGNALS
   FAR struct mq_des *ntmqdes; /* Notification: Owning mqdes (NULL if none) */
   pid_t ntpid;                /* Notification: Receiving Task's PID */
   struct sigevent ntevent;    /* Notification description */
-#endif
+  struct sigwork_s ntwork;    /* Notification work */
 };
 
 /* This describes the message queue descriptor that is held in the
@@ -180,7 +179,8 @@ struct task_group_s;  /* Forward reference */
  *
  ****************************************************************************/
 
-int nxmq_send(mqd_t mqdes, FAR const char *msg, size_t msglen, int prio);
+int nxmq_send(mqd_t mqdes, FAR const char *msg, size_t msglen,\
+              unsigned int prio);
 
 /****************************************************************************
  * Name: nxmq_timedsend
@@ -224,8 +224,8 @@ int nxmq_send(mqd_t mqdes, FAR const char *msg, size_t msglen, int prio);
  *
  ****************************************************************************/
 
-int nxmq_timedsend(mqd_t mqdes, FAR const char *msg, size_t msglen, int prio,
-                   FAR const struct timespec *abstime);
+int nxmq_timedsend(mqd_t mqdes, FAR const char *msg, size_t msglen, 
+                   unsigned int prio, FAR const struct timespec *abstime);
 
 /****************************************************************************
  * Name: nxmq_receive
@@ -256,7 +256,7 @@ int nxmq_timedsend(mqd_t mqdes, FAR const char *msg, size_t msglen, int prio,
  ****************************************************************************/
 
 ssize_t nxmq_receive(mqd_t mqdes, FAR char *msg, size_t msglen,
-                     FAR int *prio);
+                     FAR unsigned int *prio);
 
 /****************************************************************************
  * Name: nxmq_timedreceive
@@ -292,7 +292,8 @@ ssize_t nxmq_receive(mqd_t mqdes, FAR char *msg, size_t msglen,
  ****************************************************************************/
 
 ssize_t nxmq_timedreceive(mqd_t mqdes, FAR char *msg, size_t msglen,
-                        FAR int *prio, FAR const struct timespec *abstime);
+                          FAR unsigned int *prio,
+                          FAR const struct timespec *abstime);
 
 /****************************************************************************
  * Name: nxmq_free_msgq

@@ -47,14 +47,15 @@
 #include <nuttx/signal.h>
 
 #include <arch/irq.h>
-#include <arch/chip/chip.h>
-#include <arch/board/board.h>
+#include <arch/armv7-m/nvicpri.h>
 
 #include "up_internal.h"
 #include "ram_vectors.h"
 #include "stm32_tim.h"
 
 #include "viewtool_stm32f107.h"
+
+#include <arch/board/board.h>
 
 #ifdef CONFIG_VIEWTOOL_HIGHPRI
 
@@ -217,7 +218,7 @@ int highpri_main(int argc, char *argv[])
   /* Enable the timer interrupt at the NVIC and at TIM6 */
 
   up_enable_irq(STM32_IRQ_TIM6);
-  STM32_TIM_ENABLEINT(dev, ATIM_SR_UIF);
+  STM32_TIM_ENABLEINT(dev, ATIM_DIER_UIE);
 
   /* Monitor interrupts */
 

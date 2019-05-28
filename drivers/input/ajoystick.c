@@ -100,14 +100,12 @@ struct ajoy_open_s
 
   volatile bool ao_closing;
 
-#ifndef CONFIG_DISABLE_SIGNALS
   /* Joystick event notification information */
 
   pid_t ao_pid;
   struct ajoy_notify_s ao_notify;
-#endif
+  struct sigwork_s ao_work;
 
-#ifndef CONFIG_DISABLE_POLL
   /* Poll event information */
 
   struct ajoy_pollevents_s ao_pollevents;
@@ -117,7 +115,6 @@ struct ajoy_open_s
    */
 
   FAR struct pollfd *ao_fds[CONFIG_AJOYSTICK_NPOLLWAITERS];
-#endif
 };
 
 /****************************************************************************
@@ -131,11 +128,9 @@ static inline int ajoy_takesem(sem_t *sem);
 
 /* Sampling and Interrupt handling */
 
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
 static void    ajoy_enable(FAR struct ajoy_upperhalf_s *priv);
 static void    ajoy_interrupt(FAR const struct ajoy_lowerhalf_s *lower,
                               FAR void *arg);
-#endif
 
 /* Sampling */
 
@@ -149,10 +144,8 @@ static ssize_t ajoy_read(FAR struct file *filep, FAR char *buffer,
                          size_t buflen);
 static int     ajoy_ioctl(FAR struct file *filep, int cmd,
                           unsigned long arg);
-#ifndef CONFIG_DISABLE_POLL
 static int     ajoy_poll(FAR struct file *filep, FAR struct pollfd *fds,
                          bool setup);
-#endif
 
 /****************************************************************************
  * Private Data
@@ -165,10 +158,8 @@ static const struct file_operations ajoy_fops =
   ajoy_read,  /* read */
   0,          /* write */
   0,          /* seek */
-  ajoy_ioctl  /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  , ajoy_poll /* poll */
-#endif
+  ajoy_ioctl, /* ioctl */
+  ajoy_poll   /* poll */
 };
 
 /****************************************************************************
@@ -199,7 +190,6 @@ static inline int ajoy_takesem(sem_t *sem)
  * Name: ajoy_enable
  ****************************************************************************/
 
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
 static void ajoy_enable(FAR struct ajoy_upperhalf_s *priv)
 {
   FAR const struct ajoy_lowerhalf_s *lower;
@@ -207,9 +197,7 @@ static void ajoy_enable(FAR struct ajoy_upperhalf_s *priv)
   ajoy_buttonset_t press;
   ajoy_buttonset_t release;
   irqstate_t flags;
-#ifndef CONFIG_DISABLE_POLL
   int i;
-#endif
 
   DEBUGASSERT(priv);
   lower = priv->au_lower;
@@ -228,7 +216,6 @@ static void ajoy_enable(FAR struct ajoy_upperhalf_s *priv)
 
   for (opriv = priv->au_open; opriv; opriv = opriv->ao_flink)
     {
-#ifndef CONFIG_DISABLE_POLL
       /* Are there any poll waiters? */
 
       for (i = 0; i < CONFIG_AJOYSTICK_NPOLLWAITERS; i++)
@@ -242,14 +229,11 @@ static void ajoy_enable(FAR struct ajoy_upperhalf_s *priv)
               break;
             }
         }
-#endif
 
-#ifndef CONFIG_DISABLE_SIGNALS
       /* OR in the signal events */
 
       press   |= opriv->ao_notify.an_press;
       release |= opriv->ao_notify.an_release;
-#endif
     }
 
   /* Enable/disable button interrupts */
@@ -271,13 +255,11 @@ static void ajoy_enable(FAR struct ajoy_upperhalf_s *priv)
 
   leave_critical_section(flags);
 }
-#endif
 
 /****************************************************************************
  * Name: ajoy_interrupt
  ****************************************************************************/
 
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
 static void ajoy_interrupt(FAR const struct ajoy_lowerhalf_s *lower,
                            FAR void *arg)
 {
@@ -289,7 +271,6 @@ static void ajoy_interrupt(FAR const struct ajoy_lowerhalf_s *lower,
 
   ajoy_sample(priv);
 }
-#endif
 
 /****************************************************************************
  * Name: ajoy_sample
@@ -300,15 +281,11 @@ static void ajoy_sample(FAR struct ajoy_upperhalf_s *priv)
   FAR const struct ajoy_lowerhalf_s *lower;
   FAR struct ajoy_open_s *opriv;
   ajoy_buttonset_t sample;
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
   ajoy_buttonset_t change;
   ajoy_buttonset_t press;
   ajoy_buttonset_t release;
-#endif
   irqstate_t flags;
-#ifndef CONFIG_DISABLE_POLL
   int i;
-#endif
 
   DEBUGASSERT(priv);
   lower = priv->au_lower;
@@ -327,7 +304,6 @@ static void ajoy_sample(FAR struct ajoy_upperhalf_s *priv)
 
   add_ui_randomness(sample);
 
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
   /* Determine which buttons have been newly pressed and which have been
    * newly released.
    */
@@ -342,7 +318,6 @@ static void ajoy_sample(FAR struct ajoy_upperhalf_s *priv)
 
   for (opriv = priv->au_open; opriv; opriv = opriv->ao_flink)
     {
-#ifndef CONFIG_DISABLE_POLL
       /* Have any poll events occurred? */
 
       if ((press & opriv->ao_pollevents.ap_press)     != 0 ||
@@ -364,9 +339,7 @@ static void ajoy_sample(FAR struct ajoy_upperhalf_s *priv)
                 }
             }
         }
-#endif
 
-#ifndef CONFIG_DISABLE_SIGNALS
       /* Have any signal events occurred? */
 
       if ((press & opriv->ao_notify.an_press)     != 0 ||
@@ -374,24 +347,15 @@ static void ajoy_sample(FAR struct ajoy_upperhalf_s *priv)
         {
           /* Yes.. Signal the waiter */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
-          union sigval value;
-          value.sival_int = (int)sample;
-
-          (void)nxsig_queue(opriv->ao_pid, opriv->ao_notify.an_signo,
-                            value);
-#else
-          (void)nxsig_queue(opriv->ao_pid, opriv->ao_notify.dn.signo,
-                            (FAR void *)sample);
-#endif
+          opriv->ao_notify.an_event.sigev_value.sival_int = sample;
+          nxsig_notification(opriv->ao_pid, &opriv->ao_notify.an_event,
+                             SI_QUEUE, &opriv->ao_work);
         }
-#endif
     }
 
   /* Enable/disable interrupt handling */
 
   ajoy_enable(priv);
-#endif
 
   priv->au_sample = sample;
   leave_critical_section(flags);
@@ -406,10 +370,8 @@ static int ajoy_open(FAR struct file *filep)
   FAR struct inode *inode;
   FAR struct ajoy_upperhalf_s *priv;
   FAR struct ajoy_open_s *opriv;
-#ifndef CONFIG_DISABLE_POLL
   FAR const struct ajoy_lowerhalf_s *lower;
   ajoy_buttonset_t supported;
-#endif
   int ret;
 
   DEBUGASSERT(filep && filep->f_inode);
@@ -438,14 +400,12 @@ static int ajoy_open(FAR struct file *filep)
 
   /* Initialize the open structure */
 
-#ifndef CONFIG_DISABLE_POLL
   lower = priv->au_lower;
   DEBUGASSERT(lower && lower->al_supported);
   supported = lower->al_supported(lower);
 
   opriv->ao_pollevents.ap_press   = supported;
   opriv->ao_pollevents.ap_release = supported;
-#endif
 
   /* Attach the open structure to the device */
 
@@ -538,6 +498,10 @@ static int ajoy_close(FAR struct file *filep)
     {
       priv->au_open = opriv->ao_flink;
     }
+
+  /* Cancel any pending notification */
+
+  nxsig_cancel_notification(&opriv->ao_work);
 
   /* And free the open structure */
 
@@ -639,10 +603,10 @@ static int ajoy_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     {
     /* Command:     AJOYIOC_SUPPORTED
      * Description: Report the set of button events supported by the hardware;
-     * Argument:    A pointer to writeable integer value in which to return the
-     *              set of supported buttons.
-     * Return:      Zero (OK) on success.  Minus one will be returned on failure
-     *              with the errno value set appropriately.
+     * Argument:    A pointer to writeable integer value in which to return
+     *              the set of supported buttons.
+     * Return:      Zero (OK) on success.  Minus one will be returned on
+     *              failure with the errno value set appropriately.
      */
 
     case AJOYIOC_SUPPORTED:
@@ -660,7 +624,6 @@ static int ajoy_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       }
       break;
 
-#ifndef CONFIG_DISABLE_POLL
     /* Command:     AJOYIOC_POLLEVENTS
      * Description: Specify the set of button events that can cause a poll()
      *              to awaken.  The default is all button depressions and
@@ -690,9 +653,7 @@ static int ajoy_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           }
       }
       break;
-#endif
 
-#ifndef CONFIG_DISABLE_SIGNALS
     /* Command:     AJOYIOC_REGISTER
      * Description: Register to receive a signal whenever there is a change
      *              in any of the joystick discrete inputs.  This feature,
@@ -715,7 +676,7 @@ static int ajoy_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
             opriv->ao_notify.an_press   = notify->an_press;
             opriv->ao_notify.an_release = notify->an_release;
-            opriv->ao_notify.an_signo   = notify->an_signo;
+            opriv->ao_notify.an_event   = notify->an_event;
             opriv->ao_pid               = getpid();
 
             /* Enable/disable interrupt handling */
@@ -725,7 +686,6 @@ static int ajoy_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           }
       }
       break;
-#endif
 
     default:
       ierr("ERROR: Unrecognized command: %ld\n", cmd);
@@ -741,7 +701,6 @@ static int ajoy_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  * Name: ajoy_poll
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 static int ajoy_poll(FAR struct file *filep, FAR struct pollfd *fds,
                      bool setup)
 {
@@ -821,7 +780,6 @@ errout_with_dusem:
   ajoy_givesem(&priv->au_exclsem);
   return ret;
 }
-#endif
 
 /****************************************************************************
  * Public Functions

@@ -3,6 +3,7 @@
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *           Dave Marples <dave@marples.net>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,10 +64,10 @@
 
 #include "imxrt_config.h"
 #include "imxrt_gpio.h"
-#include "chip/imxrt_pinmux.h"
-#include "chip/imxrt_ccm.h"
-#include "chip/imxrt_periphclks.h"
-#include "chip/imxrt_usdhc.h"
+#include "hardware/imxrt_pinmux.h"
+#include "hardware/imxrt_ccm.h"
+#include "hardware/imxrt_periphclks.h"
+#include "hardware/imxrt_usdhc.h"
 
 #ifdef CONFIG_IMXRT_USDHC
 
@@ -86,25 +87,20 @@
 #  error "Callback support requires CONFIG_SCHED_WORKQUEUE and CONFIG_SCHED_HPWORK"
 #endif
 
+#if !defined(CONFIG_SDIO_BLOCKSETUP)
+#  error "CONFIG_SDIO_BLOCKSETUP is mandatory for this driver"
+#endif
+
 #ifndef CONFIG_DEBUG_MEMCARD_INFO
 #  undef CONFIG_SDIO_XFRDEBUG
 #endif
-
-/* SDCLK frequencies corresponding to various modes of operation.  These
- * values may be provided in either the NuttX configuration file or in
- * the board.h file
- *
- * NOTE:  These settings are not currently used.  Since there are only four
- * frequencies, it makes more sense to just "can" the fixed frequency prescaler
- * and divider values.
- */
 
 /* Timing in ms for commands wait response */
 
 #define USDHC_CMDTIMEOUT         MSEC2TICK(100)
 #define USDHC_LONGTIMEOUT        MSEC2TICK(500)
 
-/* Big DTOCV setting.  Range is 0=SDCLK*2^13 through 15=SDCLK*2^29 */
+/* Big DTOCV setting.  Range is 0 = SDCLK * 2^13 through 15 = SDCLK * 2^29 */
 
 #define USDHC_DTOCV_MAXTIMEOUT   (15)
 
@@ -114,20 +110,26 @@
 
 /* Data transfer / Event waiting interrupt mask bits */
 
-#define USDHC_RESPERR_INTS  (USDHC_INT_CCE|USDHC_INT_CTOE|USDHC_INT_CEBE|USDHC_INT_CIE)
-#define USDHC_RESPDONE_INTS (USDHC_RESPERR_INTS|USDHC_INT_CC)
+#define USDHC_RESPERR_INTS  (USDHC_INT_CCE | USDHC_INT_CTOE | \
+                             USDHC_INT_CEBE | USDHC_INT_CIE)
+#define USDHC_RESPDONE_INTS (USDHC_RESPERR_INTS | USDHC_INT_CC)
 
-#define USDHC_XFRERR_INTS   (USDHC_INT_DCE|USDHC_INT_DTOE|USDHC_INT_DEBE)
-#define USDHC_RCVDONE_INTS  (USDHC_XFRERR_INTS|USDHC_INT_BRR|USDHC_INT_TC)
-#define USDHC_SNDDONE_INTS  (USDHC_XFRERR_INTS|USDHC_INT_BWR|USDHC_INT_TC)
-#define USDHC_XFRDONE_INTS  (USDHC_XFRERR_INTS|USDHC_INT_BRR|USDHC_INT_BWR|USDHC_INT_TC)
+#define USDHC_XFRERR_INTS   (USDHC_INT_DCE | USDHC_INT_DTOE | \
+                             USDHC_INT_DEBE)
+#define USDHC_RCVDONE_INTS  (USDHC_XFRERR_INTS | USDHC_INT_BRR | \
+                             USDHC_INT_TC)
+#define USDHC_SNDDONE_INTS  (USDHC_XFRERR_INTS | USDHC_INT_BWR | \
+                             USDHC_INT_TC)
+#define USDHC_XFRDONE_INTS  (USDHC_XFRERR_INTS | USDHC_INT_BRR | \
+                             USDHC_INT_BWR | USDHC_INT_TC)
 
 /* For DMA operations DINT is not interesting TC will indicate completions */
 
-#define USDHC_DMAERR_INTS   (USDHC_XFRERR_INTS|USDHC_INT_DMAE)
-#define USDHC_DMADONE_INTS  (USDHC_DMAERR_INTS|USDHC_INT_TC)
+#define USDHC_DMAERR_INTS   (USDHC_XFRERR_INTS | USDHC_INT_DMAE)
+#define USDHC_DMADONE_INTS  (USDHC_DMAERR_INTS | USDHC_INT_TC)
 
-#define USDHC_WAITALL_INTS  (USDHC_RESPDONE_INTS|USDHC_XFRDONE_INTS|USDHC_DMADONE_INTS)
+#define USDHC_WAITALL_INTS  (USDHC_RESPDONE_INTS | USDHC_XFRDONE_INTS | \
+                             USDHC_DMADONE_INTS)
 
 /* Register logging support */
 
@@ -174,7 +176,10 @@ struct imxrt_dev_s
   /* DMA data transfer support */
 
 #ifdef CONFIG_IMXRT_USDHC_DMA
-  volatile uint8_t   xfrflags;   /* Used to synchronize SDIO and DMA completion events */
+  volatile uint8_t   xfrflags;   /* Used to synchronize SDIO and DMA
+                                  * completion events */
+  uint32_t          *bufferend;  /* Far end of R/W buffer for cache
+                                  * invalidation purposes */
 #endif
 };
 
@@ -249,16 +254,16 @@ static void imxrt_showregs(struct imxrt_dev_s *priv, const char *msg);
 /* Data Transfer Helpers ****************************************************/
 
 static void imxrt_dataconfig(struct imxrt_dev_s *priv, bool bwrite,
-              unsigned int blocksize, unsigned int nblocks,
-              unsigned int timeout);
-static void imxrt_datadisable(void);
+              unsigned int dataLen, unsigned int timeout);
 #ifndef CONFIG_IMXRT_USDHC_DMA
 static void imxrt_transmit(struct imxrt_dev_s *priv);
 static void imxrt_receive(struct imxrt_dev_s *priv);
 #endif
 static void imxrt_eventtimeout(int argc, uint32_t arg);
-static void imxrt_endwait(struct imxrt_dev_s *priv, sdio_eventset_t wkupevent);
-static void imxrt_endtransfer(struct imxrt_dev_s *priv, sdio_eventset_t wkupevent);
+static void imxrt_endwait(struct imxrt_dev_s *priv,
+              sdio_eventset_t wkupevent);
+static void imxrt_endtransfer(struct imxrt_dev_s *priv,
+              sdio_eventset_t wkupevent);
 
 /* Interrupt Handling *******************************************************/
 
@@ -289,6 +294,11 @@ static int  imxrt_attach(FAR struct sdio_dev_s *dev);
 
 static int  imxrt_sendcmd(FAR struct sdio_dev_s *dev, uint32_t cmd,
               uint32_t arg);
+#ifdef CONFIG_SDIO_BLOCKSETUP
+static void imxrt_blocksetup(FAR struct sdio_dev_s *dev,
+              unsigned int blocklen, unsigned int nblocks);
+#endif
+
 #ifndef CONFIG_IMXRT_USDHC_DMA
 static int  imxrt_recvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
               size_t nbytes);
@@ -349,6 +359,10 @@ struct imxrt_dev_s g_sdhcdev =
     .clock            = imxrt_clock,
     .attach           = imxrt_attach,
     .sendcmd          = imxrt_sendcmd,
+#ifdef CONFIG_SDIO_BLOCKSETUP
+    .blocksetup       = imxrt_blocksetup,
+#endif
+
 #ifndef CONFIG_IMXRT_USDHC_DMA
     .recvsetup        = imxrt_recvsetup,
     .sendsetup        = imxrt_sendsetup,
@@ -459,8 +473,7 @@ static void imxrt_configwaitints(struct imxrt_dev_s *priv, uint32_t waitints,
 #ifdef CONFIG_IMXRT_USDHC_DMA
   priv->xfrflags   = 0;
 #endif
-  putreg32(priv->xfrints | priv->waitints | USDHC_INT_CINT,
-           IMXRT_USDHC1_IRQSIGEN);
+  putreg32(priv->xfrints | priv->waitints, IMXRT_USDHC1_IRQSIGEN);
   leave_critical_section(flags);
 }
 
@@ -485,8 +498,7 @@ static void imxrt_configxfrints(struct imxrt_dev_s *priv, uint32_t xfrints)
 
   flags = enter_critical_section();
   priv->xfrints = xfrints;
-  putreg32(priv->xfrints | priv->waitints | USDHC_INT_CINT,
-           IMXRT_USDHC1_IRQSIGEN);
+  putreg32(priv->xfrints | priv->waitints, IMXRT_USDHC1_IRQSIGEN);
   leave_critical_section(flags);
 }
 
@@ -603,9 +615,12 @@ static void imxrt_dumpsample(struct imxrt_dev_s *priv,
 #ifdef CONFIG_SDIO_XFRDEBUG
 static void  imxrt_dumpsamples(struct imxrt_dev_s *priv)
 {
-  imxrt_dumpsample(priv, &g_sampleregs[SAMPLENDX_BEFORE_SETUP], "Before setup");
-  imxrt_dumpsample(priv, &g_sampleregs[SAMPLENDX_AFTER_SETUP], "After setup");
-  imxrt_dumpsample(priv, &g_sampleregs[SAMPLENDX_END_TRANSFER], "End of transfer");
+  imxrt_dumpsample(priv, &g_sampleregs[SAMPLENDX_BEFORE_SETUP],
+                   "Before setup");
+  imxrt_dumpsample(priv, &g_sampleregs[SAMPLENDX_AFTER_SETUP],
+                   "After setup");
+  imxrt_dumpsample(priv, &g_sampleregs[SAMPLENDX_END_TRANSFER],
+                   "End of transfer");
 }
 #endif
 
@@ -640,36 +655,29 @@ static void imxrt_showregs(struct imxrt_dev_s *priv, const char *msg)
  ****************************************************************************/
 
 static void imxrt_dataconfig(struct imxrt_dev_s *priv, bool bwrite,
-                               unsigned int blocksize, unsigned int nblocks,
-                               unsigned int timeout)
+                             unsigned int dataLen, unsigned int timeout)
 {
   unsigned int watermark;
   uint32_t regval = 0;
 
-  /* Set the data timeout value in the USDHC_SYSCTL field to the selected value */
+  /* Set the data timeout value in the USDHC_SYSCTL field to the selected
+   * value.
+   */
 
   regval  = getreg32(IMXRT_USDHC1_SYSCTL);
   regval &= ~USDHC_SYSCTL_DTOCV_MASK;
   regval |= timeout << USDHC_SYSCTL_DTOCV_SHIFT;
   putreg32(regval, IMXRT_USDHC1_SYSCTL);
 
-  /* Set the block size and count in the USDHC_BLKATTR register.  The block
-   * size is only valid for multiple block transfers.
-   */
-
-  regval = blocksize << USDHC_BLKATTR_SIZE_SHIFT |
-           nblocks   << USDHC_BLKATTR_CNT_SHIFT;
-  putreg32(regval, IMXRT_USDHC1_BLKATTR);
-
   /* Set the watermark level */
 
-  /* Set the Read Watermark Level to the blocksize to be read
+  /* Set the Read Watermark Level to the dataLen to be read
    * (limited to half of the maximum watermark value).  BRR will be
    * set when the number of queued words is greater than or equal
    * to this value.
    */
 
-  watermark = (blocksize + 3) >> 2;
+  watermark = (dataLen + 3) >> 2;
   if (watermark > (USDHC_MAX_WATERMARK / 2))
     {
       watermark = (USDHC_MAX_WATERMARK / 2);
@@ -702,28 +710,6 @@ static void imxrt_dataconfig(struct imxrt_dev_s *priv, bool bwrite,
 
       putreg32(watermark << USDHC_WML_RD_SHIFT, IMXRT_USDHC1_WML);
     }
-}
-
-/****************************************************************************
- * Name: imxrt_datadisable
- *
- * Description:
- *   Disable the SDIO data path setup by imxrt_dataconfig() and
- *   disable DMA.
- *
- ****************************************************************************/
-
-static void imxrt_datadisable(void)
-{
-  /* Set the data timeout value in the USDHC_SYSCTL field to the maximum value */
-
-  modifyreg32(IMXRT_USDHC1_SYSCTL,
-              USDHC_SYSCTL_DTOCV_MASK,
-              USDHC_DTOCV_MAXTIMEOUT << USDHC_SYSCTL_DTOCV_SHIFT);
-
-  /* Set the block size to zero (no transfer) */
-
-  putreg32(0, IMXRT_USDHC1_BLKATTR);
 }
 
 /****************************************************************************
@@ -955,7 +941,8 @@ static void imxrt_eventtimeout(int argc, uint32_t arg)
  *
  ****************************************************************************/
 
-static void imxrt_endwait(struct imxrt_dev_s *priv, sdio_eventset_t wkupevent)
+static void imxrt_endwait(struct imxrt_dev_s *priv,
+                          sdio_eventset_t wkupevent)
 {
   /* Cancel the watchdog timeout */
 
@@ -979,7 +966,7 @@ static void imxrt_endwait(struct imxrt_dev_s *priv, sdio_eventset_t wkupevent)
  *   are detected.
  *
  * Input Parameters:
- *   priv   - An instance of the SDIO device interface
+ *   priv      - An instance of the SDIO device interface
  *   wkupevent - The event that caused the transfer to end
  *
  * Returned Value:
@@ -990,12 +977,9 @@ static void imxrt_endwait(struct imxrt_dev_s *priv, sdio_eventset_t wkupevent)
  *
  ****************************************************************************/
 
-static void imxrt_endtransfer(struct imxrt_dev_s *priv, sdio_eventset_t wkupevent)
+static void imxrt_endtransfer(struct imxrt_dev_s *priv,
+                              sdio_eventset_t wkupevent)
 {
-#ifdef CONFIG_IMXRT_USDHC_DMA
-  uint32_t regval;
-  uint32_t proctl;
-#endif
 
   /* Disable all transfer related interrupts */
 
@@ -1003,26 +987,16 @@ static void imxrt_endtransfer(struct imxrt_dev_s *priv, sdio_eventset_t wkupeven
 
   /* Clearing pending interrupt status on all transfer related interrupts */
 
-  putreg32(USDHC_XFRDONE_INTS, IMXRT_USDHC1_IRQSTAT);
-
-  /* If this was a DMA transfer, make sure that DMA is stopped */
-
-#ifdef CONFIG_IMXRT_USDHC_DMA
-  /* Stop the DMA by resetting the data path but first save the
-   * state of the USDHC_PROCTL as it will be reset (in bits 24-0)
-   * and we will loose the DTW (4bit mode) setting
-   */
-
-  proctl = getreg32(IMXRT_USDHC1_PROCTL);
-  regval = getreg32(IMXRT_USDHC1_SYSCTL);
-  regval |= USDHC_SYSCTL_RSTD;
-  putreg32(regval, IMXRT_USDHC1_SYSCTL);
-  putreg32(proctl, IMXRT_USDHC1_PROCTL);
-#endif
+  putreg32(USDHC_XFRDONE_INTS | USDHC_DMADONE_INTS, IMXRT_USDHC1_IRQSTAT);
 
   /* Mark the transfer finished */
 
   priv->remaining = 0;
+
+  /* DMA modified the buffer, so we need to flush its cache lines. */
+
+  up_invalidate_dcache((uintptr_t)priv->buffer,
+                       (uintptr_t)priv->bufferend);
 
   /* Debug instrumentation */
 
@@ -1065,16 +1039,11 @@ static int imxrt_interrupt(int irq, void *context, FAR void *arg)
    * there are non-zero bits remaining, then we have work to do here.
    */
 
-  mcerr("**");
   regval  = getreg32(IMXRT_USDHC1_IRQSIGEN);
   enabled = getreg32(IMXRT_USDHC1_IRQSTAT) & regval;
+
   mcinfo("IRQSTAT: %08x IRQSIGEN %08x enabled: %08x\n",
          getreg32(IMXRT_USDHC1_IRQSTAT), regval, enabled);
-
-  /* Disable card interrupts to clear the card interrupt to the host system. */
-
-  regval &= ~USDHC_INT_CINT;
-  putreg32(regval, IMXRT_USDHC1_IRQSIGEN);
 
   /* Clear all pending interrupts */
 
@@ -1164,12 +1133,6 @@ static int imxrt_interrupt(int irq, void *context, FAR void *arg)
         }
     }
 
-  /* Re-enable card interrupts */
-
-  regval  = getreg32(IMXRT_USDHC1_IRQSIGEN);
-  regval |= USDHC_INT_CINT;
-  putreg32(regval, IMXRT_USDHC1_IRQSIGEN);
-
   return OK;
 }
 
@@ -1244,7 +1207,7 @@ static void imxrt_reset(FAR struct sdio_dev_s *dev)
     {
     }
 
-  minfo("Reset complete\n");
+  mcinfo("Reset complete\n");
 
   /* Make sure that all clocking is disabled */
 
@@ -1255,7 +1218,6 @@ static void imxrt_reset(FAR struct sdio_dev_s *dev)
    */
 
   putreg32(USDHC_INT_ALL, IMXRT_USDHC1_IRQSTATEN);
-  imxrt_datadisable();
 
   mcinfo("SYSCTL: %08x PRSSTAT: %08x IRQSTATEN: %08x\n",
          getreg32(IMXRT_USDHC1_SYSCTL), getreg32(IMXRT_USDHC1_PRSSTAT),
@@ -1272,7 +1234,8 @@ static void imxrt_reset(FAR struct sdio_dev_s *dev)
   priv->waitints   = 0;      /* Interrupt enables for event waiting */
   priv->wkupevent  = 0;      /* The event that caused the wakeup */
 #ifdef CONFIG_IMXRT_USDHC_DMA
-  priv->xfrflags   = 0;      /* Used to synchronize SDIO and DMA completion events */
+  priv->xfrflags   = 0;      /* Used to synchronize SDIO and DMA completion
+                              * events */
 #endif
 
   wd_cancel(priv->waitwdog); /* Cancel any timeouts */
@@ -1320,7 +1283,7 @@ static sdio_capset_t imxrt_capabilities(FAR struct sdio_dev_s *dev)
  *   Get SDIO status.
  *
  * Input Parameters:
- *   dev   - Device-specific state data
+ *   dev - Device-specific state data
  *
  * Returned Value:
  *   Returns a bitset of status values (see imxrt_status_* defines)
@@ -1331,11 +1294,11 @@ static sdio_statset_t imxrt_status(FAR struct sdio_dev_s *dev)
 {
   struct imxrt_dev_s *priv = (struct imxrt_dev_s *)dev;
 
-  /* This register reflects the state of CD no matter if it's a separate pin
-   * or DAT3
-   */
-
+#if defined(CONFIG_MMCSD_HAVE_CARDDETECT) && defined(PIN_USDHC1_CD)
+  if (!imxrt_gpio_read(PIN_USDHC1_CD))
+#else
   if ((getreg32(IMXRT_USDHC1_PRSSTAT) & USDHC_PRSSTAT_CINS) != 0)
+#endif
     {
       priv->cdstatus |= SDIO_STATUS_PRESENT;
     }
@@ -1550,8 +1513,8 @@ static void imxrt_clock(FAR struct sdio_dev_s *dev, enum sdio_clock_e rate)
   /* Select the new prescaler and divisor values based on the requested mode
    * and the settings from the board.h file.
    *
-   * TODO:  Investigate using the automatically gated clocks to reduce power
-   *        consumption.
+   * Clocks are automatically gated by the driver when not needed.
+   *
    */
 
   switch (rate)
@@ -1568,26 +1531,36 @@ static void imxrt_clock(FAR struct sdio_dev_s *dev, enum sdio_clock_e rate)
 
       case CLOCK_IDMODE :            /* Initial ID mode clocking (<400KHz) */
         mcinfo("IDMODE\n");
-        regval |= (BOARD_USDHC_IDMODE_PRESCALER | BOARD_USDHC_IDMODE_DIVISOR);
+
+        /* Put out an additional 80 clocks in case this is a power-up sequence */
+
+        regval |= (BOARD_USDHC_IDMODE_PRESCALER |
+                   BOARD_USDHC_IDMODE_DIVISOR | USDHC_SYSCTL_INITA);
         break;
 
       case CLOCK_MMC_TRANSFER :      /* MMC normal operation clocking */
         mcinfo("MMCTRANSFER\n");
-        regval |= (BOARD_USDHC_MMCMODE_PRESCALER | BOARD_USDHC_MMCMODE_DIVISOR);
+
+        regval |= (BOARD_USDHC_MMCMODE_PRESCALER |
+                   BOARD_USDHC_MMCMODE_DIVISOR);
         break;
 
       case CLOCK_SD_TRANSFER_1BIT :  /* SD normal operation clocking (narrow
                                       * 1-bit mode) */
 #ifndef CONFIG_IMXRT_USDHC_WIDTH_D1_ONLY
         mcinfo("1BITTRANSFER\n");
-        regval |= (BOARD_USDHC_SD1MODE_PRESCALER | BOARD_USDHC_SD1MODE_DIVISOR);
+
+        regval |= (BOARD_USDHC_SD1MODE_PRESCALER |
+                   BOARD_USDHC_SD1MODE_DIVISOR);
         break;
 #endif
 
       case CLOCK_SD_TRANSFER_4BIT :  /* SD normal operation clocking (wide
                                       * 4-bit mode) */
         mcinfo("4BITTRANSFER\n");
-        regval |= (BOARD_USDHC_SD4MODE_PRESCALER | BOARD_USDHC_SD4MODE_DIVISOR);
+
+        regval |= (BOARD_USDHC_SD4MODE_PRESCALER |
+                   BOARD_USDHC_SD4MODE_DIVISOR);
         break;
     }
 
@@ -1657,8 +1630,9 @@ static int imxrt_attach(FAR struct sdio_dev_s *dev)
  *   None
  *
  ****************************************************************************/
+
 static int imxrt_sendcmd(FAR struct sdio_dev_s *dev, uint32_t cmd,
-                           uint32_t arg)
+                         uint32_t arg)
 {
   clock_t timeout;
   clock_t start;
@@ -1667,111 +1641,90 @@ static int imxrt_sendcmd(FAR struct sdio_dev_s *dev, uint32_t cmd,
   uint32_t mcrregval;
   uint32_t cmdidx;
 
-#if 1==0
-  regval  = getreg32(IMXRT_USDHC1_SYSCTL);
-  regval |= USDHC_SYSCTL_RSTC;
-  putreg32(regval, IMXRT_USDHC1_SYSCTL);
-
-  while ((getreg32(IMXRT_USDHC1_SYSCTL) & USDHC_SYSCTL_RSTC) != 0)
-    {
-    }
-#endif
-
-  regval    = getreg32(IMXRT_USDHC1_PRSSTAT);
-
   /* Initialize the command index */
 
   cmdidx    = (cmd & MMCSD_CMDIDX_MASK) >> MMCSD_CMDIDX_SHIFT;
   regval    = cmdidx << USDHC_XFERTYP_CMDINX_SHIFT;
   mcrregval = USDHC_MC_DEFAULTVAL;
 
-  /* Does a data transfer accompany the command? */
+  /* Check if a data transfer accompanies the command */
 
-  if ((cmd & MMCSD_DATAXFR) != 0)
+  switch (cmd & MMCSD_DATAXFR_MASK)
     {
-      /* Yes.. Configure the data transfer */
+      default:
+      case MMCSD_NODATAXFR : /* No.. no data transfer */
+          break;
 
-      switch (cmd & MMCSD_DATAXFR_MASK)
-        {
-          default:
-          case MMCSD_NODATAXFR : /* No.. no data transfer */
-            break;
+      /* The following two cases are probably missing some setup logic */
 
-          /* The following two cases are probably missing some setup logic */
+      case MMCSD_RDSTREAM :  /* Yes.. streaming read data transfer */
+          regval |= USDHC_XFERTYP_DPSEL;
+          mcrregval |= USDHC_MC_DTDSEL;
+          break;
 
-          case MMCSD_RDSTREAM :  /* Yes.. streaming read data transfer */
-            regval |= USDHC_XFERTYP_DPSEL;
-            mcrregval |= USDHC_MC_DTDSEL;
-            break;
+      case MMCSD_WRSTREAM :  /* Yes.. streaming write data transfer */
+          regval |= USDHC_XFERTYP_DPSEL;
+          break;
 
-          case MMCSD_WRSTREAM :  /* Yes.. streaming write data transfer */
-            regval |= USDHC_XFERTYP_DPSEL;
-            break;
+      case MMCSD_RDDATAXFR : /* Yes.. normal read data transfer */
+          regval |= USDHC_XFERTYP_DPSEL;
+          mcrregval |= USDHC_MC_DTDSEL;
+          break;
 
-          case MMCSD_RDDATAXFR : /* Yes.. normal read data transfer */
-            regval |= USDHC_XFERTYP_DPSEL;
-            mcrregval |= USDHC_MC_DTDSEL;
-            break;
-
-          case MMCSD_WRDATAXFR : /* Yes.. normal write data transfer */
-            regval |= USDHC_XFERTYP_DPSEL;
-            break;
-        }
-
-      /* Is it a multi-block transfer? */
-
-      if ((cmd & MMCSD_MULTIBLOCK) != 0)
-        {
-          /* Yes.. should the transfer be stopped with ACMD12? */
-
-          if ((cmd & MMCSD_STOPXFR) != 0)
-            {
-              /* Yes.. Indefinite block transfer */
-
-              mcrregval |= USDHC_MC_MSBSEL | USDHC_MC_AC12EN;
-            }
-          else
-            {
-              /* No.. Fixed block transfer */
-
-              mcrregval |= USDHC_MC_MSBSEL | USDHC_MC_BCEN;
-            }
-        }
+      case MMCSD_WRDATAXFR : /* Yes.. normal write data transfer */
+          regval |= USDHC_XFERTYP_DPSEL;
+          break;
     }
-  else
+
+  /* Is it a multi-block transfer? */
+
+  if ((cmd & MMCSD_MULTIBLOCK) != 0)
     {
-      mcrregval |= USDHC_MC_DTDSEL;
+      /* Yes.. should the transfer be stopped with ACMD12? */
+
+      if ((cmd & MMCSD_STOPXFR) != 0)
+        {
+          /* Yes.. Indefinite block transfer */
+
+          mcrregval |= USDHC_MC_MSBSEL | USDHC_MC_AC12EN;
+        }
+      else
+        {
+          /* No.. Fixed block transfer */
+
+          mcrregval |= USDHC_MC_MSBSEL | USDHC_MC_BCEN;
+        }
     }
 
   /* Configure response type bits */
 
   switch (cmd & MMCSD_RESPONSE_MASK)
     {
-    case MMCSD_NO_RESPONSE:                /* No response */
-      regval |= USDHC_XFERTYP_RSPTYP_NONE;
-      break;
+      case MMCSD_NO_RESPONSE:                /* No response */
+        regval |= USDHC_XFERTYP_RSPTYP_NONE;
+        break;
 
-    case MMCSD_R1B_RESPONSE:              /* Response length 48, check busy & cmdindex */
-      regval |= (USDHC_XFERTYP_RSPTYP_LEN48BSY | USDHC_XFERTYP_CICEN |
-                 USDHC_XFERTYP_CCCEN);
-      break;
+      case MMCSD_R1B_RESPONSE:              /* Response length 48, check busy & cmdindex */
+        regval |= (USDHC_XFERTYP_RSPTYP_LEN48BSY | USDHC_XFERTYP_CICEN |
+                   USDHC_XFERTYP_CCCEN);
+        break;
 
-    case MMCSD_R1_RESPONSE:              /* Response length 48, check cmdindex */
-    case MMCSD_R5_RESPONSE:
-    case MMCSD_R6_RESPONSE:
-      regval |= (USDHC_XFERTYP_RSPTYP_LEN48 | USDHC_XFERTYP_CICEN |
-                 USDHC_XFERTYP_CCCEN);
-      break;
+      case MMCSD_R1_RESPONSE:              /* Response length 48, check cmdindex */
+      case MMCSD_R5_RESPONSE:
+      case MMCSD_R6_RESPONSE:
+        regval |= (USDHC_XFERTYP_RSPTYP_LEN48 | USDHC_XFERTYP_CICEN |
+                   USDHC_XFERTYP_CCCEN);
+        break;
 
-    case MMCSD_R2_RESPONSE:              /* Response length 136, check CRC */
-      regval |= (USDHC_XFERTYP_RSPTYP_LEN136 | USDHC_XFERTYP_CCCEN);
-      break;
+      case MMCSD_R2_RESPONSE:              /* Response length 136, check CRC */
+        regval |= (USDHC_XFERTYP_RSPTYP_LEN136 | USDHC_XFERTYP_CCCEN);
+        break;
 
-    case MMCSD_R3_RESPONSE:              /* Response length 48 */
-    case MMCSD_R4_RESPONSE:
-    case MMCSD_R7_RESPONSE:
-      regval |= USDHC_XFERTYP_RSPTYP_LEN48;
-      break;
+      case MMCSD_R3_RESPONSE:              /* Response length 48 */
+      case MMCSD_R4_RESPONSE:
+      case MMCSD_R7_RESPONSE:
+        regval |= USDHC_XFERTYP_RSPTYP_LEN48;
+        break;
     }
 
   /* Enable DMA */
@@ -1793,7 +1746,8 @@ static int imxrt_sendcmd(FAR struct sdio_dev_s *dev, uint32_t cmd,
    * indicates that the CMD line is not in use and the USDHC can issue a
    * SD/MMC Command using the CMD line.
    *
-   * CIHB should always be clear before this function is called.
+   * CIHB should always be clear before this function is called, but this
+   * check is performed here to provide overlap and maximum performance.
    */
 
   timeout = USDHC_CMDTIMEOUT;
@@ -1806,7 +1760,7 @@ static int imxrt_sendcmd(FAR struct sdio_dev_s *dev, uint32_t cmd,
       elapsed = clock_systimer() - start;
       if (elapsed >= timeout)
         {
-          mcerr("ERROR: Timeout cmd: %08x PRSSTAT: %08x\n",
+          mcerr("ERROR: Timeout (waiting CIHB) cmd: %08x PRSSTAT: %08x\n",
                 cmd, getreg32(IMXRT_USDHC1_PRSSTAT));
 
           return -EBUSY;
@@ -1823,14 +1777,38 @@ static int imxrt_sendcmd(FAR struct sdio_dev_s *dev, uint32_t cmd,
   putreg32(mcrregval, IMXRT_USDHC1_MIX);
   putreg32(regval, IMXRT_USDHC1_XFERTYP);
 
-  start = 0;
-  while ((getreg32(IMXRT_USDHC1_PRSSTAT) & USDHC_PRSSTAT_CIHB) != 0)
-    {
-      start++;
-    }
-
   return OK;
 }
+
+/****************************************************************************
+ * Name: imxrt_blocksetup
+ *
+ * Description:
+ *   Configure block size and the number of blocks for next transfer
+ *
+ * Input Parameters:
+ *   dev       - An instance of the SDIO device interface
+ *   blocklen  - The selected block size.
+ *   nblocklen - The number of blocks to transfer
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SDIO_BLOCKSETUP
+static void imxrt_blocksetup(FAR struct sdio_dev_s *dev,
+                             unsigned int blocklen, unsigned int nblocks)
+{
+  mcinfo("blocklen=%ld, total transfer=%ld (%ld blocks)\n",
+         blocklen, blocklen * nblocks, nblocks);
+
+  /* Configure block size for next transfer */
+
+  putreg32(USDHC_BLKATTR_SIZE(blocklen) | USDHC_BLKATTR_CNT(nblocks),
+           IMXRT_USDHC1_BLKATTR);
+}
+#endif
 
 /****************************************************************************
  * Name: imxrt_recvsetup
@@ -1864,18 +1842,19 @@ static int imxrt_recvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
 
   /* Reset the DPSM configuration */
 
-  imxrt_datadisable();
   imxrt_sampleinit();
   imxrt_sample(priv, SAMPLENDX_BEFORE_SETUP);
 
-  /* Save the destination buffer information for use by the interrupt handler */
+  /* Save the destination buffer information for use by the interrupt handler
+   * and DMA memory invalidation.
+   */
 
   priv->buffer    = (uint32_t *)buffer;
   priv->remaining = nbytes;
 
   /* Then set up the SDIO data path */
 
-  imxrt_dataconfig(priv, false, nbytes, 1, USDHC_DTOCV_MAXTIMEOUT);
+  imxrt_dataconfig(priv, false, nbytes, USDHC_DTOCV_MAXTIMEOUT);
 
   /* And enable interrupts */
 
@@ -1915,7 +1894,6 @@ static int imxrt_sendsetup(FAR struct sdio_dev_s *dev,
 
   /* Reset the DPSM configuration */
 
-  imxrt_datadisable();
   imxrt_sampleinit();
   imxrt_sample(priv, SAMPLENDX_BEFORE_SETUP);
 
@@ -1926,7 +1904,7 @@ static int imxrt_sendsetup(FAR struct sdio_dev_s *dev,
 
   /* Then set up the SDIO data path */
 
-  imxrt_dataconfig(priv, true, nbytes, 1, USDHC_DTOCV_MAXTIMEOUT);
+  imxrt_dataconfig(priv, true, nbytes, USDHC_DTOCV_MAXTIMEOUT);
 
   /* Enable TX interrupts */
 
@@ -2019,31 +1997,31 @@ static int imxrt_waitresponse(FAR struct sdio_dev_s *dev, uint32_t cmd)
 
   switch (cmd & MMCSD_RESPONSE_MASK)
     {
-    case MMCSD_NO_RESPONSE:
-      timeout = USDHC_CMDTIMEOUT;
-      errors  = 0;
-      return OK;
+      case MMCSD_NO_RESPONSE:
+        timeout = USDHC_CMDTIMEOUT;
+        errors  = 0;
+        return OK;
 
-    case MMCSD_R1_RESPONSE:
-    case MMCSD_R1B_RESPONSE:
-    case MMCSD_R2_RESPONSE:
-    case MMCSD_R6_RESPONSE:
-      timeout = USDHC_LONGTIMEOUT;
-      errors  = USDHC_RESPERR_INTS;
-      break;
+      case MMCSD_R1_RESPONSE:
+      case MMCSD_R1B_RESPONSE:
+      case MMCSD_R2_RESPONSE:
+      case MMCSD_R6_RESPONSE:
+        timeout = USDHC_LONGTIMEOUT;
+        errors  = USDHC_RESPERR_INTS;
+        break;
 
-    case MMCSD_R4_RESPONSE:
-    case MMCSD_R5_RESPONSE:
-      return -ENOSYS;
+      case MMCSD_R4_RESPONSE:
+      case MMCSD_R5_RESPONSE:
+        return -ENOSYS;
 
-    case MMCSD_R3_RESPONSE:
-    case MMCSD_R7_RESPONSE:
-      timeout = USDHC_CMDTIMEOUT;
-      errors  = USDHC_RESPERR_INTS;
-      break;
+      case MMCSD_R3_RESPONSE:
+      case MMCSD_R7_RESPONSE:
+        timeout = USDHC_CMDTIMEOUT;
+        errors  = USDHC_RESPERR_INTS;
+        break;
 
-    default:
-      return -EINVAL;
+      default:
+        return -EINVAL;
     }
 
   /* Then wait for the Command Complete (CC) indication (or timeout).  The
@@ -2097,9 +2075,9 @@ static int imxrt_waitresponse(FAR struct sdio_dev_s *dev, uint32_t cmd)
  *
  * Returned Value:
  *   Number of bytes sent on success; a negated errno on failure.  Here a
- *   failure means only a faiure to obtain the requested reponse (due to
+ *   failure means only a failure to obtain the requested response (due to
  *   transport problem -- timeout, CRC, etc.).  The implementation only
- *   assures that the response is returned intacta and does not check errors
+ *   assures that the response is returned intact and does not check errors
  *   within the response itself.
  *
  ****************************************************************************/
@@ -2347,7 +2325,12 @@ static void imxrt_waitenable(FAR struct sdio_dev_s *dev,
 
   if ((eventset & SDIOWAIT_TRANSFERDONE) != 0)
     {
+#ifdef CONFIG_IMXRT_USDHC_DMA
+
+      waitints |= USDHC_DMADONE_INTS;
+#else
       waitints |= USDHC_XFRDONE_INTS;
+#endif
     }
 
   /* Enable event-related interrupts */
@@ -2501,9 +2484,9 @@ static void imxrt_callbackenable(FAR struct sdio_dev_s *dev,
  *   are enabled via a call to SDIO_CALLBACKENABLE
  *
  * Input Parameters:
- *   dev -      Device-specific state data
+ *   dev      - Device-specific state data
  *   callback - The function to call on the media change
- *   arg -      A caller provided value to return with the callback
+ *   arg      - A caller provided value to return with the callback
  *
  * Returned Value:
  *   0 on success; negated errno on failure.
@@ -2554,10 +2537,6 @@ static int imxrt_dmarecvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
   DEBUGASSERT(((uint32_t)buffer & 3) == 0);
 
-  /* Reset the DPSM configuration */
-
-  imxrt_datadisable();
-
   /* Begin sampling register values */
 
   imxrt_sampleinit();
@@ -2567,10 +2546,11 @@ static int imxrt_dmarecvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
 
   priv->buffer    = (uint32_t *)buffer;
   priv->remaining = buflen;
+  priv->bufferend = (uint32_t *)(buffer + buflen);
 
   /* Then set up the SDIO data path */
 
-  imxrt_dataconfig(priv, false, buflen, 1, USDHC_DTOCV_MAXTIMEOUT);
+  imxrt_dataconfig(priv, false, buflen, USDHC_DTOCV_MAXTIMEOUT);
 
   /* Configure the RX DMA */
 
@@ -2612,10 +2592,6 @@ static int imxrt_dmasendsetup(FAR struct sdio_dev_s *dev,
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
   DEBUGASSERT(((uint32_t)buffer & 3) == 0);
 
-  /* Reset the DPSM configuration */
-
-  imxrt_datadisable();
-
   /* Begin sampling register values */
 
   imxrt_sampleinit();
@@ -2628,7 +2604,7 @@ static int imxrt_dmasendsetup(FAR struct sdio_dev_s *dev,
 
   /* Then set up the SDIO data path */
 
-  imxrt_dataconfig(priv, true, buflen, 1, USDHC_DTOCV_MAXTIMEOUT);
+  imxrt_dataconfig(priv, true, buflen, USDHC_DTOCV_MAXTIMEOUT);
 
   /* Configure the TX DMA */
 
@@ -2710,14 +2686,18 @@ static void imxrt_callback(void *arg)
         {
           /* Yes.. queue it */
 
-           mcinfo("Queuing callback to %p(%p)\n", priv->callback, priv->cbarg);
-          (void)work_queue(HPWORK, &priv->cbwork, (worker_t)priv->callback, priv->cbarg, 0);
+           mcinfo("Queuing callback to %p(%p)\n",
+                  priv->callback, priv->cbarg);
+
+          (void)work_queue(HPWORK, &priv->cbwork, (worker_t)priv->callback,
+                           priv->cbarg, 0);
         }
       else
         {
           /* No.. then just call the callback here */
 
           mcinfo("Callback to %p(%p)\n", priv->callback, priv->cbarg);
+
           priv->callback(priv->cbarg);
         }
     }
@@ -2774,37 +2754,33 @@ FAR struct sdio_dev_s *imxrt_usdhc_initialize(int slotno)
 #ifndef CONFIG_SDIO_MUXBUS
   /* Data width 1, 4 or 8 */
 
-  (void)imxrt_config_gpio(PIN_USDHC1_D0 | PADCTL_USDHC1_DATAX);
+  (void)imxrt_config_gpio(PIN_USDHC1_D0);
 
   /* Data width 4 or 8 */
 
 #ifndef CONFIG_IMXRT_USDHC_WIDTH_D1_ONLY
-  (void)imxrt_config_gpio(PIN_USDHC1_D1 | PADCTL_USDHC1_DATAX);
-  (void)imxrt_config_gpio(PIN_USDHC1_D2 | PADCTL_USDHC1_DATAX);
-  (void)imxrt_config_gpio(PIN_USDHC1_D3 | PADCTL_USDHC1_DATAX);
+  (void)imxrt_config_gpio(PIN_USDHC1_D1);
+  (void)imxrt_config_gpio(PIN_USDHC1_D2);
+  (void)imxrt_config_gpio(PIN_USDHC1_D3);
 
   /* Data width 8 (not supported) */
 
 #if 0
-  (void)imxrt_config_gpio(PIN_USDHC1_D4 | PADCTL_USDHC1_DATAX);
-  (void)imxrt_config_gpio(PIN_USDHC1_D5 | PADCTL_USDHC1_DATAX);
-  (void)imxrt_config_gpio(PIN_USDHC1_D6 | PADCTL_USDHC1_DATAX);
-  (void)imxrt_config_gpio(PIN_USDHC1_D7 | PADCTL_USDHC1_DATAX);
+  (void)imxrt_config_gpio(PIN_USDHC1_D4);
+  (void)imxrt_config_gpio(PIN_USDHC1_D5);
+  (void)imxrt_config_gpio(PIN_USDHC1_D6);
+  (void)imxrt_config_gpio(PIN_USDHC1_D7);
 #endif
 #endif
 
   /* Clocking and CMD pins (all data widths) */
 
-  (void)imxrt_config_gpio(PIN_USDHC1_DCLK | PADCTL_USDHC1_CLK);
-  (void)imxrt_config_gpio(PIN_USDHC1_CMD | PADCTL_USDHC1_CMD);
+  (void)imxrt_config_gpio(PIN_USDHC1_DCLK);
+  (void)imxrt_config_gpio(PIN_USDHC1_CMD);
 #endif
 
 #if defined(CONFIG_MMCSD_HAVE_CARDDETECT) && defined(PIN_USDHC1_CD)
-  (void)imxrt_config_gpio(PIN_USDHC1_CD | PADCTL_USDHC1_CD);
-
-  /* Daisy chain select the CD pin */
-
-  putreg32(2, 0x401f85d4);
+  (void)imxrt_config_gpio(PIN_USDHC1_CD);
 #endif
 
   /* Reset the card and assure that it is in the initial, unconfigured

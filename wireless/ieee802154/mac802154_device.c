@@ -116,14 +116,12 @@ struct mac802154_chardevice_s
   sem_t readsem;                        /* Signaling semaphore for waiting read */
   sq_queue_t dataind_queue;
 
-#ifndef CONFIG_DISABLE_SIGNALS
   /* MAC Service notification information */
 
   bool    md_notify_registered;
-  uint8_t md_notify_signo;
   pid_t   md_notify_pid;
-
-#endif
+  struct sigevent md_notify_event;
+  struct sigwork_s md_notify_work;
 };
 
 /****************************************************************************
@@ -160,10 +158,8 @@ static const struct file_operations mac802154dev_fops =
   mac802154dev_read , /* read */
   mac802154dev_write, /* write */
   NULL,               /* seek */
-  mac802154dev_ioctl  /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  , NULL              /* poll */
-#endif
+  mac802154dev_ioctl, /* ioctl */
+  NULL                /* poll */
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   , NULL               /* unlink */
 #endif
@@ -611,7 +607,6 @@ static int mac802154dev_ioctl(FAR struct file *filep, int cmd,
 
   switch (cmd)
     {
-#ifndef CONFIG_DISABLE_SIGNALS
       /* Command:     MAC802154IOC_NOTIFY_REGISTER
        * Description: Register to receive a signal whenever there is a
        *              event primitive sent from the MAC layer.
@@ -624,14 +619,13 @@ static int mac802154dev_ioctl(FAR struct file *filep, int cmd,
         {
           /* Save the notification events */
 
-          dev->md_notify_signo      = macarg->signo;
+          dev->md_notify_event      = macarg->event;
           dev->md_notify_pid        = getpid();
           dev->md_notify_registered = true;
 
           ret = OK;
         }
         break;
-#endif
 
       case MAC802154IOC_GET_EVENT:
         {
@@ -763,21 +757,12 @@ static int mac802154dev_notify(FAR struct mac802154_maccb_s *maccb,
           nxsem_post(&dev->geteventsem);
         }
 
-#ifndef CONFIG_DISABLE_SIGNALS
       if (dev->md_notify_registered)
         {
-
-#ifdef CONFIG_CAN_PASS_STRUCTS
-          union sigval value;
-          value.sival_int = (int)primitive->type;
-          (void)nxsig_queue(dev->md_notify_pid, dev->md_notify_signo,
-                            value);
-#else
-          (void)nxsig_queue(dev->md_notify_pid, dev->md_notify_signo,
-                            (FAR void *)primitive->type);
-#endif
+          dev->md_notify_event.sigev_value.sival_int = primitive->type;
+          nxsig_notification(dev->md_notify_pid, &dev->md_notify_event,
+                             SI_QUEUE, &dev->md_notify_work);
         }
-#endif
 
       mac802154dev_givesem(&dev->md_exclsem);
       return OK;

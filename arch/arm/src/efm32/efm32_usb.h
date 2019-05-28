@@ -44,18 +44,9 @@
 
 #include <stdint.h>
 
-#include "chip/efm32_usb.h"
+#include "hardware/efm32_usb.h"
 
 #if defined(CONFIG_EFM32_OTGFS)
-
-/************************************************************************************
- * Pre-processor Definitions
- ************************************************************************************/
-/* Configuration ********************************************************************/
-
-#ifndef CONFIG_OTGFS_PRI
-#  define CONFIG_OTGFS_PRI NVIC_SYSH_PRIORITY_DEFAULT
-#endif
 
 /************************************************************************************
  * Public Types

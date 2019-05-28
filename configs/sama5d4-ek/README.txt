@@ -1509,8 +1509,7 @@ Networking
       that it supports arch_phy_irq().  This logic can be found at
       nuttx/configs/sama5d4-ek/src/sam_ethernet.c.
 
-    - And a few other things: UDP support is required (CONFIG_NET_UDP) and
-      signals must not be disabled (CONFIG_DISABLE_SIGNALS).
+    - One other thing: UDP support is required (CONFIG_NET_UDP).
 
   Given those prerequisites, the network monitor can be selected with these
   additional settings.
@@ -1680,7 +1679,7 @@ HSMCI Card Slots
 
     Application Configuration -> NSH Library
       CONFIG_NSH_ARCHINIT=y                 : NSH board-initialization, OR
-      CONFIG_BOARD_INITIALIZE=y
+      CONFIG_BOARD_LATE_INITIALIZE=y
 
     Using the SD card
     -----------------

@@ -49,8 +49,6 @@
 #include "group/group.h"
 #include "signal/signal.h"
 
-#if defined(HAVE_TASK_GROUP) && !defined(CONFIG_DISABLE_SIGNALS)
-
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -274,5 +272,3 @@ errout:
 
 #endif
 }
-
-#endif /* HAVE_TASK_GROUP && !CONFIG_DISABLE_SIGNALS */

@@ -1,7 +1,7 @@
 /****************************************************************************
  * graphics/nxmu/nxmu_releasebkgd.c
  *
- *   Copyright (C) 2008-2009, 2011 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009, 2011, 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,31 +39,12 @@
 
 #include <nuttx/config.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <debug.h>
 
 #include <nuttx/nx/nx.h>
-#include "nxfe.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+#include "nxmu.h"
 
 /****************************************************************************
  * Public Functions
@@ -77,34 +58,27 @@
  *   and return control of the background to NX.
  *
  * Input Parameters:
- *   fe - The front-end state structure
+ *   nxmu - The NXMU state structure
  *
  * Returned Value:
  *   None
  *
  ****************************************************************************/
 
-void nxmu_releasebkgd(FAR struct nxfe_state_s *fe)
+void nxmu_releasebkgd(FAR struct nxmu_state_s *nxmu)
 {
-  FAR struct nxbe_state_s *be = &fe->be;
+  FAR struct nxbe_state_s *be;
 
-#ifdef CONFIG_DEBUG_FEATURES
-  if (!fe)
-    {
-      return;
-    }
-#endif
+  DEBUGASSERT(nxmu != NULL);
 
-  /* Destroy the client window callbacks* and restore the server
-   * connection.
-   */
+  /* Destroy the client window callbacks and restore the server connection. */
 
+  be            = &nxmu->be;
   be->bkgd.cb   = NULL;
   be->bkgd.arg  = NULL;
-  be->bkgd.conn = &fe->conn;
+  be->bkgd.conn = &nxmu->conn;
 
   /* Redraw the background window */
 
-  nxfe_redrawreq(&be->bkgd, &be->bkgd.bounds);
+  nxmu_redraw(&be->bkgd, &be->bkgd.bounds);
 }
-

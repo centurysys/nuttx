@@ -1,7 +1,8 @@
 /****************************************************************************
  * fs/mount/fs_mount.c
  *
- *   Copyright (C) 2007-2009, 2011-2013, 2015, 2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011-2013, 2015, 2017-2019 Gregory Nutt. All
+ *     rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,22 +63,25 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* In the canonical case, a file system is bound to a block driver.  However,
  * some less typical cases a block driver is not required.  Examples are
- * pseudo file systems (like BINFS or PROCFS) and MTD file systems (like NXFFS).
+ * pseudo file systems (like BINFS or PROCFS) and MTD file systems (like
+ * NXFFS).
  *
  * These file systems all require block drivers:
  */
 
 #if defined(CONFIG_FS_FAT) || defined(CONFIG_FS_ROMFS) || \
-    defined(CONFIG_FS_SMARTFS)
+    defined(CONFIG_FS_SMARTFS) || defined(CONFIG_FS_LITTLEFS)
 #  define BDFS_SUPPORT 1
 #endif
 
 /* These file systems require MTD drivers */
 
-#ifdef CONFIG_FS_SPIFFS
+#if defined(CONFIG_FS_SPIFFS) || defined(CONFIG_FS_LITTLEFS)
 #  define MDFS_SUPPORT 1
 #endif
 
@@ -86,7 +90,7 @@
 #if defined(CONFIG_FS_NXFFS) || defined(CONFIG_FS_BINFS) || \
     defined(CONFIG_FS_PROCFS) || defined(CONFIG_NFS) || \
     defined(CONFIG_FS_TMPFS) || defined(CONFIG_FS_USERFS) || \
-    defined(CONFIG_FS_CROMFS)
+    defined(CONFIG_FS_CROMFS) || defined(CONFIG_FS_UNIONFS)
 #  define NODFS_SUPPORT
 #endif
 
@@ -116,6 +120,9 @@ extern const struct mountpt_operations romfs_operations;
 #ifdef CONFIG_FS_SMARTFS
 extern const struct mountpt_operations smartfs_operations;
 #endif
+#ifdef CONFIG_FS_LITTLEFS
+extern const struct mountpt_operations littlefs_operations;
+#endif
 
 static const struct fsmap_t g_bdfsmap[] =
 {
@@ -128,6 +135,9 @@ static const struct fsmap_t g_bdfsmap[] =
 #ifdef CONFIG_FS_SMARTFS
     { "smartfs", &smartfs_operations },
 #endif
+#ifdef CONFIG_FS_LITTLEFS
+    { "littlefs", &littlefs_operations },
+#endif
     { NULL,   NULL },
 };
 #endif /* BDFS_SUPPORT */
@@ -135,15 +145,28 @@ static const struct fsmap_t g_bdfsmap[] =
 #ifdef MDFS_SUPPORT
 /* File systems that require MTD drivers */
 
+#ifdef CONFIG_FS_ROMFS
+extern const struct mountpt_operations romfs_operations;
+#endif
 #ifdef CONFIG_FS_SPIFFS
 extern const struct mountpt_operations spiffs_operations;
+#endif
+#ifdef CONFIG_FS_LITTLEFS
+extern const struct mountpt_operations littlefs_operations;
 #endif
 
 static const struct fsmap_t g_mdfsmap[] =
 {
+#ifdef CONFIG_FS_ROMFS
+    { "romfs", &romfs_operations },
+#endif
 #ifdef CONFIG_FS_SPIFFS
     { "spiffs", &spiffs_operations },
 #endif
+#ifdef CONFIG_FS_LITTLEFS
+    { "littlefs", &littlefs_operations },
+#endif
+    { NULL,   NULL },
 };
 #endif /* MDFS_SUPPORT */
 
@@ -174,6 +197,9 @@ extern const struct mountpt_operations hostfs_operations;
 #ifdef CONFIG_FS_CROMFS
 extern const struct mountpt_operations cromfs_operations;
 #endif
+#ifdef CONFIG_FS_UNIONFS
+extern const struct mountpt_operations unionfs_operations;
+#endif
 
 static const struct fsmap_t g_nonbdfsmap[] =
 {
@@ -200,6 +226,9 @@ static const struct fsmap_t g_nonbdfsmap[] =
 #endif
 #ifdef CONFIG_FS_CROMFS
     { "cromfs", &cromfs_operations },
+#endif
+#ifdef CONFIG_FS_UNIONFS
+    { "unionfs", &unionfs_operations },
 #endif
     { NULL, NULL },
 };
@@ -287,31 +316,36 @@ int mount(FAR const char *source, FAR const char *target,
   /* Find the specified filesystem.  Try the block driver file systems first */
 
 #ifdef BDFS_SUPPORT
-  if (source != NULL && (mops = mount_findfs(g_bdfsmap, filesystemtype)) != NULL)
+  if (source != NULL &&
+      (ret = find_blockdriver(source, mountflags, &drvr_inode)) >= 0)
     {
-      /* Find the block driver */
+      /* Find the block based file system */
 
-      ret = find_blockdriver(source, mountflags, &drvr_inode);
-      if (ret < 0)
+      mops = mount_findfs(g_bdfsmap, filesystemtype);
+      if (mops == NULL)
         {
-          ferr("ERROR: Failed to find block driver %s\n", source);
-          errcode = -ret;
-          goto errout;
+          ferr("ERROR: Failed to find block based file system %s\n",
+               filesystemtype);
+
+          errcode = ENODEV;
+          goto errout_with_inode;
         }
     }
   else
 #endif /* BDFS_SUPPORT */
 #ifdef MDFS_SUPPORT
-  if (source != NULL && (mops = mount_findfs(g_mdfsmap, filesystemtype)) != NULL)
+  if (source != NULL && (ret = find_mtddriver(source, &drvr_inode)) >= 0)
     {
-      /* Find the named MTD driver.  NOTE: mountflags are ignored. */
+      /* Find the MTD based file system */
 
-      ret = find_mtddriver(source, &drvr_inode);
-      if (ret < 0)
+      mops = mount_findfs(g_mdfsmap, filesystemtype);
+      if (mops == NULL)
         {
-          ferr("ERROR: Failed to find MTD driver %s\n", source);
-          errcode = -ret;
-          goto errout;
+          ferr("ERROR: Failed to find MTD based file system %s\n",
+               filesystemtype);
+
+          errcode = ENODEV;
+          goto errout_with_inode;
         }
     }
   else
@@ -323,8 +357,9 @@ int mount(FAR const char *source, FAR const char *target,
   else
 #endif /* NODFS_SUPPORT */
     {
-      ferr("ERROR: Failed to find file system %s\n", filesystemtype);
-      errcode = ENODEV;
+      ferr("ERROR: Failed to find block driver %s\n", source);
+
+      errcode = ENOTBLK;
       goto errout;
     }
 
@@ -370,12 +405,14 @@ int mount(FAR const char *source, FAR const char *target,
       ret = inode_reserve(target, &mountpt_inode);
       if (ret < 0)
         {
-          /* inode_reserve can fail for a couple of reasons, but the most likely
-           * one is that the inode already exists. inode_reserve may return:
+          /* inode_reserve can fail for a couple of reasons, but the most
+           * likely one is that the inode already exists. inode_reserve may
+           * return:
            *
            *  -EINVAL - 'path' is invalid for this operation
            *  -EEXIST - An inode already exists at 'path'
-           *  -ENOMEM - Failed to allocate in-memory resources for the operation
+           *  -ENOMEM - Failed to allocate in-memory resources for the
+           *            operation
            */
 
           ferr("ERROR: Failed to reserve inode for target %s\n", target);
@@ -472,39 +509,24 @@ int mount(FAR const char *source, FAR const char *target,
   /* A lot of goto's!  But they make the error handling much simpler */
 
 errout_with_mountpt:
-  mountpt_inode->i_crefs = 0;
   inode_remove(target);
-  inode_semgive();
-
-#if defined(BDFS_SUPPORT) || defined(MDFS_SUPPORT)
-#ifdef NODFS_SUPPORT
-  if (drvr_inode != NULL)
-#endif
-    {
-       inode_release(drvr_inode);
-    }
-#endif
-
   inode_release(mountpt_inode);
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  RELEASE_SEARCH(&desc);
-#endif
-  goto errout;
 
 errout_with_semaphore:
   inode_semgive();
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  RELEASE_SEARCH(&desc);
+#endif
 
 #if defined(BDFS_SUPPORT) || defined(MDFS_SUPPORT)
+errout_with_inode:
+
 #ifdef NODFS_SUPPORT
   if (drvr_inode != NULL)
 #endif
     {
       inode_release(drvr_inode);
     }
-#endif
-
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  RELEASE_SEARCH(&desc);
 #endif
 
 errout:

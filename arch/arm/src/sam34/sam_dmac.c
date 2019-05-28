@@ -57,8 +57,8 @@
 
 #include "sam_dmac.h"
 #include "sam_periphclks.h"
-#include "chip/sam_pmc.h"
-#include "chip/sam_dmac.h"
+#include "hardware/sam_pmc.h"
+#include "hardware/sam_dmac.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -1353,7 +1353,7 @@ static int sam_dmainterrupt(int irq, void *context, FAR void *arg)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_dmainitialize
+ * Name: up_dma_initialize
  *
  * Description:
  *   Initialize the DMA subsystem
@@ -1363,7 +1363,7 @@ static int sam_dmainterrupt(int irq, void *context, FAR void *arg)
  *
  ****************************************************************************/
 
-void weak_function up_dmainitialize(void)
+void weak_function up_dma_initialize(void)
 {
   dmainfo("Initialize DMAC0\n");
 

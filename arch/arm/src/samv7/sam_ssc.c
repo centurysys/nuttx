@@ -62,15 +62,14 @@
 
 #include "up_internal.h"
 #include "up_arch.h"
-#include "cache.h"
 
 #include "sam_gpio.h"
 #include "sam_xdmac.h"
 #include "sam_periphclks.h"
 #include "sam_ssc.h"
-#include "chip/sam_pmc.h"
-#include "chip/sam_ssc.h"
-#include "chip/sam_pinmap.h"
+#include "hardware/sam_pmc.h"
+#include "hardware/sam_ssc.h"
+#include "hardware/sam_pinmap.h"
 
 #if defined(CONFIG_SAMV7_SSC0) || defined(CONFIG_SAMV7_SSC1)
 
@@ -1314,8 +1313,8 @@ static int ssc_rxdma_setup(struct sam_ssc_s *priv)
        */
 #warning Not yet supported
 #if 0
-      arch_invalidate_dcache((uintptr_t)apb->samp,
-                             (uintptr_t)apb->samp + apb->nmaxbytes);
+      up_invalidate_dcache((uintptr_t)apb->samp,
+                           (uintptr_t)apb->samp + apb->nmaxbytes);
 #endif
     }
 #if 1 /* REVISIT: Chained RX transfers */
@@ -1730,9 +1729,9 @@ static int ssc_txdma_setup(struct sam_ssc_s *priv)
        */
 #warning REVISIT
 #if 1
-      arch_invalidate_dcache_all();
+      up_invalidate_dcache_all();
 #else
-      arch_clean_dcache(samp, samp + nbytes);
+      up_clean_dcache(samp, samp + nbytes);
 #endif
     }
 #if 1 /* REVISIT: Chained TX transfers */

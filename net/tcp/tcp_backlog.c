@@ -89,6 +89,13 @@ int tcp_backlogcreate(FAR struct tcp_conn_s *conn, int nblg)
 
   if (nblg > 0)
     {
+      /* nblog value must less than SOMAXCONN */
+
+      if (nblg > SOMAXCONN)
+        {
+          nblg = SOMAXCONN;
+        }
+
       /* Align the list of backlog structures to 32-bit boundaries.  This
        * may be excessive on 24-16-bit address machines; and insufficient
        * on 64-bit address machines -- REVISIT
@@ -267,12 +274,10 @@ int tcp_backlogadd(FAR struct tcp_conn_s *conn, FAR struct tcp_conn_s *blconn)
  *
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 bool tcp_backlogavailable(FAR struct tcp_conn_s *conn)
 {
   return (conn && conn->backlog && !sq_empty(&conn->backlog->bl_pending));
 }
-#endif
 
 /****************************************************************************
  * Name: tcp_backlogremove

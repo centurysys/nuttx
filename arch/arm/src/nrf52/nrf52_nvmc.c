@@ -44,10 +44,12 @@
 
 #include <nuttx/config.h>
 #include <stdbool.h>
-#include "cache.h"
 
-#include "chip/nrf52_ficr.h"
-#include "chip/nrf52_nvmc.h"
+#include "up_arch.h"
+#include "barriers.h"
+
+#include "hardware/nrf52_ficr.h"
+#include "hardware/nrf52_nvmc.h"
 #include "nrf52_nvmc.h"
 
 /****************************************************************************

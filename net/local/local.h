@@ -60,11 +60,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#undef HAVE_LOCAL_POLL
-#ifndef CONFIG_DISABLE_POLL
-#  define HAVE_LOCAL_POLL 1
-#  define LOCAL_ACCEPT_NPOLLWAITERS 2
-#endif
+#define HAVE_LOCAL_POLL 1
+#define LOCAL_ACCEPT_NPOLLWAITERS 2
 
 /* Packet format in FIFO:
  *
@@ -183,7 +180,7 @@ struct local_conn_s
     struct
     {
       uint16_t lc_remaining;   /* (For binary compatibility with peer) */
-      volatile int lc_result;  /* Result of the connection operation (client)*/
+      volatile int lc_result;  /* Result of the connection operation (client) */
     } client;
 
     /* Fields common to connected peers (connected or accepted) */
@@ -650,7 +647,6 @@ int local_open_receiver(FAR struct local_conn_s *conn, bool nonblock);
 int local_open_sender(FAR struct local_conn_s *conn, FAR const char *path,
                       bool nonblock);
 #endif
-
 
 /****************************************************************************
  * Name: local_accept_pollnotify

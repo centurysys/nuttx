@@ -51,6 +51,7 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/fs/ioctl.h>
 #include <nuttx/serial/serial.h>
 #include <nuttx/power/pm.h>
 
@@ -58,15 +59,12 @@
 #  include <termios.h>
 #endif
 
-#include <arch/serial.h>
-
-#include "cache.h"
 #include "up_arch.h"
 #include "up_internal.h"
 
 #include "chip.h"
 #include "stm32_gpio.h"
-#include "chip/stm32_pinmap.h"
+#include "hardware/stm32_pinmap.h"
 #include "stm32_dma.h"
 #include "stm32_rcc.h"
 #include "stm32_uart.h"
@@ -2576,7 +2574,7 @@ static int up_dma_receive(struct uart_dev_s *dev, unsigned int *status)
           /* Invalidate the DMA buffer range */
 
           addr = (uintptr_t)&priv->rxfifo[priv->rxdmanext];
-          arch_invalidate_dcache(addr, addr + rxdmaavail);
+          up_invalidate_dcache(addr, addr + rxdmaavail);
 
           /* We don't need to invalidate the data cache for the next
            * rxdmaavail number of next bytes.

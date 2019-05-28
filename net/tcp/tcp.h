@@ -63,8 +63,7 @@
 
 /* Conditions for support TCP poll/select operations */
 
-#if !defined(CONFIG_DISABLE_POLL) && CONFIG_NSOCKET_DESCRIPTORS > 0 && \
-    defined(CONFIG_NET_TCP_READAHEAD)
+#ifdef CONFIG_NET_TCP_READAHEAD
 #  define HAVE_TCP_POLL
 #endif
 
@@ -312,7 +311,6 @@ extern "C"
 #  define EXTERN extern
 #endif
 
-#if CONFIG_NSOCKET_DESCRIPTORS > 0
 /* List of registered Ethernet device drivers.  You must have the network
  * locked in order to access this list.
  *
@@ -320,12 +318,12 @@ extern "C"
  */
 
 EXTERN struct net_driver_s *g_netdevices;
-#endif
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
+struct file;      /* Forward reference */
 struct sockaddr;  /* Forward reference */
 struct socket;    /* Forward reference */
 struct pollfd;    /* Forward reference */
@@ -1163,7 +1161,7 @@ int tcp_backlogadd(FAR struct tcp_conn_s *conn,
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_TCPBACKLOG) && !defined(CONFIG_DISABLE_POLL)
+#ifdef CONFIG_NET_TCPBACKLOG
 bool tcp_backlogavailable(FAR struct tcp_conn_s *conn);
 #else
 #  define tcp_backlogavailable(c) (false);

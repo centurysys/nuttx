@@ -96,18 +96,18 @@
 
 #if !defined(CONFIG_SCHED_WORKQUEUE)
 #  error Work queue support is required
-#else
-
-  /* Select work queue */
-
-#  if defined(CONFIG_STM32_ETHMAC_HPWORK)
-#    define ETHWORK HPWORK
-#  elif defined(CONFIG_STM32_ETHMAC_LPWORK)
-#    define ETHWORK LPWORK
-#  else
-#    error Neither CONFIG_STM32_ETHMAC_HPWORK nor CONFIG_STM32_ETHMAC_LPWORK defined
-#  endif
 #endif
+
+/* The low priority work queue is preferred.  If it is not enabled, LPWORK
+ * will be the same as HPWORK.
+ *
+ * NOTE:  However, the network should NEVER run on the high priority work
+ * queue!  That queue is intended only to service short back end interrupt
+ * processing that never suspends.  Suspending the high priority work queue
+ * may bring the system to its knees!
+ */
+
+#define ETHWORK LPWORK
 
 #if !defined(CONFIG_STM32_SYSCFG) && !defined(CONFIG_STM32_CONNECTIVITYLINE)
 #  error "CONFIG_STM32_SYSCFG must be defined in the NuttX configuration"
@@ -206,7 +206,7 @@
 #    error missing logic
 #  elif defined( CONFIG_ETH0_PHY_KSZ8081)
 #    define MII_INT_REG    MII_KSZ8081_INT
-#    define MII_INT_SETEN  MII_KSZ80x1_INT_LDEN | MII_KSZ80x1_INT_LUEN
+#    define MII_INT_SETEN  MII_KSZ80X1_INT_LDEN | MII_KSZ80X1_INT_LUEN
 #    define MII_INT_CLREN  0
 #  elif defined( CONFIG_ETH0_PHY_KSZ90x1)
 #    error missing logic
@@ -2873,9 +2873,9 @@ static int stm32_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
 #ifdef CONFIG_ARCH_PHY_INTERRUPT
       case SIOCMIINOTIFY: /* Set up for PHY event notifications */
         {
-          struct mii_iotcl_notify_s *req = (struct mii_iotcl_notify_s *)((uintptr_t)arg);
+          struct mii_ioctl_notify_s *req = (struct mii_ioctl_notify_s *)((uintptr_t)arg);
 
-          ret = phy_notify_subscribe(dev->d_ifname, req->pid, req->signo, req->arg);
+          ret = phy_notify_subscribe(dev->d_ifname, req->pid, &req->event);
           if (ret == OK)
             {
               /* Enable PHY link up/down interrupts */
@@ -4022,10 +4022,9 @@ static int stm32_ethconfig(FAR struct stm32_ethmac_s *priv)
  *
  ****************************************************************************/
 
-#if STM32_NETHERNET == 1
+#if STM32_NETHERNET == 1 || defined(CONFIG_NETDEV_LATEINIT)
 static inline
 #endif
-
 int stm32_ethinitialize(int intf)
 {
   struct stm32_ethmac_s *priv;
@@ -4106,7 +4105,7 @@ int stm32_ethinitialize(int intf)
  *
  ****************************************************************************/
 
-#if STM32_NETHERNET == 1
+#if STM32_NETHERNET == 1 && !defined(CONFIG_NETDEV_LATEINIT)
 void up_netinitialize(void)
 {
   (void)stm32_ethinitialize(0);

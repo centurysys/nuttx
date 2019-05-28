@@ -63,9 +63,9 @@
 /* Bit values for the second argument to access */
 
 #define F_OK        0  /* Test existence */
-#define R_OK        1  /* Test read permission */
+#define X_OK        1  /* Test execute permission */
 #define W_OK        2  /* Test write permission */
-#define X_OK        4  /* Test execute permission */
+#define R_OK        4  /* Test read permission */
 
 /* POSIX feature set macros */
 
@@ -361,10 +361,8 @@ FAR char **getoptargp(void);  /* Optional argument following option */
 FAR int   *getoptindp(void);  /* Index into argv */
 FAR int   *getoptoptp(void);  /* Unrecognized option character */
 
-#ifdef CONFIG_NET
 int     gethostname(FAR char *name, size_t size);
 int     sethostname(FAR const char *name, size_t size);
-#endif
 
 /* Get configurable system variables */
 

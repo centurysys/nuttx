@@ -44,15 +44,19 @@
 #include <errno.h>
 
 #if defined(CONFIG_VNCSERVER_DEBUG) && !defined(CONFIG_DEBUG_GRAPHICS)
-#  undef  CONFIG_DEBUG_FEATURES
 #  undef  CONFIG_DEBUG_ERROR
 #  undef  CONFIG_DEBUG_WARN
 #  undef  CONFIG_DEBUG_INFO
-#  define CONFIG_DEBUG_FEATURES 1
-#  define CONFIG_DEBUG_ERROR    1
-#  define CONFIG_DEBUG_WARN     1
-#  define CONFIG_DEBUG_INFO     1
-#  define CONFIG_DEBUG_GRAPHICS 1
+#  undef  CONFIG_DEBUG_GRAPHICS_ERROR
+#  undef  CONFIG_DEBUG_GRAPHICS_WARN
+#  undef  CONFIG_DEBUG_GRAPHICS_INFO
+#  define CONFIG_DEBUG_ERROR          1
+#  define CONFIG_DEBUG_WARN           1
+#  define CONFIG_DEBUG_INFO           1
+#  define CONFIG_DEBUG_GRAPHICS       1
+#  define CONFIG_DEBUG_GRAPHICS_ERROR 1
+#  define CONFIG_DEBUG_GRAPHICS_WARN  1
+#  define CONFIG_DEBUG_GRAPHICS_INFO  1
 #endif
 #include <debug.h>
 
@@ -160,7 +164,8 @@ static size_t vnc_copy16(FAR struct vnc_session_s *session,
 
   /* Source rectangle start address (left/top)*/
 
-  srcleft = (FAR lfb_color_t *)(session->fb + RFB_STRIDE * row + RFB_BYTESPERPIXEL * col);
+  srcleft = (FAR lfb_color_t *)
+    (session->fb + RFB_STRIDE * row + RFB_BYTESPERPIXEL * col);
 
   /* Transfer each row from the source buffer into the update buffer */
 
@@ -231,7 +236,8 @@ static size_t vnc_copy32(FAR struct vnc_session_s *session,
 
   /* Source rectangle start address (left/top)*/
 
-  srcleft = (FAR lfb_color_t *)(session->fb + RFB_STRIDE * row + RFB_BYTESPERPIXEL * col);
+  srcleft = (FAR lfb_color_t *)
+    (session->fb + RFB_STRIDE * row + RFB_BYTESPERPIXEL * col);
 
   /* Transfer each row from the source buffer into the update buffer */
 
@@ -401,7 +407,7 @@ int vnc_raw(FAR struct vnc_session_s *session, FAR struct nxgl_rect_s *rect)
           updheight = srcheight;
         }
 
-      /* Loop until this horizontal swath has sent to the VNC client.
+      /* Loop until this horizontal swath has been sent to the VNC client.
        * Start with the leftmost pixel and transfer rectangles
        * horizontally with width of destwidth until all srcwidth
        * columns have been transferred (the last rectangle may be

@@ -1,18 +1,11 @@
 <html>
 <head>
 <title>NuttShell</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body background="backgd.gif">
-<hr><hr>
-<table width ="100%">
-  <tr align="center" bgcolor="#e4e4e4">
-    <td>
-      <h1><big><font color="#3c34ec"><i>NuttShell (NSH)</i></font></big></h1>
-      <p>Last Updated:  October 2, 2018</p>
-    </td>
-  </tr>
-</table>
-<hr><hr>
+<div class="container">
+<div class="toc">
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
     <td>
@@ -21,7 +14,7 @@
   </tr>
 </table>
 
-<center><table width ="80%">
+<table width ="80%" class="toc_table">
 <tr>
 <td>
 <table>
@@ -626,7 +619,21 @@
     <a href="#index">Index</a>
   </td>
 </tr>
-</table></center>
+</table></table>
+</div>
+
+<div class="main">
+<hr><hr>
+<table width ="100%">
+  <tr align="center" bgcolor="#e4e4e4">
+    <td>
+      <h1><big><font color="#3c34ec"><i>NuttShell (NSH)</i></font></big></h1>
+      <p>Last Updated:  February 11, 2019</p>
+    </td>
+  </tr>
+</table>
+<hr><hr>
+
 
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
@@ -1241,6 +1248,7 @@ test &lt;expression&gt;
 <p><b>Command Syntax:</b></p>
 <ul><pre>
 addroute &lt;target&gt; [&lt;netmask&gt;] &lt;router&gt;
+addroute default &lt;ipaddr&gt; &lt;interface&gt;
 </pre></ul>
 <p>
   <b>Synopsis</b>.
@@ -1263,6 +1271,9 @@ nsh&gt; addroute addroute 11.0.0.0 255.255.255.0 10.0.0.2
 <ul><pre>
 nsh&gt; addroute 11.0.0.0/24 10.0.0.2
 </pre></ul>
+<p>
+  The second form of the addroute command can be used to set the default gateway.
+</p>
 
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
@@ -1490,7 +1501,7 @@ date [-s &quot;MMM DD HH:MM:SS YYYY&quot;]
   Only one format is used both on display and when setting the date/time:
   <code>MMM DD HH:MM:SS YYYY</code>.  For example,
 <ul><pre>
-data -s &quot;Sep 1 11:30:00 2011&quot;
+date -s &quot;Sep 1 11:30:00 2011&quot;
 </pre></ul>
 </p>
 <p>
@@ -3612,22 +3623,22 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>cat</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_CAT</code></td>
   </tr>
   <tr>
     <td><b><code>cd</code></b></td>
-    <td>!<code>CONFIG_DISABLE_ENVIRON</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>!<code>CONFIG_DISABLE_ENVIRON</code></td>
     <td><code>CONFIG_NSH_DISABLE_CD</code></td>
   </tr>
   <tr>
     <td><b><code>cmp</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_CMP</code></td>
   </tr>
   <tr>
     <td><b><code>cp</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_CP</code></td>
   </tr>
   <tr>
@@ -3637,7 +3648,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>dd</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_DD</code></td>
   </tr>
   <tr>
@@ -3647,7 +3658,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>df</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_READABLE</code><sup>3</sup></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_READABLE</code><sup>3</sup></td>
     <td><code>CONFIG_NSH_DISABLE_DF</code></td>
   </tr>
   <tr>
@@ -3662,7 +3673,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>env</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_PROCFS</code> &amp;&amp; !<code>CONFIG_DISABLE_ENVIRON</code> &amp;&amp; !<code>CONFIG_PROCFS_EXCLUDE_ENVIRON</code>
+    <td><code>CONFIG_FS_PROCFS</code> &amp;&amp; !<code>CONFIG_DISABLE_ENVIRON</code> &amp;&amp; !<code>CONFIG_PROCFS_EXCLUDE_ENVIRON</code>
     <td><code>CONFIG_NSH_DISABLE_ENV</code></td>
   </tr>
   <tr>
@@ -3687,8 +3698,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>get</code></b></td>
-    <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_UDP</code> &amp;&amp;
-        <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <i>MTU</i> &gt;= 558<sup>1</sup></td>
+    <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_UDP</code> &amp;&amp; <i>MTU</i> &gt;= 558<sup>1</sup></td>
     <td><code>CONFIG_NSH_DISABLE_GET</code></td>
   </tr>
   <tr>
@@ -3698,7 +3708,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>hexdump</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_HEXDUMP</code></td>
   </tr>
   <tr>
@@ -3728,22 +3738,22 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>kill</code></b></td>
-    <td>!<code>CONFIG_DISABLE_SIGNALS</code></td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_KILL</code></td>
   </tr>
   <tr>
     <td><b><code>losetup</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_DEV_LOOP</code></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_DEV_LOOP</code></td>
     <td><code>CONFIG_NSH_DISABLE_LOSETUP</code></td>
   </tr>
   <tr>
     <td><b><code>ln</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_PSEUDOFS_SOFTLINKS</code></td>
+    <td><code>CONFIG_PSEUDOFS_SOFTLINKS</code></td>
     <td><code>CONFIG_NSH_DISABLE_LN</code></td>
   </tr>
   <tr>
     <td><b><code>ls</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_LS</code></td>
   </tr>
   <tr>
@@ -3767,37 +3777,37 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>mkdir</code></b></td>
-    <td>(((!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code>) || !<code>CONFIG_DISABLE_PSEUDOFS_OPERATIONS</code>) &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0)<sup>4</sup></td>
+    <td>(((!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code>) || !<code>CONFIG_DISABLE_PSEUDOFS_OPERATIONS</code>)</td>
     <td><code>CONFIG_NSH_DISABLE_MKDIR</code></td>
   </tr>
   <tr>
     <td><b><code>mkfatfs</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FSUTILS_MKFATFS</code></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FSUTILS_MKFATFS</code></td>
     <td><code>CONFIG_NSH_DISABLE_MKFATFS</code></td>
   </tr>
   <tr>
     <td><b><code>mkfifo</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_PIPES</code> &amp;&amp; <code>CONFIG_DEV_FIFO_SIZE</code> &gt; 0</td>
+    <td><code>CONFIG_PIPES</code> &amp;&amp; <code>CONFIG_DEV_FIFO_SIZE</code> &gt; 0</td>
     <td><code>CONFIG_NSH_DISABLE_MKFIFO</code></td>
   </tr>
   <tr>
     <td><b><code>mkrd</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_WRITABLE</code><sup>4</sup></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code><sup>4</sup></td>
     <td><code>CONFIG_NSH_DISABLE_MKRD</code></td>
   </tr>
   <tr>
     <td><b><code>mount</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_READABLE</code><sup>3</sup></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_READABLE</code><sup>3</sup></td>
     <td><code>CONFIG_NSH_DISABLE_MOUNT</code></td>
   </tr>
   <tr>
     <td><b><code>mv</code></b></td>
-    <td>(((!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code>) || !<code>CONFIG_DISABLE_PSEUDOFS_OPERATIONS</code>) &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0)<sup>4</sup></td>
+    <td>(!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code>) || !<code>CONFIG_DISABLE_PSEUDOFS_OPERATIONS</code><sup>4</sup></td>
     <td><code>CONFIG_NSH_DISABLE_MV</code></td>
   </tr>
   <tr>
     <td><b><code>nfsmount</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NFS</code></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NFS</code></td>
     <td><code>CONFIG_NSH_DISABLE_NFSMOUNT</code></td>
   </tr>
   <tr>
@@ -3807,7 +3817,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>passwd</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_WRITABLE</code> &amp;&amp; <code>CONFIG_NSH_LOGIN_PASSWD</code></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code> &amp;&amp; <code>CONFIG_NSH_LOGIN_PASSWD</code>sup>4</sup></td>
     <td><code>CONFIG_NSH_DISABLE_PASSWD</code></td>
   </tr>
   <tr>
@@ -3823,17 +3833,17 @@ nsh&gt;
   <tr>
     <td><b><code>put</code></b></td>
     <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_UDP</code> &amp;&amp;
-    <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <i>MTU</i> &gt;= 558<sup>1,2</sup></td>
+    <code><i>MTU</i> &gt;= 558<sup>1,2</sup></td>
     <td><code>CONFIG_NSH_DISABLE_PUT</code></td>
   </tr>
   <tr>
     <td><b><code>pwd</code></b></td>
-    <td>!<code>CONFIG_DISABLE_ENVIRON</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>!<code>CONFIG_DISABLE_ENVIRON</code></td>
     <td><code>CONFIG_NSH_DISABLE_PWD</code></td>
   </tr>
   <tr>
     <td><b><code>readlink</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_PSEUDOFS_SOFTLINKS</code></td>
+    <td><code>CONFIG_PSEUDOFS_SOFTLINKS</code></td>
     <td><code>CONFIG_NSH_DISABLE_READLINK</code></td>
   </tr>
   <tr>
@@ -3843,12 +3853,12 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>rm</code></b></td>
-    <td>(((!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code>) || !<code>CONFIG_DISABLE_PSEUDOFS_OPERATIONS</code>) &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0)<sup>4</sup></td>
+    <td>(!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code>) || !<code>CONFIG_DISABLE_PSEUDOFS_OPERATIONS</code><sup>4</sup></td>
     <td><code>CONFIG_NSH_DISABLE_RM</code></td>
   </tr>
   <tr>
     <td><b><code>rmdir</code></b></td>
-    <td>(((!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code>) || !<code>CONFIG_DISABLE_PSEUDOFS_OPERATIONS</code>) &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0)<sup>4</sup></td>
+    <td>(!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code>) || !<code>CONFIG_DISABLE_PSEUDOFS_OPERATIONS</code><sup>4</sup></td>
     <td><code>CONFIG_NSH_DISABLE_RMDIR</code></td>
   </tr>
   <tr>
@@ -3868,7 +3878,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>sh</code></b></td>
-    <td><code>CONFIG_NFILE_DESCRIPTORS &gt; 0 &amp;&amp; <code>CONFIG_NFILE_STREAMS &gt; 0 &amp;&amp; !<code>CONFIG_NSH_DISABLESCRIPT</code></td>
+    <td><code>CONFIG_NFILE_STREAMS &gt; 0 &amp;&amp; !<code>CONFIG_NSH_DISABLESCRIPT</code></td>
     <td><code>CONFIG_NSH_DISABLE_SH</code></td>
   </tr>
   <tr>
@@ -3878,7 +3888,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>sleep</code></b></td>
-    <td>!<code>CONFIG_DISABLE_SIGNALS</code></td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_SLEEP</code></td>
   </tr>
   <tr>
@@ -3898,12 +3908,12 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>truncate</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code></td>
     <td><code>CONFIG_NSH_DISABLE_TRUNCATE</code></td>
   </tr>
   <tr>
     <td><b><code>umount</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_READABLE</code><sup>3</sup></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_READABLE</code><sup>3</sup></td>
     <td><code>CONFIG_NSH_DISABLE_UMOUNT</code></td>
   </tr>
   <tr>
@@ -3928,23 +3938,22 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>useradd</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_WRITABLE</code> &amp;&amp; <code>CONFIG_NSH_LOGIN_PASSWD</code></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code> &amp;&amp; <code>CONFIG_NSH_LOGIN_PASSWD</code>sup>4</sup></td>
     <td><code>CONFIG_NSH_DISABLE_USERADD</code></td>
   </tr>
   <tr>
     <td><b><code>userdel</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_WRITABLE</code> &amp;&amp; <code>CONFIG_NSH_LOGIN_PASSWD</code></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_FS_WRITABLE</code> &amp;&amp; <code>CONFIG_NSH_LOGIN_PASSWD</code>sup>4</sup></td>
     <td><code>CONFIG_NSH_DISABLE_USERDEL</code></td>
   </tr>
   <tr>
     <td><b><code>usleep</code></b></td>
-    <td>!<code>CONFIG_DISABLE_SIGNALS</code></td>
+    <td>&nbsp;</td>
     <td><code>CONFIG_NSH_DISABLE_USLEEP</code></td>
   </tr>
   <tr>
     <td><b><code>wget</code></b></td>
-    <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_TCP</code> &amp;&amp;
-        <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0</td>
+    <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_TCP</code></td>
     <td><code>CONFIG_NSH_DISABLE_WGET</code></td>
   </tr>
   <tr>
@@ -3994,12 +4003,12 @@ nsh&gt;
   <tr>
     <td><b><code>ping</code></b></td>
     <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_ICMP</code> &amp;&amp;
-        <code>CONFIG_NET_ICMP_SOCKET</code> &amp;&amp; <code>CONFIG_SYSTEM_PING</code> &amp;&amp; !<code>CONFIG_DISABLE_SIGNALS</code> &amp;&amp; !<code>CONFIG_DISABLE_POLL</code></td>
+        <code>CONFIG_NET_ICMP_SOCKET</code> &amp;&amp; <code>CONFIG_SYSTEM_PING</code></td>
   </tr>
   <tr>
     <td><b><code>ping6</code></b></td>
     <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_ICMPv6</code> &amp;&amp;
-        <code>CONFIG_NET_ICMPv6_SOCKET</code> &amp;&amp; <code>CONFIG_SYSTEM_PING6</code> &amp;&amp; !<code>CONFIG_DISABLE_SIGNALS</code> &amp;&amp; !<code>CONFIG_DISABLE_POLL</code></td>
+        <code>CONFIG_NET_ICMPv6_SOCKET</code> &amp;&amp; <code>CONFIG_SYSTEM_PING6</code></td>
   </tr>
 </table></center>
 
@@ -5910,5 +5919,7 @@ xxd -i romfs_img >nsh_romfsimg.h
 </ul></td>
 </tr></table>
 
+</div>
+</div>
 </body>
 </html>

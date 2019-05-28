@@ -51,8 +51,8 @@
 #include "up_arch.h"
 
 #include "chip.h"
-#include "chip/nuc_clk.h"
-#include "chip/nuc_gcr.h"
+#include "hardware/nuc_clk.h"
+#include "hardware/nuc_gcr.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -160,7 +160,7 @@ static int nuc_timerisr(int irq, uint32_t *regs, void *arg)
 {
   /* Process timer interrupt */
 
-  sched_process_timer();
+  nxsched_process_timer();
   return 0;
 }
 

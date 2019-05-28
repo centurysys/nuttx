@@ -52,4 +52,12 @@ ifeq ($(CONFIG_LIB_BOARDCTL),y)
 CSRCS += stm32_appinitialize.c
 endif
 
+ifeq ($(CONFIG_ADC),y)
+CSRCS += stm32_adc.c
+endif
+
+ifeq ($(CONFIG_LCD_SSD1306),y)
+CSRCS += stm32_ssd1306.c
+endif
+
 include $(TOPDIR)/configs/Board.mk

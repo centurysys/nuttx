@@ -2,22 +2,12 @@
 <head>
 <title>NuttX C Coding Standard</title>
 <meta name="author" content="Gregory Nutt">
+<link rel="stylesheet" href="style.css">
 </head>
 
-<body background="backgd.gif">
-<hr><hr>
-<table width ="100%">
-  <tr align="center" bgcolor="#e4e4e4">
-    <td>
-      <h1><big><font color="#3c34ec">
-        <i>NuttX C Coding Standard</i>
-      </font></big></h1>
-      <p>Last Updated: August 28, 2018</p>
-    </td>
-  </tr>
-</table>
-<hr><hr>
-
+<body>
+<div class="container">
+<div class="toc">
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
     <td>
@@ -74,6 +64,21 @@
     <a href="#hfilestructure">A.2 C Header File Structure</a>
   </ul>
 </ul>
+</div>
+
+<div class="main">
+<hr><hr>
+<table width ="100%">
+  <tr align="center" bgcolor="#e4e4e4">
+    <td>
+      <h1><big><font color="#3c34ec">
+        <i>NuttX C Coding Standard</i>
+      </font></big></h1>
+      <p>Last Updated: February 5, 2019</p>
+    </td>
+  </tr>
+</table>
+<hr><hr>
 
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
@@ -769,6 +774,10 @@ void some_function(void)
 
 <h2>1.4 <a name="braces">Braces</a></h2>
 
+<p>
+  In general, the use of braces in the NuttX coding standard is similar to the use of braces in the <a href="https://www.gnu.org/prep/standards/standards.pdf">GNU Coding standards</a> with a few subtle differences.
+</p>
+
 <p><b>Coding Standard:</b></p>
 <ul>
   <li>
@@ -957,8 +966,13 @@ int animals(int animal)
 <h2>1.5 <a name="indentation">Indentation</b></h2>
 
 <p>
+  In general, the indentation in the NuttX coding standard is similar to the indentation requirements of the <a href="https://www.gnu.org/prep/standards/standards.pdf">GNU Coding standards</a> with a few subtle differences.
+</p>
+
+<p>
   <b>Indentation Unit</b>.
   Indentation is in units of two spaces; Each indentation level is twos spaces further to the right than the preceding identation levels.
+  TAB characters may not be used for indentation.
 </p>
 <center><table width="60%" border=1>
 <tr><td bgcolor="white">
@@ -994,8 +1008,18 @@ int animals(int animal)
 <p>
   <b>Alignment of Braces</b>.
   Note that since braces must be on a separate line (see above), this indentation by two spaces has an interesting property:
-  All C statements (and case selectors) like on lines that are odd multiples of 2 spaces: 2, 6, 10, ... (2*n + 1).
-  A braces lie on a separate line indented by an even multple of 2 spaces: 4, 8, 12, ... 2*n.
+</p>
+<ul>
+  <li><p>
+    All C statements (and case selectors) lie on lines that are multiples of 4 spaces (beginning with an indentation of two): 2, 6, 10, ... (4*n + 2) (for indentation level n = 0, 1, ...)
+  </p></li>
+  <li><p>
+    Braces lie on a separate line also indented by multiple of 4 spaces: 4, 8, 12, ... 4*n (for indentation level n = 1, 2, ...)
+  </p></li>
+</ul>
+<p>
+   Thus, all code at the indentation level should align on the same column.
+   Similarly, opening and closing braces at the same indentation level should also align on the same (but different) column.
 </p>
 
 <p>
@@ -2964,6 +2988,9 @@ Each is preceded by a function header similar to the above.</i></p>
 #endif /* __INCLUDE_ASSERT_H */
 </pre>
 <p><i>Ending with the header file <a href="#idempotence">idempotence</a> <code>#endif</code>.</i></p>
+
+</div>
+</div>
 
 </body>
 </html>

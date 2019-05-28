@@ -277,7 +277,7 @@ int ipv6_input(FAR struct net_driver_s *dev)
   FAR uint8_t *payload;
   uint16_t llhdrlen;
   uint16_t iphdrlen;
-  uint16_t pktlen;
+  uint16_t paylen;
   uint8_t nxthdr;
 #ifdef CONFIG_NET_IPFORWARD
   int ret;
@@ -289,8 +289,10 @@ int ipv6_input(FAR struct net_driver_s *dev)
   g_netstats.ipv6.recv++;
 #endif
 
-  /* Start of IP input header processing code. */
-  /* Check validity of the IP header. */
+  /* Start of IP input header processing code.
+   *
+   * Check validity of the IP header.
+   */
 
   if ((ipv6->vtc & 0xf0) != 0x60)
     {
@@ -321,6 +323,37 @@ int ipv6_input(FAR struct net_driver_s *dev)
 
   IFF_SET_IPv6(dev->d_flags);
 
+  /* Check the size of the packet. If the size reported to us in d_len is
+   * smaller the size reported in the IP header, we assume that the packet
+   * has been corrupted in transit. If the size of d_len is larger than the
+   * size reported in the IP packet header, the packet has been padded and
+   * we set d_len to the correct value.
+   *
+   * The length reported in the IPv6 header is the length of the payload
+   * that follows the header.  The device interface uses the d_len variable
+   * for holding the size of the entire packet, including the IP header but
+   * without the link layer header (subtracted out above).
+   *
+   * NOTE: The payload length in the includes the size of the Ipv6 extension
+   * options, but not the size of the IPv6 header.
+   *
+   * REVISIT:  Length will be set to zero if the extension header carries
+   * a Jumbo payload option.
+   */
+
+  paylen = ((uint16_t)ipv6->len[0] << 8) + (uint16_t)ipv6->len[1] +
+           IPv6_HDRLEN;
+
+  if (paylen <= dev->d_len)
+    {
+      dev->d_len = paylen;
+    }
+  else
+    {
+      nwarn("WARNING: IP packet shorter than length in IP header\n");
+      goto drop;
+    }
+
   /* Parse IPv6 extension headers (parsed but ignored) */
 
   payload  = PAYLOAD;     /* Assume payload starts right after IPv6 header */
@@ -338,58 +371,23 @@ int ipv6_input(FAR struct net_driver_s *dev)
       extlen    = EXTHDR_LEN((unsigned int)exthdr->len);
       payload  += extlen;
       iphdrlen += extlen;
-
-      /* Check for a short packet */
-
-      if (iphdrlen > dev->d_len)
-        {
-          nwarn("WARNING: Packet shorter than IPv6 header\n");
-          goto drop;
-        }
-
-      /* Set up for the next time through the loop */
-
-      exthdr    = (FAR struct ipv6_extension_s *)payload;
       nxthdr    = exthdr->nxthdr;
     }
 
-  /* Check the size of the packet. If the size reported to us in d_len is
-   * smaller the size reported in the IP header, we assume that the packet
-   * has been corrupted in transit. If the size of d_len is larger than the
-   * size reported in the IP packet header, the packet has been padded and
-   * we set d_len to the correct value.
+#ifdef CONFIG_NET_BROADCAST
+  /* Check for a multicast packet, which may be destined to us (even if
+   * there is no IP address yet assigned to the device).  We only expect
+   * multicast packets destined for sockets that have joined a multicast
+   * group or for ICMPv6 Autoconfiguration and Neighbor discovery or ICMPv6
+   * MLD packets.
    *
-   * The length reported in the IPv6 header is the length of the payload
-   * that follows the header.  The device interface uses the d_len variable
-   * for holding the size of the entire packet, including the IP header but
-   * without the link layer header.
-   *
-   * REVISIT:  Length will be set to zero if the extension header carries
-   * a Jumbo payload option.
+   * We should actually pick off certain multicast address (all hosts
+   * multicast address, and the solicited-node multicast address).  We
+   * will cheat here and accept all multicast packets that are sent to the
+   * ff00::/8 addresses (see net_is_addr_mcast).
    */
 
-  pktlen = ((uint16_t)ipv6->len[0] << 8) + (uint16_t)ipv6->len[1] + iphdrlen;
-
-  if (pktlen <= dev->d_len)
-    {
-      dev->d_len = pktlen;
-    }
-  else
-    {
-      nwarn("WARNING: IP packet shorter than length in IP header\n");
-      goto drop;
-    }
-
-  /* If UDP broadcast support is configured, we check for a multicast
-   * UDP packet, which may be destined to us (even if there is no IP
-   * address yet assigned to the device).  We should actually pick off
-   * certain multicast address (all hosts multicast address, and the
-   * solicited-node multicast address).  We will cheat here and accept
-   * all multicast packets that are sent to the ff00::/8 addresses.
-   */
-
-#if defined(CONFIG_NET_BROADCAST) && defined(NET_UDP_HAVE_STACK)
-  if (ipv6->proto == IP_PROTO_UDP && net_is_addr_mcast(ipv6->destipaddr))
+  if (net_is_addr_mcast(ipv6->destipaddr))
     {
 #ifdef CONFIG_NET_IPFORWARD_BROADCAST
 
@@ -406,7 +404,10 @@ int ipv6_input(FAR struct net_driver_s *dev)
           ipv6_forward_broadcast(dev, ipv6);
         }
 #endif
-      return udp_ipv6_input(dev, iphdrlen);
+
+      /* Fall through with no further address checks and handle the multicast
+       * address by its IPv6 nexthdr field.
+       */
     }
 
   /* In other cases, the device must be assigned a non-zero IP address
@@ -418,11 +419,6 @@ int ipv6_input(FAR struct net_driver_s *dev)
 #ifdef CONFIG_NET_ICMPv6
   if (net_ipv6addr_cmp(dev->d_ipv6addr, g_ipv6_unspecaddr))
     {
-      /* If we are configured to use ping IP address configuration and
-       * hasn't been assigned an IP address yet, we accept all ICMP
-       * packets.
-       */
-
       nwarn("WARNING: No IP address assigned\n");
       goto drop;
     }
@@ -512,9 +508,9 @@ int ipv6_input(FAR struct net_driver_s *dev)
         break;
 #endif
 
-#ifdef CONFIG_NET_ICMPv6
       /* Check for ICMP input */
 
+#ifdef NET_ICMPv6_HAVE_STACK
       case IP_PROTO_ICMP6: /* ICMP6 input */
         /* Forward the ICMPv6 packet */
 
@@ -546,7 +542,7 @@ int ipv6_input(FAR struct net_driver_s *dev)
           }
 #endif /* CONFIG_NET_6LOWPAN */
         break;
-#endif /* CONFIG_NET_ICMPv6 */
+#endif /* NET_ICMPv6_HAVE_STACK */
 
       default:              /* Unrecognized/unsupported protocol */
         nwarn("WARNING: Unrecognized IP protocol: %04x\n", ipv6->proto);

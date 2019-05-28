@@ -61,9 +61,9 @@
 #include "imxrt_lpi2c.h"
 #include "imxrt_gpio.h"
 
-#include "chip/imxrt_pinmux.h"
-#include "chip/imxrt_ccm.h"
-#include "chip/imxrt_periphclks.h"
+#include "hardware/imxrt_pinmux.h"
+#include "hardware/imxrt_ccm.h"
+#include "hardware/imxrt_periphclks.h"
 
 /* At least one I2C peripheral must be enabled */
 
@@ -125,6 +125,16 @@
 
 #define LPI2C_MASTER    1
 #define LPI2C_SLAVE     2
+
+#define MKI2C_OUTPUT(p) (((p) & GPIO_PADMUX_MASK) | \
+                         IOMUX_OPENDRAIN | IOMUX_DRIVE_33OHM | \
+                         IOMUX_SLEW_SLOW | (5 << GPIO_ALT_SHIFT) | \
+                         IOMUX_PULL_NONE | GPIO_OUTPUT_ONE)
+
+#define MKI2C_INPUT(p) (((p) & GPIO_PADMUX_MASK) | \
+                        IOMUX_DRIVE_HIZ | IOMUX_SLEW_SLOW | \
+                        IOMUX_CMOS_INPUT | (5 << GPIO_ALT_SHIFT) | \
+                        IOMUX_PULL_NONE)
 
 /************************************************************************************
  * Private Types
@@ -955,7 +965,7 @@ static void imxrt_lpi2c_tracedump(FAR struct imxrt_lpi2c_priv_s *priv)
   syslog(LOG_DEBUG, "Elapsed time: %ld\n",
          (long)(clock_systimer() - priv->start_time));
 
-  for (i = 0; i <= priv->tndx; i++)
+  for (i = 0; i < priv->tndx; i++)
     {
       trace = &priv->trace[i];
       syslog(LOG_DEBUG,
@@ -1607,7 +1617,7 @@ static int imxrt_lpi2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg
   priv->msgc  = count;
   priv->flags = msgs->flags;
 
-  i2cinfo("Flags %d, len %d \n", msgs->flags, msgs->length);
+  i2cinfo("Flags %x, len %d \n", msgs->flags, msgs->length);
 
   /* Reset I2C trace logic */
 
@@ -1641,23 +1651,27 @@ static int imxrt_lpi2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg
         {
           /* Bus Error */
 
+          i2cerr("Bus error\n");
           ret = -EIO;
         }
       else if (status & LPI2C_MSR_ALF)
         {
           /* Arbitration Lost (master mode) */
 
+          i2cerr("Arbitration lost\n");
           ret = -EAGAIN;
         }
       else if (status & LPI2C_MSR_NDF)
         {
           /* Acknowledge Failure */
 
+          i2cerr("Ack failure\n");
           ret = -ENXIO;
         }
       else
         {
-          ret = -EINTR;
+            i2cerr("Unspecified error\n");
+            ret = -EINTR;
         }
     }
 
@@ -1785,8 +1799,11 @@ static int imxrt_lpi2c_reset(FAR struct i2c_master_s *dev)
 
   /* Revert the GPIO configuration. */
 
-  imxrt_unconfig_gpio(sda_gpio);
-  imxrt_unconfig_gpio(scl_gpio);
+  sda_gpio = MKI2C_INPUT(sda_gpio);
+  scl_gpio = MKI2C_INPUT(scl_gpio);
+
+  imxrt_config_gpio(sda_gpio);
+  imxrt_config_gpio(scl_gpio);
 
   /* Re-init the port */
 

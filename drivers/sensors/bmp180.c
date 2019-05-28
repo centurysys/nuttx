@@ -163,12 +163,12 @@ static const struct file_operations g_bmp180fops =
   bmp180_close,                 /* close */
   bmp180_read,                  /* read */
   bmp180_write,                 /* write */
-  0,                            /* seek */
-  0,                            /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  0,                            /* poll */
+  NULL,                         /* seek */
+  NULL,                         /* ioctl */
+  NULL                          /* poll */
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  , NULL                        /* unlink */
 #endif
-  0                             /* unlink */
 };
 
 /****************************************************************************
@@ -472,11 +472,13 @@ static int bmp180_getpressure(FAR struct bmp180_dev_s *priv)
 
   /* Calculate true temperature */
 
-  x1 = ((priv->bmp180_utemp - priv->bmp180_cal_ac6) * priv->bmp180_cal_ac5) >> 15;
-  x2 = (priv->bmp180_cal_mc << 11) / (x1 + priv->bmp180_cal_md);
-  b5 = x1 + x2;
+  x1   = ((priv->bmp180_utemp - priv->bmp180_cal_ac6) * priv->bmp180_cal_ac5) >> 15;
+  x2   = (priv->bmp180_cal_mc << 11) / (x1 + priv->bmp180_cal_md);
+  b5   = x1 + x2;
+
   temp = (b5 + 8) >> 4;
   sninfo("Compensated temperature = %d\n", temp);
+  UNUSED(temp);
 
   /* Calculate true pressure */
 

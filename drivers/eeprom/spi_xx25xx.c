@@ -254,10 +254,8 @@ static const struct file_operations ee25xx_fops =
   ee25xx_read,  /* read */
   ee25xx_write, /* write */
   ee25xx_seek,  /* seek */
-  ee25xx_ioctl  /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  , 0           /* poll */
-#endif
+  ee25xx_ioctl, /* ioctl */
+  NULL          /* poll */
 };
 
 /****************************************************************************
@@ -290,7 +288,7 @@ static void ee25xx_lock(FAR struct spi_dev_s *dev)
   SPI_SETMODE(dev, CONFIG_EE25XX_SPIMODE);
   SPI_SETBITS(dev, 8);
   (void)SPI_HWFEATURES(dev, 0);
-  (void)SPI_SETFREQUENCY(dev, 10000000); /* This is the default speed */
+  (void)SPI_SETFREQUENCY(dev, CONFIG_EE25XX_FREQUENCY);
 }
 
 /****************************************************************************

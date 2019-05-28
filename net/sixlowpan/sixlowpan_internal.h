@@ -80,8 +80,10 @@
   memcpy(dest, src, len)
 
 #ifdef CONFIG_WIRELESS_IEEE802154
-/* IEEE 802.15.4  address macros */
-/* Copy a an IEEE 802.15.4 address */
+/* IEEE 802.15.4  address macros
+ *
+ * Copy a an IEEE 802.15.4 address.
+ */
 
 #define sixlowpan_saddrcopy(dest,src) \
   sixlowpan_anyaddrcopy(dest,src,NET_6LOWPAN_SADDRSIZE)
@@ -101,7 +103,7 @@
 #define GETUINT16(ptr,index) \
   ((((uint16_t)((ptr)[index])) << 8) | ((uint16_t)(((ptr)[(index) + 1]))))
 
-/* PUT 16-bit data:  source in host order, result in newtwork order */
+/* PUT 16-bit data:  source in host order, result in network order */
 
 #define PUTHOST16(ptr,index,value) \
   do \

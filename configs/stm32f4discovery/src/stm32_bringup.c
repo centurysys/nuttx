@@ -85,15 +85,68 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: stm32_i2c_register
+ *
+ * Description:
+ *   Register one I2C drivers for the I2C tool.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_I2C) && defined(CONFIG_SYSTEM_I2CTOOL)
+static void stm32_i2c_register(int bus)
+{
+  FAR struct i2c_master_s *i2c;
+  int ret;
+
+  i2c = stm32_i2cbus_initialize(bus);
+  if (i2c == NULL)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to get I2C%d interface\n", bus);
+    }
+  else
+    {
+      ret = i2c_register(i2c, bus);
+      if (ret < 0)
+        {
+          syslog(LOG_ERR, "ERROR: Failed to register I2C%d driver: %d\n",
+                 bus, ret);
+          stm32_i2cbus_uninitialize(i2c);
+        }
+    }
+}
+#endif
+
+/****************************************************************************
+ * Name: stm32_i2ctool
+ *
+ * Description:
+ *   Register I2C drivers for the I2C tool.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_I2C) && defined(CONFIG_SYSTEM_I2CTOOL)
+static void stm32_i2ctool(void)
+{
+  stm32_i2c_register(1);
+#if 0
+  stm32_i2c_register(1);
+  stm32_i2c_register(2);
+#endif
+}
+#else
+#  define stm32_i2ctool()
+#endif
+
+/****************************************************************************
  * Name: stm32_bringup
  *
  * Description:
  *   Perform architecture-specific initialization
  *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
+ *   CONFIG_BOARD_LATE_INITIALIZE=y :
+ *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
+ *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
  *     Called from the NSH library
  *
  ****************************************************************************/
@@ -104,6 +157,10 @@ int stm32_bringup(void)
   FAR struct rtc_lowerhalf_s *lower;
 #endif
   int ret = OK;
+
+#if defined(CONFIG_I2C) && defined(CONFIG_SYSTEM_I2CTOOL)
+  stm32_i2ctool();
+#endif
 
 #ifdef CONFIG_SENSORS_BMP180
   stm32_bmp180initialize("/dev/press0");
@@ -128,6 +185,14 @@ int stm32_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: max7219_leds_register failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_LCD_ST7032
+  ret = stm32_st7032init("/dev/slcd0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: st7032_register failed: %d\n", ret);
     }
 #endif
 
@@ -169,8 +234,8 @@ int stm32_bringup(void)
 #endif
 
 #ifdef HAVE_USBHOST
-  /* Initialize USB host operation.  stm32_usbhost_initialize() starts a thread
-   * will monitor for USB connection and disconnection events.
+  /* Initialize USB host operation.  stm32_usbhost_initialize() starts a
+   * thread will monitor for USB connection and disconnection events.
    */
 
   ret = stm32_usbhost_initialize();
@@ -362,14 +427,14 @@ int stm32_bringup(void)
     }
 #endif
 
-#if defined(CONFIG_RNDIS) && defined(CONFIG_NSH_MACADDR)
+#if defined(CONFIG_RNDIS) && defined(CONFIG_NETINIT_MACADDR)
   uint8_t mac[6];
-  mac[0] = 0xaa; /* TODO */
-  mac[1] = (CONFIG_NSH_MACADDR >> (8 * 4)) & 0xff;
-  mac[2] = (CONFIG_NSH_MACADDR >> (8 * 3)) & 0xff;
-  mac[3] = (CONFIG_NSH_MACADDR >> (8 * 2)) & 0xff;
-  mac[4] = (CONFIG_NSH_MACADDR >> (8 * 1)) & 0xff;
-  mac[5] = (CONFIG_NSH_MACADDR >> (8 * 0)) & 0xff;
+  mac[0] = 0xa0; /* TODO */
+  mac[1] = (CONFIG_NETINIT_MACADDR >> (8 * 4)) & 0xff;
+  mac[2] = (CONFIG_NETINIT_MACADDR >> (8 * 3)) & 0xff;
+  mac[3] = (CONFIG_NETINIT_MACADDR >> (8 * 2)) & 0xff;
+  mac[4] = (CONFIG_NETINIT_MACADDR >> (8 * 1)) & 0xff;
+  mac[5] = (CONFIG_NETINIT_MACADDR >> (8 * 0)) & 0xff;
   usbdev_rndis_initialize(mac);
 #endif
 

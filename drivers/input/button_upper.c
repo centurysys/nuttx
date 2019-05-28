@@ -96,14 +96,12 @@ struct btn_open_s
 
   volatile bool bo_closing;
 
-#ifndef CONFIG_DISABLE_SIGNALS
   /* Button event notification information */
 
   pid_t bo_pid;
   struct btn_notify_s bo_notify;
-#endif
+  struct sigwork_s bo_work;
 
-#ifndef CONFIG_DISABLE_POLL
   /* Poll event information */
 
   struct btn_pollevents_s bo_pollevents;
@@ -113,7 +111,6 @@ struct btn_open_s
    */
 
   FAR struct pollfd *bo_fds[CONFIG_BUTTONS_NPOLLWAITERS];
-#endif
 };
 
 /****************************************************************************
@@ -127,11 +124,9 @@ static inline int btn_takesem(sem_t *sem);
 
 /* Sampling and Interrupt handling */
 
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
 static void    btn_enable(FAR struct btn_upperhalf_s *priv);
 static void    btn_interrupt(FAR const struct btn_lowerhalf_s *lower,
                              FAR void *arg);
-#endif
 
 /* Sampling */
 
@@ -145,10 +140,8 @@ static ssize_t btn_read(FAR struct file *filep, FAR char *buffer,
                         size_t buflen);
 static int     btn_ioctl(FAR struct file *filep, int cmd,
                          unsigned long arg);
-#ifndef CONFIG_DISABLE_POLL
 static int     btn_poll(FAR struct file *filep, FAR struct pollfd *fds,
                         bool setup);
-#endif
 
 /****************************************************************************
  * Private Data
@@ -161,10 +154,8 @@ static const struct file_operations btn_fops =
   btn_read,  /* read */
   NULL,      /* write */
   NULL,      /* seek */
-  btn_ioctl  /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  , btn_poll /* poll */
-#endif
+  btn_ioctl, /* ioctl */
+  btn_poll   /* poll */
 };
 
 /****************************************************************************
@@ -195,10 +186,9 @@ static inline int btn_takesem(sem_t *sem)
  * Name: btn_enable
  ****************************************************************************/
 
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
 static void btn_enable(FAR struct btn_upperhalf_s *priv)
 {
-  FAR const struct btn_lowerhalf_s *lower = priv->bu_lower;
+  FAR const struct btn_lowerhalf_s *lower;
   FAR struct btn_open_s *opriv;
   btn_buttonset_t press;
   btn_buttonset_t release;
@@ -220,19 +210,15 @@ static void btn_enable(FAR struct btn_upperhalf_s *priv)
 
   for (opriv = priv->bu_open; opriv; opriv = opriv->bo_flink)
     {
-#ifndef CONFIG_DISABLE_POLL
       /* OR in the poll event buttons */
 
       press   |= opriv->bo_pollevents.bp_press;
       release |= opriv->bo_pollevents.bp_release;
-#endif
 
-#ifndef CONFIG_DISABLE_SIGNALS
       /* OR in the signal events */
 
       press   |= opriv->bo_notify.bn_press;
       release |= opriv->bo_notify.bn_release;
-#endif
     }
 
   /* Enable/disable button interrupts */
@@ -254,13 +240,11 @@ static void btn_enable(FAR struct btn_upperhalf_s *priv)
 
   leave_critical_section(flags);
 }
-#endif
 
 /****************************************************************************
  * Name: btn_interrupt
  ****************************************************************************/
 
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
 static void btn_interrupt(FAR const struct btn_lowerhalf_s *lower,
                           FAR void *arg)
 {
@@ -272,7 +256,6 @@ static void btn_interrupt(FAR const struct btn_lowerhalf_s *lower,
 
   btn_sample(priv);
 }
-#endif
 
 /****************************************************************************
  * Name: btn_sample
@@ -280,18 +263,14 @@ static void btn_interrupt(FAR const struct btn_lowerhalf_s *lower,
 
 static void btn_sample(FAR struct btn_upperhalf_s *priv)
 {
-  FAR const struct btn_lowerhalf_s *lower = priv->bu_lower;
+  FAR const struct btn_lowerhalf_s *lower;
   FAR struct btn_open_s *opriv;
   btn_buttonset_t sample;
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
   btn_buttonset_t change;
   btn_buttonset_t press;
   btn_buttonset_t release;
-#endif
   irqstate_t flags;
-#ifndef CONFIG_DISABLE_POLL
   int i;
-#endif
 
   DEBUGASSERT(priv && priv->bu_lower);
   lower = priv->bu_lower;
@@ -309,7 +288,6 @@ static void btn_sample(FAR struct btn_upperhalf_s *priv)
 
   add_ui_randomness(sample);
 
-#if !defined(CONFIG_DISABLE_POLL) || !defined(CONFIG_DISABLE_SIGNALS)
   /* Determine which buttons have been newly pressed and which have been
    * newly released.
    */
@@ -324,7 +302,6 @@ static void btn_sample(FAR struct btn_upperhalf_s *priv)
 
   for (opriv = priv->bu_open; opriv; opriv = opriv->bo_flink)
     {
-#ifndef CONFIG_DISABLE_POLL
       /* Have any poll events occurred? */
 
       if ((press & opriv->bo_pollevents.bp_press)     != 0 ||
@@ -346,9 +323,7 @@ static void btn_sample(FAR struct btn_upperhalf_s *priv)
                 }
             }
         }
-#endif
 
-#ifndef CONFIG_DISABLE_SIGNALS
       /* Have any signal events occurred? */
 
       if ((press & opriv->bo_notify.bn_press)     != 0 ||
@@ -356,23 +331,15 @@ static void btn_sample(FAR struct btn_upperhalf_s *priv)
         {
           /* Yes.. Signal the waiter */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
-          union sigval value;
-          value.sival_int = (int)sample;
-          (void)nxsig_queue(opriv->bo_pid, opriv->bo_notify.bn_signo,
-                            value);
-#else
-          (void)nxsig_queue(opriv->bo_pid, opriv->bo_notify.dn.signo,
-                            (FAR void *)sample);
-#endif
+          opriv->bo_notify.bn_event.sigev_value.sival_int = sample;
+          nxsig_notification(opriv->bo_pid, &opriv->bo_notify.bn_event,
+                             SI_QUEUE, &opriv->bo_work);
         }
-#endif
     }
 
   /* Enable/disable interrupt handling */
 
   btn_enable(priv);
-#endif
 
   priv->bu_sample = sample;
   leave_critical_section(flags);
@@ -387,10 +354,8 @@ static int btn_open(FAR struct file *filep)
   FAR struct inode *inode;
   FAR struct btn_upperhalf_s *priv;
   FAR struct btn_open_s *opriv;
-#ifndef CONFIG_DISABLE_POLL
   FAR const struct btn_lowerhalf_s *lower;
   btn_buttonset_t supported;
-#endif
   int ret;
 
   DEBUGASSERT(filep && filep->f_inode);
@@ -419,14 +384,12 @@ static int btn_open(FAR struct file *filep)
 
   /* Initialize the open structure */
 
-#ifndef CONFIG_DISABLE_POLL
   lower = priv->bu_lower;
   DEBUGASSERT(lower && lower->bl_supported);
   supported = lower->bl_supported(lower);
 
   opriv->bo_pollevents.bp_press   = supported;
   opriv->bo_pollevents.bp_release = supported;
-#endif
 
   /* Attach the open structure to the device */
 
@@ -524,6 +487,10 @@ static int btn_close(FAR struct file *filep)
       priv->bu_open = opriv->bo_flink;
     }
 
+  /* Cancel any pending notification */
+
+  nxsig_cancel_notification(&opriv->bo_work);
+
   /* And free the open structure */
 
   kmm_free(opriv);
@@ -620,15 +587,16 @@ static int btn_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     {
     /* Command:     BTNIOC_SUPPORTED
      * Description: Report the set of button events supported by the hardware;
-     * Argument:    A pointer to writeable integer value in which to return the
-     *              set of supported buttons.
-     * Return:      Zero (OK) on success.  Minus one will be returned on failure
-     *              with the errno value set appropriately.
+     * Argument:    A pointer to writeable integer value in which to return
+     *              the set of supported buttons.
+     * Return:      Zero (OK) on success.  Minus one will be returned on
+     *              failure with the errno value set appropriately.
      */
 
     case BTNIOC_SUPPORTED:
       {
-        FAR btn_buttonset_t *supported = (FAR btn_buttonset_t *)((uintptr_t)arg);
+        FAR btn_buttonset_t *supported =
+          (FAR btn_buttonset_t *)((uintptr_t)arg);
 
         if (supported)
           {
@@ -641,7 +609,6 @@ static int btn_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       }
       break;
 
-#ifndef CONFIG_DISABLE_POLL
     /* Command:     BTNIOC_POLLEVENTS
      * Description: Specify the set of button events that can cause a poll()
      *              to awaken.  The default is all button depressions and
@@ -671,9 +638,7 @@ static int btn_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           }
       }
       break;
-#endif
 
-#ifndef CONFIG_DISABLE_SIGNALS
     /* Command:     BTNIOC_REGISTER
      * Description: Register to receive a signal whenever there is a change
      *              in any of the discrete buttone inputs.  This feature,
@@ -696,7 +661,7 @@ static int btn_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
             opriv->bo_notify.bn_press   = notify->bn_press;
             opriv->bo_notify.bn_release = notify->bn_release;
-            opriv->bo_notify.bn_signo   = notify->bn_signo;
+            opriv->bo_notify.bn_event   = notify->bn_event;
             opriv->bo_pid               = getpid();
 
             /* Enable/disable interrupt handling */
@@ -706,7 +671,6 @@ static int btn_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           }
       }
       break;
-#endif
 
     default:
       ierr("ERROR: Unrecognized command: %ld\n", cmd);
@@ -722,7 +686,6 @@ static int btn_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  * Name: btn_poll
  ****************************************************************************/
 
-#ifndef CONFIG_DISABLE_POLL
 static int btn_poll(FAR struct file *filep, FAR struct pollfd *fds,
                     bool setup)
 {
@@ -803,7 +766,6 @@ errout_with_dusem:
   btn_givesem(&priv->bu_exclsem);
   return ret;
 }
-#endif
 
 /****************************************************************************
  * Public Functions

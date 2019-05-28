@@ -248,11 +248,11 @@
 #define GPIO_SPI4_MOSI GPIO_SPI4_MOSI_1
 #define GPIO_SPI4_SCK  GPIO_SPI4_SCK_1
 
-/* FSMC - SDRAM */
+/* FMC - SDRAM */
 
-#define GPIO_FSMC_SDCKE1 GPIO_FSMC_SDCKE1_1
-#define GPIO_FSMC_SDNE1  GPIO_FSMC_SDNE1_1
-#define GPIO_FSMC_SDNWE  GPIO_FSMC_SDNWE_1
+#define GPIO_FMC_SDCKE1 GPIO_FMC_SDCKE1_1
+#define GPIO_FMC_SDNE1  GPIO_FMC_SDNE1_1
+#define GPIO_FMC_SDNWE  GPIO_FMC_SDNWE_1
 
 /* Timer Inputs/Outputs (see the README.txt file for options) */
 
@@ -443,4 +443,25 @@
 #define STM32_RCC_PLLSAICFGR_PLLSAIQ    RCC_PLLSAICFGR_PLLSAIQ(BOARD_LTDC_PLLSAIQ)
 
 #endif /* CONFIG_STM32_LTDC */
+
+/* Configuration specific to high priority interrupts example:
+ *   - TIM1 CC1 trigger for ADC if DMA transfer and TIM1 PWM
+ *   - ADC DMA transfer on DMA1_CH1
+ */
+
+#ifdef CONFIG_STM32F429I_DISCO_HIGHPRI
+
+#if defined(CONFIG_STM32_TIM1_PWM) && defined(CONFIG_STM32_ADC1_DMA)
+
+/* TIM1 - ADC trigger */
+
+#define ADC1_EXTSEL_VALUE ADC1_EXTSEL_T1CC1
+
+#endif  /* CONFIG_STM32_TIM1_PWM */
+#endif  /* CONFIG_STM32F429I_DISCO_HIGHPRI */
+
+/* DMA *************************************************************************/
+
+#define ADC1_DMA_CHAN DMAMAP_ADC1_1
+
 #endif  /* __CONFIG_STM32F429I_DISCO_INCLUDE_BOARD_H */

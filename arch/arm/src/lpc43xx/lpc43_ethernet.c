@@ -66,9 +66,9 @@
 #include "chip.h"
 #include "lpc43_pinconfig.h"
 #include "lpc43_ethernet.h"
-#include "chip/lpc43_creg.h"
-#include "chip/lpc43_cgu.h"
-#include "chip/lpc43_ccu.h"
+#include "hardware/lpc43_creg.h"
+#include "hardware/lpc43_cgu.h"
+#include "hardware/lpc43_ccu.h"
 #include "lpc43_rgu.h"
 #include "lpc43_gpio.h"
 #include "up_arch.h"
@@ -85,18 +85,18 @@
 
 #if !defined(CONFIG_SCHED_WORKQUEUE)
 #  error Work queue support is required
-#else
-
-  /* Select work queue */
-
-#  if defined(CONFIG_LPC43_ETHERNET_HPWORK)
-#    define ETHWORK HPWORK
-#  elif defined(CONFIG_LPC43_ETHERNET_LPWORK)
-#    define ETHWORK LPWORK
-#  else
-#    error Neither CONFIG_LPC43_ETHERNET_HPWORK nor CONFIG_LPC43_ETHERNET_LPWORK defined
-#  endif
 #endif
+
+/* The low priority work queue is preferred.  If it is not enabled, LPWORK
+ * will be the same as HPWORK.
+ *
+ * NOTE:  However, the network should NEVER run on the high priority work
+ * queue!  That queue is intended only to service short back end interrupt
+ * processing that never suspends.  Suspending the high priority work queue
+ * may bring the system to its knees!
+ */
+
+#define ETHWORK LPWORK
 
 #ifndef CONFIG_LPC43_PHYADDR
 #  error "CONFIG_LPC43_PHYADDR must be defined in the NuttX configuration"
@@ -2761,9 +2761,9 @@ static int lpc43_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
 #ifdef CONFIG_ARCH_PHY_INTERRUPT
   case SIOCMIINOTIFY: /* Set up for PHY event notifications */
     {
-      struct mii_iotcl_notify_s *req = (struct mii_iotcl_notify_s *)((uintptr_t)arg);
+      struct mii_ioctl_notify_s *req = (struct mii_ioctl_notify_s *)((uintptr_t)arg);
 
-      ret = phy_notify_subscribe(dev->d_ifname, req->pid, req->signo, req->arg);
+      ret = phy_notify_subscribe(dev->d_ifname, req->pid, &req->event);
       if (ret == OK)
           {
             /* Enable PHY link up/down interrupts */
@@ -3878,9 +3878,11 @@ static inline int lpc43_ethinitialize(void)
  *
  ****************************************************************************/
 
+#ifndef CONFIG_NETDEV_LATEINIT
 void up_netinitialize(void)
 {
   (void)lpc43_ethinitialize();
 }
+#endif
 
 #endif /* CONFIG_NET && CONFIG_LPC43_ETHERNET */

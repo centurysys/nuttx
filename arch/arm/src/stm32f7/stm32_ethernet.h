@@ -42,7 +42,7 @@
 
 #include <nuttx/config.h>
 
-#include "chip/stm32_ethernet.h"
+#include "hardware/stm32_ethernet.h"
 
 #if STM32F7_NETHERNET > 0
 #ifndef __ASSEMBLY__
@@ -79,7 +79,7 @@ extern "C"
  *
  ************************************************************************************/
 
-#if STM32F7_NETHERNET > 1
+#if STM32F7_NETHERNET > 1 || defined(CONFIG_NETDEV_LATEINIT)
 int stm32_ethinitialize(int intf);
 #endif
 

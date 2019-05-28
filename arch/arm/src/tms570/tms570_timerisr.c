@@ -46,7 +46,7 @@
 #include "up_internal.h"
 #include "up_arch.h"
 
-#include "chip/tms570_rti.h"
+#include "hardware/tms570_rti.h"
 
 #include <arch/board/board.h>
 
@@ -138,7 +138,7 @@ static int tms570_timerisr(int irq, uint32_t *regs, void *arg)
 
   /* Process timer interrupt */
 
-  sched_process_timer();
+  nxsched_process_timer();
   return 0;
 }
 

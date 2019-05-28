@@ -68,10 +68,10 @@
 #include "chip.h"
 #include "kinetis.h"
 #include "kinetis_config.h"
-#include "chip/kinetis_pinmux.h"
-#include "chip/kinetis_sim.h"
-#include "chip/kinetis_mpu.h"
-#include "chip/kinetis_enet.h"
+#include "hardware/kinetis_pinmux.h"
+#include "hardware/kinetis_sim.h"
+#include "hardware/kinetis_mpu.h"
+#include "hardware/kinetis_enet.h"
 
 #if defined(KINETIS_NENET) && KINETIS_NENET > 0
 
@@ -85,18 +85,18 @@
 
 #if !defined(CONFIG_SCHED_WORKQUEUE)
 #  error Work queue support is required
-#else
-
-  /* Select work queue */
-
-#  if defined(CONFIG_KINETIS_EMAC_HPWORK)
-#    define ETHWORK HPWORK
-#  elif defined(CONFIG_KINETIS_EMAC_LPWORK)
-#    define ETHWORK LPWORK
-#  else
-#    error Neither CONFIG_KINETIS_EMAC_HPWORK nor CONFIG_KINETIS_EMAC_LPWORK defined
-#  endif
 #endif
+
+/* The low priority work queue is preferred.  If it is not enabled, LPWORK
+ * will be the same as HPWORK.
+ *
+ * NOTE:  However, the network should NEVER run on the high priority work
+ * queue!  That queue is intended only to service short back end interrupt
+ * processing that never suspends.  Suspending the high priority work queue
+ * may bring the system to its knees!
+ */
+
+#define ETHWORK LPWORK
 
 /* CONFIG_KINETIS_ENETNETHIFS determines the number of physical interfaces
  * that will be supported.
@@ -2182,7 +2182,7 @@ int kinetis_netinitialize(int intf)
  *
  ****************************************************************************/
 
-#if CONFIG_KINETIS_ENETNETHIFS == 1
+#if CONFIG_KINETIS_ENETNETHIFS == 1 && !defined(CONFIG_NETDEV_LATEINIT)
 void up_netinitialize(void)
 {
   (void)kinetis_netinitialize(0);

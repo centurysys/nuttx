@@ -45,9 +45,9 @@
 #include "sam_config.h"
 
 #if defined(CONFIG_ARCH_FAMILY_SAMD20) || defined(CONFIG_ARCH_FAMILY_SAMD21)
-#  include "chip/samd_i2c_master.h"
+#  include "hardware/samd_i2c_master.h"
 #elif defined(CONFIG_ARCH_FAMILY_SAML21)
-#  include "chip/saml_i2c_master.h"
+#  include "hardware/saml_i2c_master.h"
 #endif
 
 /****************************************************************************
@@ -80,6 +80,17 @@ extern "C"
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+
+/*******************************************************************************
+ * Name: sam_i2c_master_initialize
+ *
+ * Description:
+ *   Initialize a I2C device for I2C operation
+ *
+ *******************************************************************************/
+
+struct i2c_master_s;  /* Forward reference */
+struct i2c_master_s *sam_i2c_master_initialize(int bus);
 
 #undef EXTERN
 #if defined(__cplusplus)

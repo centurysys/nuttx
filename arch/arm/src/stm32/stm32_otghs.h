@@ -45,18 +45,9 @@
 #include <stdint.h>
 
 #include "stm32.h"
-#include "chip/stm32_otghs.h"
+#include "hardware/stm32_otghs.h"
 
 #if defined(CONFIG_STM32_OTGHS)
-
-/************************************************************************************
- * Pre-processor Definitions
- ************************************************************************************/
-/* Configuration ********************************************************************/
-
-#ifndef CONFIG_OTGHS_PRI
-#  define CONFIG_OTGHS_PRI NVIC_SYSH_PRIORITY_DEFAULT
-#endif
 
 /************************************************************************************
  * Public Functions

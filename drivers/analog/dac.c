@@ -92,11 +92,9 @@ static const struct file_operations dac_fops =
   dac_close,
   dac_read,
   dac_write,
-  0,
-  dac_ioctl
-#ifndef CONFIG_DISABLE_POLL
-  , 0
-#endif
+  NULL,
+  dac_ioctl,
+  NULL
 };
 
 /****************************************************************************
@@ -204,11 +202,7 @@ static int dac_close(FAR struct file *filep)
 
           while (dev->ad_xmit.af_head != dev->ad_xmit.af_tail)
             {
-#ifndef CONFIG_DISABLE_SIGNALS
                nxsig_usleep(HALF_SECOND_USEC);
-#else
-               up_mdelay(HALF_SECOND_MSEC);
-#endif
             }
 
           /* Free the IRQ and disable the DAC device */
@@ -283,7 +277,7 @@ static ssize_t dac_write(FAR struct file *filep, FAR const char *buffer, size_t 
   int                    msglen;
   int                    ret   = 0;
 
-  /* Interrupts must disabled throughout the following */
+  /* Interrupts must be disabled throughout the following */
 
   flags = enter_critical_section();
 
@@ -381,7 +375,7 @@ static ssize_t dac_write(FAR struct file *filep, FAR const char *buffer, size_t 
         }
 
       /* We get here if there is space at the end of the FIFO.  Add the new
-       * CAN message at the tail of the FIFO.
+       * DAC message at the tail of the FIFO.
        */
 
       if (msglen == 5)

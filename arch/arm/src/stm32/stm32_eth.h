@@ -46,7 +46,7 @@
 
 #if STM32_NETHERNET > 0
 
-#include "chip/stm32_eth.h"
+#include "hardware/stm32_eth.h"
 
 #ifndef __ASSEMBLY__
 
@@ -82,7 +82,7 @@ extern "C"
  *
  ************************************************************************************/
 
-#if STM32_NETHERNET > 1
+#if STM32_NETHERNET > 1 || defined(CONFIG_NETDEV_LATEINIT)
 int stm32_ethinitialize(int intf);
 #endif
 

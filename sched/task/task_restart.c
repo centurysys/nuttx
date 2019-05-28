@@ -137,7 +137,7 @@ int task_restart(pid_t pid)
 
   /* Try to recover from any bad states */
 
-  task_recover((FAR struct tcb_s *)tcb);
+  nxtask_recover((FAR struct tcb_s *)tcb);
 
   /* Kill any children of this thread */
 
@@ -158,12 +158,10 @@ int task_restart(pid_t pid)
   dq_rem((FAR dq_entry_t *)tcb, tasklist);
   tcb->cmn.task_state = TSTATE_TASK_INVALID;
 
-#ifndef CONFIG_DISABLE_SIGNALS
   /* Deallocate anything left in the TCB's signal queues */
 
   nxsig_cleanup((FAR struct tcb_s *)tcb);  /* Deallocate Signal lists */
   tcb->cmn.sigprocmask = NULL_SIGNAL_SET;  /* Reset sigprocmask */
-#endif
 
   /* Reset the current task priority  */
 
@@ -219,7 +217,7 @@ int task_restart(pid_t pid)
   ret = task_activate((FAR struct tcb_s *)tcb);
   if (ret != OK)
     {
-      (void)task_terminate(pid, true);
+      (void)nxtask_terminate(pid, true);
       errcode = -ret;
       goto errout_with_lock;
     }

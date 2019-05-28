@@ -50,9 +50,9 @@
 #include "up_arch.h"
 
 #if defined(CONFIG_ARCH_FAMILY_SAMD20) || defined(CONFIG_ARCH_FAMILY_SAMD21)
-#  include "chip/samd_usart.h"
+#  include "hardware/samd_usart.h"
 #elif defined(CONFIG_ARCH_FAMILY_SAML21)
-#  include "chip/saml_usart.h"
+#  include "hardware/saml_usart.h"
 #endif
 
 #include "sam_config.h"
@@ -77,6 +77,20 @@
 #  define g_consoleconfig (g_usart5config)
 #else
 #  undef  g_consoleconfig
+#endif
+
+/* Is RS-485 used? */
+
+#if defined(CONFIG_USART0_RS485MODE) || defined(CONFIG_USART1_RS485MODE) || \
+    defined(CONFIG_USART2_RS485MODE) || defined(CONFIG_USART3_RS485MODE) || \
+    defined(CONFIG_USART4_RS485MODE) || defined(CONFIG_USART5_RS485MODE)
+#  define HAVE_RS485 1
+#endif
+
+#ifdef HAVE_RS485
+#  define USART_TX_INTS    (USART_INT_DRE | USART_INT_TXC)
+#else
+#  define USART_TX_INTS    (USART_INT_DRE)
 #endif
 
 /************************************************************************************

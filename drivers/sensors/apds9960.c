@@ -144,10 +144,8 @@ static const struct file_operations g_apds9960_fops =
   apds9960_read,   /* read */
   apds9960_write,  /* write */
   NULL,            /* seek */
-  NULL             /* ioctl */
-#ifndef CONFIG_DISABLE_POLL
-  , NULL           /* poll */
-#endif
+  NULL,            /* ioctl */
+  NULL             /* poll */
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   , NULL           /* unlink */
 #endif
@@ -814,7 +812,7 @@ static bool apds9960_processgesture(FAR struct apds9960_dev_s *priv)
                   }
                 else
                   {
-                    if ( (ud_delta != 0) && (lr_delta != 0))
+                    if ((ud_delta != 0) && (lr_delta != 0))
                       {
                         priv->gesture_state = FAR_STATE;
                       }
@@ -1006,7 +1004,7 @@ static int apds9960_readgesture(FAR struct apds9960_dev_s *priv)
 
   /* Keep looping as long as gesture data is valid */
 
-  while(1)
+  while (1)
     {
       /* Wait some time to collect next batch of FIFO data */
 
@@ -1087,8 +1085,7 @@ static int apds9960_readgesture(FAR struct apds9960_dev_s *priv)
                     {
                       if (apds9960_decodegesture(priv))
                         {
-                            //***TODO: U-Turn Gestures
-                            //sninfo("gesture_motion = %d\n", gesture_motion);
+                            /* TODO: U-Turn Gestures */
                         }
                     }
 
@@ -1252,7 +1249,7 @@ int apds9960_register(FAR const char *devpath,
   /* Initialize the APDS9960 device structure */
 
   FAR struct apds9960_dev_s *priv =
-    (FAR struct apds9960_dev_s *)kmm_malloc(sizeof(struct apds9960_dev_s));
+    (FAR struct apds9960_dev_s *)kmm_zalloc(sizeof(struct apds9960_dev_s));
 
   if (priv == NULL)
     {
@@ -1261,7 +1258,6 @@ int apds9960_register(FAR const char *devpath,
     }
 
   priv->config         = config;
-  priv->work.worker    = NULL;
   priv->gesture_motion = DIR_NONE;
   nxsem_init(&priv->sample_sem, 0, 0);
 

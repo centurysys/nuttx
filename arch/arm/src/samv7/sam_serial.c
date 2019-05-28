@@ -54,15 +54,15 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/fs/ioctl.h>
 #include <nuttx/serial/serial.h>
 
-#include <arch/serial.h>
 #include <arch/board/board.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
 #include "sam_config.h"
-#include "chip/sam_uart.h"
+#include "hardware/sam_uart.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -1409,7 +1409,9 @@ void up_earlyserialinit(void)
 
   /* Disable all USARTS */
 
+#ifdef TTYS0_DEV
   sam_disableallints(TTYS0_DEV.priv, NULL);
+#endif
 #ifdef TTYS1_DEV
   sam_disableallints(TTYS1_DEV.priv, NULL);
 #endif
@@ -1460,7 +1462,9 @@ void up_serialinit(void)
 
   /* Register all USARTs */
 
+#ifdef TTYS0_DEV
   (void)uart_register("/dev/ttyS0", &TTYS0_DEV);
+#endif
 #ifdef TTYS1_DEV
   (void)uart_register("/dev/ttyS1", &TTYS1_DEV);
 #endif

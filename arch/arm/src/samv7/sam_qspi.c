@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/samv7/sam_qspi.c
  *
- *   Copyright (C) 2015, 2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2015, 2017, 2019 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,16 +60,16 @@
 
 #include "up_internal.h"
 #include "up_arch.h"
-#include "cache.h"
+#include "barriers.h"
 
 #include "sam_gpio.h"
 #include "sam_xdmac.h"
 #include "sam_periphclks.h"
 #include "sam_qspi.h"
-#include "chip/sam_pmc.h"
-#include "chip/sam_xdmac.h"
-#include "chip/sam_qspi.h"
-#include "chip/sam_pinmap.h"
+#include "hardware/sam_pmc.h"
+#include "hardware/sam_xdmac.h"
+#include "hardware/sam_qspi.h"
+#include "hardware/sam_pinmap.h"
 
 #ifdef CONFIG_SAMV7_QSPI
 
@@ -1189,7 +1189,7 @@ static uint32_t qspi_setfrequency(struct qspi_dev_s *dev, uint32_t frequency)
   regval &= ~QSPI_MR_DLYBCT_MASK;
 
 #if CONFIG_SAMV7_QSPI_DLYBCT > 0
-  dlybct  = ((CONFIG_SAMV7_QSPI_DLYBCT * (SAM_QSPI_CLOCK /1000000)) / 1000 / 32;
+  dlybct  = ((CONFIG_SAMV7_QSPI_DLYBCT * (SAM_QSPI_CLOCK /1000000)) / 1000 / 32);
   regval |= dlybct << QSPI_MR_DLYBCT_SHIFT;
 #endif
 

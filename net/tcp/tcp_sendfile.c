@@ -309,7 +309,7 @@ static inline bool sendfile_addrcheck(FAR struct tcp_conn_s *conn)
 #endif
     {
 #if !defined(CONFIG_NET_ICMPv6_NEIGHBOR)
-      return (neighbor_findentry(conn->u.ipv6.raddr) != NULL);
+      return (neighbor_lookup(conn->u.ipv6.raddr, NULL) >= 0);
 #else
       return true;
 #endif
@@ -437,15 +437,17 @@ static uint16_t sendfile_eventhandler(FAR struct net_driver_s *dev,
 
           dev->d_sndlen = sndlen;
 
-          /* Set the sequence number for this packet.  NOTE:  The network updates
-           * sndseq on recept of ACK *before* this function is called.  In that
-           * case sndseq will point to the next unacknowledge byte (which might
-           * have already been sent).  We will overwrite the value of sndseq
-           * here before the packet is sent.
+          /* Set the sequence number for this packet.  NOTE:  The network
+           * updates sndseq on recept of ACK *before* this function is
+           * called.  In that case sndseq will point to the next
+           * unacknowledge byte (which might have already been sent).  We
+           * will overwrite the value of sndseq here before the packet is
+           * sent.
            */
 
           seqno = pstate->snd_sent + pstate->snd_isn;
-          ninfo("SEND: sndseq %08x->%08x len: %d\n", conn->sndseq, seqno, ret);
+          ninfo("SEND: sndseq %08x->%08x len: %d\n",
+                conn->sndseq, seqno, ret);
 
           tcp_setsequence(conn->sndseq, seqno);
 
@@ -725,8 +727,6 @@ errout_locked:
 
   nxsem_destroy(&state. snd_sem);
   net_unlock();
-
-errout:
 
   if (ret < 0)
     {

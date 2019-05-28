@@ -38,9 +38,11 @@
 
 #include <nuttx/config.h>
 
+#include <string.h>
 #include <assert.h>
 #include <debug.h>
 
+#include <nuttx/wdog.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/ip.h>
 #include <nuttx/net/mld.h>
@@ -77,9 +79,23 @@ void mld_initialize(void)
 void mld_devinit(struct net_driver_s *dev)
 {
   mldinfo("MLD initializing dev %p\n", dev);
-  DEBUGASSERT(dev->d_mld_grplist.head == NULL);
 
-  /* Add the all nodes address to the group */
+  /* Initialize the MLD state in the device structure */
+
+  memset(&dev->d_mld, 0, sizeof(struct mld_netdev_s));
+
+  dev->d_mld.gendog = wd_create();
+  dev->d_mld.v1dog  = wd_create();
+  DEBUGASSERT(dev->d_mld.gendog != NULL && dev->d_mld.v1dog != NULL);
+
+  /* All routers start up as a Querier on each of their attached links. */
+
+  SET_MLD_QUERIER(dev->d_mld.flags);
+
+  /* Add the all nodes address to the group
+   * REVISIT: Do we need this?  What is it for?  It is clone from IGMP and
+   * probably is not relevant here.
+   */
 
   (void)mld_grpalloc(dev, g_ipv6_allnodes);
 
@@ -88,4 +104,10 @@ void mld_devinit(struct net_driver_s *dev)
   mld_addmcastmac(dev, g_ipv6_allnodes);
   mld_addmcastmac(dev, g_ipv6_allrouters);
   mld_addmcastmac(dev, g_ipv6_allmldv2routers);
+
+#ifdef CONFIG_NET_MLD_ROUTER
+  /* Start the general query timer. */
+
+  mld_start_gentimer(dev, MSEC2TICK(MLD_QUERY_MSEC));
+#endif
 }

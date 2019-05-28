@@ -51,7 +51,7 @@
 
 #include "up_arch.h"
 #include "chip.h"
-#include "chip/lpc54_rit.h"
+#include "hardware/lpc54_rit.h"
 
 #ifdef CONFIG_SCHED_TICKLESS
 
@@ -558,9 +558,9 @@ static inline void lpc54_tl_alarm(uint64_t curr)
 #ifdef CONFIG_SCHED_TICKLESS_ALARM
   struct timespec ts;
   up_timer_gettime(&ts);
-  sched_alarm_expiration(&ts);
+  nxsched_alarm_expiration(&ts);
 #else
-  sched_timer_expiration();
+  nxsched_timer_expiration();
 #endif
 }
 

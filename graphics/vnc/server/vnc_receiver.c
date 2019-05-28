@@ -43,15 +43,19 @@
 #include <errno.h>
 
 #if defined(CONFIG_VNCSERVER_DEBUG) && !defined(CONFIG_DEBUG_GRAPHICS)
-#  undef  CONFIG_DEBUG_FEATURES
 #  undef  CONFIG_DEBUG_ERROR
 #  undef  CONFIG_DEBUG_WARN
 #  undef  CONFIG_DEBUG_INFO
-#  define CONFIG_DEBUG_FEATURES 1
-#  define CONFIG_DEBUG_ERROR    1
-#  define CONFIG_DEBUG_WARN     1
-#  define CONFIG_DEBUG_INFO     1
-#  define CONFIG_DEBUG_GRAPHICS 1
+#  undef  CONFIG_DEBUG_GRAPHICS_ERROR
+#  undef  CONFIG_DEBUG_GRAPHICS_WARN
+#  undef  CONFIG_DEBUG_GRAPHICS_INFO
+#  define CONFIG_DEBUG_ERROR          1
+#  define CONFIG_DEBUG_WARN           1
+#  define CONFIG_DEBUG_INFO           1
+#  define CONFIG_DEBUG_GRAPHICS       1
+#  define CONFIG_DEBUG_GRAPHICS_ERROR 1
+#  define CONFIG_DEBUG_GRAPHICS_WARN  1
+#  define CONFIG_DEBUG_GRAPHICS_INFO  1
 #endif
 #include <debug.h>
 
@@ -276,7 +280,7 @@ int vnc_receiver(FAR struct vnc_session_s *session)
 
               ginfo("Received FramebufferUpdateRequest\n");
 
-              /* Read the rest of the SetPixelFormat message */
+              /* Read the rest of the FramebufferUpdateRequest message */
 
               ret = vnc_read_remainder(session,
                                        sizeof(struct rfb_fbupdatereq_s) - 1,

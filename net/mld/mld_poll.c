@@ -50,29 +50,6 @@
 #include "mld/mld.h"
 
 /****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name:  mld_sched_send
- *
- * Description:
- *   Construct and send the MLD message.
- *
- * Returned Value:
- *   Returns a non-zero value if an MLD message is sent.
- *
- * Assumptions:
- *   This function ust be called with the network locked.
- *
- ****************************************************************************/
-
-static inline void mld_sched_send(FAR struct net_driver_s *dev,
-                                  FAR struct mld_group_s *group)
-{
-}
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -101,9 +78,28 @@ void mld_poll(FAR struct net_driver_s *dev)
   dev->d_len     = 0;
   dev->d_sndlen  = 0;
 
+  /* Check if a general query is pending */
+
+  if (IS_MLD_GENPEND(dev->d_mld.flags))
+    {
+      /* Clear the pending flag */
+
+      CLR_MLD_GENPEND(dev->d_mld.flags);
+
+      /* Are we still the querier? */
+
+      if (IS_MLD_QUERIER(dev->d_mld.flags))
+        {
+          /* Yes, send the general query and return */
+
+          mld_send(dev, NULL, MLD_SEND_GENQUERY);
+          return;
+        }
+    }
+
   /* Check each member of the group */
 
-  for (group = (FAR struct mld_group_s *)dev->d_mld_grplist.head;
+  for (group = (FAR struct mld_group_s *)dev->d_mld.grplist.head;
        group;
        group = group->next)
     {
@@ -127,8 +123,27 @@ void mld_poll(FAR struct net_driver_s *dev)
           if (IS_MLD_WAITMSG(group->flags))
             {
               mldinfo("Awakening waiter\n");
+
+              CLR_MLD_WAITMSG(group->flags);
               nxsem_post(&group->sem);
             }
+
+          /* And break out of the loop */
+
+          break;
+        }
+
+      /* No.. does this message have a pending report still to be sent? */
+
+      else if (IS_MLD_RPTPEND(group->flags))
+        {
+          /* Yes.. create the MLD message in the driver buffer */
+
+          mld_send(dev, group, mld_report_msgtype(dev));
+
+          /* Indicate that the report is no longer pending */
+
+          CLR_MLD_RPTPEND(group->flags);
 
           /* And break out of the loop */
 

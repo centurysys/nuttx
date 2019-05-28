@@ -1,7 +1,7 @@
 /****************************************************************************
  * fs/vfs/fs_poll.c
  *
- *   Copyright (C) 2008-2009, 2012-2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009, 2012-2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,6 @@
 
 #include "inode/inode.h"
 
-#ifndef CONFIG_DISABLE_POLL
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -98,7 +96,6 @@ static int poll_semtake(FAR sem_t *sem)
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_DESCRIPTORS > 0
 static int poll_fdsetup(int fd, FAR struct pollfd *fds, bool setup)
 {
   /* Check for a valid file descriptor */
@@ -107,8 +104,9 @@ static int poll_fdsetup(int fd, FAR struct pollfd *fds, bool setup)
     {
       /* Perform the socket ioctl */
 
-#if defined(CONFIG_NET) && CONFIG_NSOCKET_DESCRIPTORS > 0
-      if ((unsigned int)fd < (CONFIG_NFILE_DESCRIPTORS+CONFIG_NSOCKET_DESCRIPTORS))
+#ifdef CONFIG_NET
+      if ((unsigned int)fd < (CONFIG_NFILE_DESCRIPTORS +
+                              CONFIG_NSOCKET_DESCRIPTORS))
         {
           return net_poll(fd, fds, setup);
         }
@@ -121,7 +119,6 @@ static int poll_fdsetup(int fd, FAR struct pollfd *fds, bool setup)
 
   return fdesc_poll(fd, fds, setup);
 }
-#endif
 
 /****************************************************************************
  * Name: poll_setup
@@ -131,7 +128,6 @@ static int poll_fdsetup(int fd, FAR struct pollfd *fds, bool setup)
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_DESCRIPTORS > 0
 static inline int poll_setup(FAR struct pollfd *fds, nfds_t nfds, sem_t *sem)
 {
   unsigned int i;
@@ -227,7 +223,6 @@ static inline int poll_setup(FAR struct pollfd *fds, nfds_t nfds, sem_t *sem)
 
   return OK;
 }
-#endif
 
 /****************************************************************************
  * Name: poll_teardown
@@ -238,9 +233,8 @@ static inline int poll_setup(FAR struct pollfd *fds, nfds_t nfds, sem_t *sem)
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_DESCRIPTORS > 0
-static inline int poll_teardown(FAR struct pollfd *fds, nfds_t nfds, int *count,
-                                int ret)
+static inline int poll_teardown(FAR struct pollfd *fds, nfds_t nfds,
+                                FAR int *count, int ret)
 {
   unsigned int i;
   int status = OK;
@@ -299,7 +293,6 @@ static inline int poll_teardown(FAR struct pollfd *fds, nfds_t nfds, int *count,
 
   return ret;
 }
-#endif
 
 /****************************************************************************
  * Public Functions
@@ -324,7 +317,6 @@ static inline int poll_teardown(FAR struct pollfd *fds, nfds_t nfds, int *count,
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_DESCRIPTORS > 0
 int file_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup)
 {
   FAR struct inode *inode;
@@ -352,7 +344,8 @@ int file_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup)
        * reading and writing."
        */
 
-      if (INODE_IS_MOUNTPT(inode) || INODE_IS_BLOCK(inode))
+      if (INODE_IS_MOUNTPT(inode) || INODE_IS_BLOCK(inode) ||
+          INODE_IS_MTD(inode))
         {
           if (setup)
             {
@@ -369,7 +362,6 @@ int file_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup)
 
   return ret;
 }
-#endif
 
 /****************************************************************************
  * Name: fdesc_poll
@@ -390,7 +382,6 @@ int file_poll(FAR struct file *filep, FAR struct pollfd *fds, bool setup)
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_DESCRIPTORS > 0
 int fdesc_poll(int fd, FAR struct pollfd *fds, bool setup)
 {
   FAR struct file *filep;
@@ -410,7 +401,6 @@ int fdesc_poll(int fd, FAR struct pollfd *fds, bool setup)
 
   return file_poll(filep, fds, setup);
 }
-#endif
 
 /****************************************************************************
  * Name: poll
@@ -450,7 +440,7 @@ int poll(FAR struct pollfd *fds, nfds_t nfds, int timeout)
   int errcode;
   int ret;
 
-  DEBUGASSERT(fds != NULL);
+  DEBUGASSERT(nfds == 0 || fds != NULL);
 
   /* poll() is a cancellation point */
 
@@ -487,18 +477,20 @@ int poll(FAR struct pollfd *fds, nfds_t nfds, int timeout)
 
 #if (MSEC_PER_TICK * USEC_PER_MSEC) != USEC_PER_TICK && \
     defined(CONFIG_HAVE_LONG_LONG)
-          ticks = (((unsigned long long)timeout * USEC_PER_MSEC) + (USEC_PER_TICK - 1)) /
+          ticks = (((unsigned long long)timeout * USEC_PER_MSEC) +
+                   (USEC_PER_TICK - 1)) /
                   USEC_PER_TICK;
 #else
-          ticks = ((unsigned int)timeout + (MSEC_PER_TICK - 1)) / MSEC_PER_TICK;
+          ticks = ((unsigned int)timeout + (MSEC_PER_TICK - 1)) /
+                  MSEC_PER_TICK;
 #endif
 
           /* Either wait for either a poll event(s), for a signal to occur,
            * or for the specified timeout to elapse with no event.
            *
-           * NOTE: If a poll event is pending (i.e., the semaphore has already
-           * been incremented), nxsem_tickwait() will not wait, but will return
-           * immediately.
+           * NOTE: If a poll event is pending (i.e., the semaphore has
+           * already been incremented), nxsem_tickwait() will not wait, but
+           * will return immediately.
            */
 
            ret = nxsem_tickwait(&sem, clock_systimer(), ticks);
@@ -521,8 +513,8 @@ int poll(FAR struct pollfd *fds, nfds_t nfds, int timeout)
           ret = poll_semtake(&sem);
         }
 
-      /* Teardown the poll operation and get the count of events.  Zero will be
-       * returned in the case of a timeout.
+      /* Teardown the poll operation and get the count of events.  Zero will
+       * be returned in the case of a timeout.
        *
        * Preserve ret, if negative, since it holds the result of the wait.
        */
@@ -548,4 +540,3 @@ int poll(FAR struct pollfd *fds, nfds_t nfds, int timeout)
   return count;
 }
 
-#endif /* CONFIG_DISABLE_POLL */

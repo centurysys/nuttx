@@ -50,7 +50,7 @@ config NET_MAX_LISTENPORTS
 config TCP_NOTIFIER
 	bool "Support TCP notifications"
 	default n
-	depends on SCHED_LPWORK
+	depends on SCHED_WORKQUEUE
 	select WQUEUE_NOTIFIER
 	---help---
 		Enable building of TCP notifier logic that will execute a worker
@@ -146,6 +146,16 @@ config NET_TCPBACKLOG
 	---help---
 		Incoming connections pend in a backlog until accept() is called.
 		The size of the backlog is selected when listen() is called.
+
+if NET_TCPBACKLOG
+
+config NET_TCPBACKLOG_CONNS
+	int "TCP backlog conns threshold"
+	default 8
+	---help---
+		Maximum number of TCP backlog connections (all tasks).
+
+endif # NET_TCPBACKLOG
 
 config NET_TCP_SPLIT
 	bool "Enable packet splitting"

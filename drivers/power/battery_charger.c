@@ -89,11 +89,9 @@ static const struct file_operations g_batteryops =
   bat_charger_close,
   bat_charger_read,
   bat_charger_write,
-  0,
-  bat_charger_ioctl
-#ifndef CONFIG_DISABLE_POLL
-  , 0
-#endif
+  NULL,
+  bat_charger_ioctl,
+  NULL
 };
 
 /****************************************************************************
@@ -284,6 +282,10 @@ int battery_charger_register(FAR const char *devpath,
                              FAR struct battery_charger_dev_s *dev)
 {
   int ret;
+
+  /* Initialize the semaphore */
+
+  nxsem_init(&dev->batsem, 0, 1);
 
   /* Register the character driver */
 

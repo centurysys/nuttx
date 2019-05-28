@@ -51,8 +51,8 @@
 #include "up_arch.h"
 
 #include "pic32mz-config.h"
-#include "chip/pic32mz-timer.h"
-#include "chip/pic32mz-int.h"
+#include "hardware/pic32mz-timer.h"
+#include "hardware/pic32mz-int.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -144,7 +144,7 @@ static int pc32mz_timerisr(int irq, uint32_t *regs, void *arg)
 
   /* Process timer interrupt */
 
-  sched_process_timer();
+  nxsched_process_timer();
   return 0;
 }
 

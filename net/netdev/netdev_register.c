@@ -52,15 +52,13 @@
 #include <net/ethernet.h>
 #include <nuttx/net/netconfig.h>
 #include <nuttx/net/netdev.h>
-#include <nuttx/net/arp.h>
+#include <nuttx/net/ethernet.h>
 #include <nuttx/net/bluetooth.h>
 
 #include "utils/utils.h"
 #include "igmp/igmp.h"
 #include "mld/mld.h"
 #include "netdev/netdev.h"
-
-#if defined(CONFIG_NET) && CONFIG_NSOCKET_DESCRIPTORS > 0
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -440,4 +438,3 @@ int netdev_register(FAR struct net_driver_s *dev, enum net_lltype_e lltype)
   return -EINVAL;
 }
 
-#endif /* CONFIG_NET && CONFIG_NSOCKET_DESCRIPTORS */

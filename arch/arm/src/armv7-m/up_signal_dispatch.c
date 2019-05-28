@@ -43,8 +43,8 @@
 #include "svcall.h"
 #include "up_internal.h"
 
-#if ((defined(CONFIG_BUILD_PROTECTED) && defined(__KERNEL__)) || \
-      defined(CONFIG_BUILD_KERNEL)) && !defined(CONFIG_DISABLE_SIGNALS)
+#if (defined(CONFIG_BUILD_PROTECTED) && defined(__KERNEL__)) || \
+     defined(CONFIG_BUILD_KERNEL)
 
 /****************************************************************************
  * Public Functions
@@ -54,7 +54,7 @@
  * Name: up_signal_dispatch
  *
  * Description:
- *   In this kernel mode build, this function will be called to execute a
+ *   In the kernel mode build, this function will be called to execute a
  *   a signal handler in user-space.  When the signal is delivered, a
  *   kernel-mode stub will first run to perform some housekeeping functions.
  *   This kernel-mode stub will then be called transfer control to the user

@@ -77,6 +77,7 @@
 void pthread_exit(FAR void *exit_value)
 {
   FAR struct tcb_s *tcb = this_task();
+  sigset_t set = ALL_SIGNAL_SET;
   int status;
 
   sinfo("exit_value=%p\n", exit_value);
@@ -88,12 +89,7 @@ void pthread_exit(FAR void *exit_value)
    * are performing the JOIN handshake.
    */
 
-#ifndef CONFIG_DISABLE_SIGNALS
-  {
-    sigset_t set = ALL_SIGNAL_SET;
-    (void)nxsig_procmask(SIG_SETMASK, &set, NULL);
-  }
-#endif
+  (void)nxsig_procmask(SIG_SETMASK, &set, NULL);
 
 #ifdef CONFIG_CANCELLATION_POINTS
   /* Mark the pthread as non-cancelable to avoid additional calls to
@@ -137,7 +133,7 @@ void pthread_exit(FAR void *exit_value)
    * (2) so that we can flush buffered I/O (which may required suspending).
    */
 
-  task_exithook(tcb, EXIT_SUCCESS, false);
+  nxtask_exithook(tcb, EXIT_SUCCESS, false);
 
   /* Then just exit, retaining all file descriptors and without
    * calling atexit() functions.

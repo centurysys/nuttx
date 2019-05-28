@@ -49,7 +49,7 @@
 #include <arch/board/board.h>
 
 #include "up_arch.h"
-#include "chip/lpc54_wwdt.h"
+#include "hardware/lpc54_wwdt.h"
 #include "lpc54_power.h"
 #include "lpc54_wdt.h"
 
@@ -550,7 +550,7 @@ static xcpt_t lpc54_capture(FAR struct watchdog_lowerhalf_s *lower,
 }
 
 /****************************************************************************
- * Name: lp54_ioctl
+ * Name: lpc54_ioctl
  *
  * Description:
  *   Any ioctl commands that are not recognized by the "upper-half" driver
