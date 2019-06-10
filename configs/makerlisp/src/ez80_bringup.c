@@ -1,10 +1,8 @@
 /****************************************************************************
- * configs/ez80f910200zco/src/ez80_lowinit.c
+ * config/makerlisp/src/ez80_bringup.c
  *
- *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
- *
- * Based upon sample code included with the Zilog ZDS-II toolchain.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,26 +39,52 @@
 
 #include <nuttx/config.h>
 
-#include "chip/chip.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-static void ez80_gpioinit(void)
-{
-}
+#include <sys/types.h>
+#include <sys/mount.h>
+#include <debug.h>
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-void ez80_lowinit(void)
-{
-  ez80_gpioinit();
-}
+/****************************************************************************
+ * Name: ez80_bringup
+ *
+ * Description:
+ *   Perform architecture-specific initialization
+ *
+ *   CONFIG_BOARD_LATE_INITIALIZE=y :
+ *     Called from board_late_initialize().
+ *
+ *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
+ *     Called from the NSH library
+ *
+ ****************************************************************************/
 
+int ez80_bringup(void)
+{
+  int ret = OK;
+
+#ifdef CONFIG_FS_PROCFS
+  /* Mount the procfs file system */
+
+  ret = mount(NULL, "/proc", "procfs", 0, NULL);
+  if (ret < 0)
+    {
+      serr("ERROR: Failed to mount procfs at /proc: %d\n", ret);
+    }
+#endif
+
+#ifdef HAVE_MMCSD
+  /* Initialize SPI-based SD card slot */
+
+  ret = ez80_mmcsd_initialize(void);
+  if (ret < 0)
+    {
+      serr("ERROR: Failed to initialize SD card: %d\n", ret);
+    }
+#endif
+
+  UNUSED(ret);
+  return ret;
+}

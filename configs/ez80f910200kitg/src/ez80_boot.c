@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/z8encore000zco/src/z8_lowinit.c
+ * configs/ez80f910200kitg/src/ez80_boot.c
  *
  *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -41,7 +41,7 @@
 
 #include <nuttx/config.h>
 
-#include "chip/chip.h"
+#include "chip.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -51,7 +51,7 @@
  * Private Functions
  ****************************************************************************/
 
-static void z8_gpioinit(void)
+static void ez80_gpioinit(void)
 {
 }
 
@@ -59,8 +59,8 @@ static void z8_gpioinit(void)
  * Public Functions
  ****************************************************************************/
 
-void z8_lowinit(void)
+void ez80_board_initialize(void)
 {
-  z8_gpioinit();
+  ez80_gpioinit();
 }
 

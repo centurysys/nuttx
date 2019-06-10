@@ -1,8 +1,10 @@
 /****************************************************************************
- * arch/z80/src/common/up_doirq.c
+ * configs/z8f64200100kit/src/z8_boot.c
  *
- *   Copyright (C) 2007-2009, 2014-2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *
+ * Based upon sample code included with the Zilog ZDS-II toolchain.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,97 +41,26 @@
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
-#include <assert.h>
-#include "up_arch.h"
-
-#include <nuttx/irq.h>
-#include <nuttx/arch.h>
-#include <nuttx/board.h>
-
-#include "chip/switch.h"
-#include "up_internal.h"
-
-#include "group/group.h"
+#include "chip.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 /****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+static void z8_gpioinit(void)
+{
+}
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-FAR chipreg_t *up_doirq(uint8_t irq, FAR chipreg_t *regs)
+void z8_board_initialize(void)
 {
-  board_autoled_on(LED_INIRQ);
-
-#ifdef CONFIG_SUPPRESS_INTERRUPTS
-
-  IRQ_ENTER(regs);
-  err("ERROR: Unexpected IRQ\n");
-  PANIC();
-  return NULL; /* Won't get here */
-
-#else
-#ifdef CONFIG_ARCH_ADDRENV
-  FAR chipreg_t *newregs;
-#endif
-
-  if (irq < NR_IRQS)
-    {
-      DECL_SAVESTATE();
-
-      /* Indicate that we have entered IRQ processing logic */
-
-      IRQ_ENTER(irq, regs);
-
-      /* Deliver the IRQ */
-
-      irq_dispatch(irq, regs);
-
-#ifdef CONFIG_ARCH_ADDRENV
-      /* If a context switch occurred, 'newregs' will hold the new context */
-
-      newregs = IRQ_STATE();
-
-      if (newregs != regs)
-        {
-          /* Make sure that the address environment for the previously
-           * running task is closed down gracefully and set up the
-           * address environment for the new thread at the head of the
-           * ready-to-run list.
-           */
-
-          (void)group_addrenv(NULL);
-        }
-
-      regs = newregs;
-
-#else
-      /* If a context switch occurred, 'regs' will hold the new context */
-
-      regs = IRQ_STATE();
-#endif
-
-      /* Indicate that we are no longer in interrupt processing logic */
-
-      IRQ_LEAVE(irq);
-    }
-
-  board_autoled_off(LED_INIRQ);
-  return regs;
-#endif
+  z8_gpioinit();
 }
+

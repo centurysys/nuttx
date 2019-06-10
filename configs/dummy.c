@@ -1,10 +1,8 @@
 /****************************************************************************
- * configs/z8f64200100kit/src/z8_lowinit.c
+ * configs/dummy.c
  *
- *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
- *
- * Based upon sample code included with the Zilog ZDS-II toolchain.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,31 +34,26 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Included Files
- ****************************************************************************/
-
-#include <nuttx/config.h>
-
-#include "chip/chip.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-static void z8_gpioinit(void)
-{
-}
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-void z8_lowinit(void)
-{
-  z8_gpioinit();
-}
+/****************************************************************************
+ * Name: __configs_dummy
+ *
+ * Description:
+ *   This is a dummy C file.  It is used to generate a useless object.  The
+ *   purpose of the useless object is to assure that libconfigs.a/lib is
+ *   created.  Some archivers (ZDS-II, SDCC) require a non-empty library or
+ *   they will generate errors
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
 
+void __configs_dummy(void)
+{
+}

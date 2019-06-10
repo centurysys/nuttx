@@ -1,10 +1,8 @@
-/****************************************************************************
- * configs/z16f2800100zcog/src/z16f_lowinit.c
+/*****************************************************************************
+ * configs/makerlisp/src/ez80_spimmcsd.c
  *
- *   Copyright (C) 2008, 2014 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2019 Greg Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
- *
- * Based upon sample code included with the Zilog ZDS-II toolchain.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,63 +30,80 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
  ****************************************************************************/
 
-/****************************************************************************
+/*****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include "chip/chip.h"
+#include <pthread.h>
+#include <sched.h>
+#include <semaphore.h>
+#include <time.h>
+#include <unistd.h>
+#include <debug.h>
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
+#include <nuttx/mmcsd.h>
+#include <nuttx/spi/spi.h>
 
-/****************************************************************************
+#include "chip.h"
+#include "ez80f91_spi.h"
+#include "makerlisp.h"
+
+#ifdef HAVE_MMCSD
+
+/*****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: z16f_gpioinit
+/* NOTES:
  *
- * Description:
- *   Configure board-specific GPIO usage here.  Driver pin configurations
- *   are set in the associated device drivers (such as UART, SPI, I2C,
- *   etc.) and must be preserved.
- *
- ****************************************************************************/
+ * 1. We are using a SDCard adapter/module without Card Detect pin!
+ *    Then we don't need to Card Detect callback here.
+ * 2. Media Change callbacks are not yet implemented in the SPI driver.
+ */
 
-static void z16f_gpioinit(void)
-{
-  /* Configure LEDs and Run/Stop switch port */
-
-  putreg8(getreg8(Z16F_GPIOA_DD) | 0x87, Z16F_GPIOA_DD);
-  putreg8(getreg8(Z16F_GPIOA_OUT) | 0x07, Z16F_GPIOA_OUT);
-  putreg8(getreg8(Z16F_GPIOA_DD) & 0xF8, Z16F_GPIOA_DD);
-
-  /* Configure rate switch port */
-
-  putreg8(getreg8(Z16F_GPIOB_DD) | 0x20, Z16F_GPIOB_DD);
-  putreg8(getreg8(Z16F_GPIOB_AFL) | 0x20, Z16F_GPIOB_AFL);
-
-#if 0 /* Not yet */
-  putreg8(0x05, Z16F_ADC0_MAX);
-  putreg8(0xf5, Z16F_ADC0_CTL);
-#endif
-
-  /* Configure Direction switch port */
-
-  putreg8(getreg8(Z16F_GPIOC_DD) | 0x01, Z16F_GPIOC_DD);
-}
-
-/****************************************************************************
+/*****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-void z16f_lowinit(void)
+/*****************************************************************************
+ * Name: ez80_mmcsd_initialize
+ *
+ * Description:
+ *   Initialize SPI-based SD card.
+ *
+ ****************************************************************************/
+
+int ez80_mmcsd_initialize(void)
 {
-  z16f_gpioinit();
+  struct spi_dev_s *spi;
+  int ret;
+
+  mcinfo("INFO: Initializing mmcsd card\n");
+
+  /* Get/initialize the SPI interface */
+
+  spi = ez80_spibus_initialize(1);
+  if (spi == NULL)
+    {
+      mcerr("ERROR: Failed to initialize SPI\n");
+      return -ENODEV;
+    }
+
+  /* Register the MMC/SD block driver for slot 0 with device minor number 0. */
+
+  ret = mmcsd_spislotinitialize(0, 0, spi);
+  if (ret < 0)
+    {
+      mcerr("ERROR: Failed to bind SPI to SD slot 0\n");
+      return ret;
+    }
+
+  mcinfo("INFO: mmcsd card has been initialized successfully\n");
+  return OK;
 }
+
+#endif /* HAVE_MMCSD */
