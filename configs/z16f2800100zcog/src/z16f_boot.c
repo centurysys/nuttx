@@ -1,7 +1,7 @@
 /****************************************************************************
- * configs/ez80f910200kitg/src/ez80_lowinit.c
+ * configs/z16f2800100zcog/src/z16f_boot.c
  *
- *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008, 2014 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Based upon sample code included with the Zilog ZDS-II toolchain.
@@ -41,7 +41,7 @@
 
 #include <nuttx/config.h>
 
-#include "chip/chip.h"
+#include "chip.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -51,16 +51,44 @@
  * Private Functions
  ****************************************************************************/
 
-static void ez80_gpioinit(void)
+/****************************************************************************
+ * Name: z16f_gpioinit
+ *
+ * Description:
+ *   Configure board-specific GPIO usage here.  Driver pin configurations
+ *   are set in the associated device drivers (such as UART, SPI, I2C,
+ *   etc.) and must be preserved.
+ *
+ ****************************************************************************/
+
+static void z16f_gpioinit(void)
 {
+  /* Configure LEDs and Run/Stop switch port */
+
+  putreg8(getreg8(Z16F_GPIOA_DD) | 0x87, Z16F_GPIOA_DD);
+  putreg8(getreg8(Z16F_GPIOA_OUT) | 0x07, Z16F_GPIOA_OUT);
+  putreg8(getreg8(Z16F_GPIOA_DD) & 0xF8, Z16F_GPIOA_DD);
+
+  /* Configure rate switch port */
+
+  putreg8(getreg8(Z16F_GPIOB_DD) | 0x20, Z16F_GPIOB_DD);
+  putreg8(getreg8(Z16F_GPIOB_AFL) | 0x20, Z16F_GPIOB_AFL);
+
+#if 0 /* Not yet */
+  putreg8(0x05, Z16F_ADC0_MAX);
+  putreg8(0xf5, Z16F_ADC0_CTL);
+#endif
+
+  /* Configure Direction switch port */
+
+  putreg8(getreg8(Z16F_GPIOC_DD) | 0x01, Z16F_GPIOC_DD);
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-void ez80_lowinit(void)
+void z16f_board_initialize(void)
 {
-  ez80_gpioinit();
+  z16f_gpioinit();
 }
-

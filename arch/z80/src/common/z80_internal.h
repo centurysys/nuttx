@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/z80/src/common/up_internal.h
+ * arch/z80/src/common/z80_internal.h
  *
  *   Copyright (C) 2007-2009, 2015, 2017-2018 Gregory Nutt. All rights
  *     reserved.
@@ -34,8 +34,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_Z80_SRC_COMMON_UP_INTERNAL_H
-#define __ARCH_Z80_SRC_COMMON_UP_INTERNAL_H
+#ifndef __ARCH_Z80_SRC_COMMON_Z80_INTERNAL_H
+#define __ARCH_Z80_SRC_COMMON_Z80_INTERNAL_H
 
 /****************************************************************************
  * Included Files
@@ -95,15 +95,7 @@
 #endif
 
 /****************************************************************************
- * Public Types
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
@@ -114,38 +106,36 @@ extern "C"
 
 /* Supplied by chip- or board-specific logic */
 
-void up_irqinitialize(void);
+void z80_irq_initialize(void);
 
-#ifdef USE_LOWSERIALINIT
-void up_lowserialinit(void);
+#ifdef CONFIG_RTC_ALARM
+void z80_rtc_irqinitialize(void);
 #endif
 
-/* Defined in up_doirq.c */
+#ifdef USE_LOWSERIALINIT
+void z80_lowserial_initialize(void);
+#endif
 
-FAR chipreg_t *up_doirq(uint8_t irq, FAR chipreg_t *regs);
+/* Defined in xyz_doirq.c */
+
+FAR chipreg_t *z80_doirq(uint8_t irq, FAR chipreg_t *regs);
 
 /* Define in zyz_sigdeliver */
 
-void up_sigdeliver(void);
-
-/* Defined in CPU-specific logic (only for Z180) */
+void z80_sigdeliver(void);
 
 #ifdef CONFIG_ARCH_ADDRENV
-int up_mmuinit(void);
-#endif
+/* Defined in CPU-specific logic (only for Z180) */
 
-/* Defined in xyz_allocateheap.c */
-
-#if CONFIG_MM_REGIONS > 1
-void up_addregion(void);
+int z80_mmu_initialize(void);
 #endif
 
 /* Defined in xyz_serial.c */
 
 #ifdef USE_SERIALDRIVER
-void up_serialinit(void);
+void z80_serial_initialize(void);
 #else
-# define up_serialinit()
+# define z80_serial_initialize()
 #endif
 
 /* Defined in drivers/lowconsole.c */
@@ -221,4 +211,4 @@ void up_stackdump(void);
 #endif
 #endif
 
-#endif  /* __ARCH_Z80_SRC_COMMON_UP_INTERNAL_H */
+#endif  /* __ARCH_Z80_SRC_COMMON_Z80_INTERNAL_H */
