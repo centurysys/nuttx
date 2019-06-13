@@ -62,6 +62,11 @@
 #include "cxd56_gpio.h"
 #include "cxd56_pinconfig.h"
 
+#ifdef CONFIG_CXD56_RTC
+#include <nuttx/timers/rtc.h>
+#include "cxd56_rtc.h"
+#endif
+
 #ifdef CONFIG_CXD56_CPUFIFO
 #include "cxd56_cpufifo.h"
 #endif
@@ -161,6 +166,10 @@ int cxd56_bringup(void)
   wlock.count = 0;
   up_pm_acquire_wakelock(&wlock);
 
+#ifdef CONFIG_RTC_DRIVER
+  rtc_initialize(0, cxd56_rtc_lowerhalf());
+#endif
+
   cxd56_uart_initialize();
   cxd56_timerisr_initialize();
 
@@ -196,6 +205,14 @@ int cxd56_bringup(void)
   if (ret < 0)
     {
       serr("ERROR: Failed to mount the procfs: %d\n", errno);
+    }
+#endif
+
+#ifdef CONFIG_CXD56_SFC
+  ret = board_flash_initialize();
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialze SPI-Flash. %d\n", errno);
     }
 #endif
 
