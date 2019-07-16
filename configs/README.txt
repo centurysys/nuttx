@@ -338,10 +338,6 @@ configs/lm4f120-launchpad
   platform for ARM® Cortex™-M4F-based microcontrollers from Texas
   Instruments.
 
-configs/lpcxpresso-lpc1115
-  NuttX board support for the Embedded Artists LPCXpresso LPC1115 board
-  featuring the NXP LPC1115 MCU.
-
 configs/lpcxpresso-lpc1768
   Embedded Artists base board with NXP LPCExpresso LPC1768.  This board
   is based on the NXP LPC1768.  The Code Red toolchain is used by default.
@@ -606,6 +602,10 @@ configs/pic32mz-starterkit
        PIC32MZ2048ECM144-I/PH w/Crypto Engine (DM320006-C)
 
   See www.microchip.com for further information.
+
+configs/pnev5180b
+  NXP Semiconductors' PN5180 NFC Frontend Development Kit.  This board is
+  based on the NXP LPC1769 MCU.
 
 configs/qemu-i486
   Port of NuttX to QEMU in i486 mode.  This port will also run on real i486

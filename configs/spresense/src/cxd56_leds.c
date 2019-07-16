@@ -1,6 +1,8 @@
 /****************************************************************************
  * configs/spresense/src/cxd56_leds.c
  *
+ *   Copyright (C) 2011-2013, 2015 Gregory Nutt. All rights reserved.
+ *   Author: Gregory Nutt <gnutt@nuttx.org>
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,7 +15,10 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *    Neither the name of Sony Semiconductor Solutions Corporation nor
  *    the names of its contributors may be used to endorse or promote
  *    products derived from this software without specific prior written
  *    permission.
@@ -46,7 +51,60 @@
 #include <nuttx/board.h>
 #include <arch/board/board.h>
 
+#include "cxd56_gpio.h"
+#include "cxd56_pinconfig.h"
+
 #ifdef CONFIG_ARCH_LEDS
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+static inline void led_clrbits(unsigned int clrbits)
+{
+  if ((clrbits & BOARD_LED1_BIT) != 0)
+    {
+      cxd56_gpio_write(GPIO_LED1, false);
+    }
+
+  if ((clrbits & BOARD_LED2_BIT) != 0)
+    {
+      cxd56_gpio_write(GPIO_LED2, false);
+    }
+
+  if ((clrbits & BOARD_LED3_BIT) != 0)
+    {
+      cxd56_gpio_write(GPIO_LED3, false);
+    }
+
+  if ((clrbits & BOARD_LED4_BIT) != 0)
+    {
+      cxd56_gpio_write(GPIO_LED4, false);
+    }
+}
+
+static inline void led_setbits(unsigned int setbits)
+{
+  if ((setbits & BOARD_LED1_BIT) != 0)
+    {
+      cxd56_gpio_write(GPIO_LED1, true);
+    }
+
+  if ((setbits & BOARD_LED2_BIT) != 0)
+    {
+      cxd56_gpio_write(GPIO_LED2, true);
+    }
+
+  if ((setbits & BOARD_LED3_BIT) != 0)
+    {
+      cxd56_gpio_write(GPIO_LED3, true);
+    }
+
+  if ((setbits & BOARD_LED4_BIT) != 0)
+    {
+      cxd56_gpio_write(GPIO_LED4, true);
+    }
+}
 
 /****************************************************************************
  * Public Functions
@@ -58,6 +116,10 @@
 
 void board_autoled_initialize(void)
 {
+   cxd56_gpio_config(GPIO_LED1,false);
+   cxd56_gpio_config(GPIO_LED2,false);
+   cxd56_gpio_config(GPIO_LED3,false);
+   cxd56_gpio_config(GPIO_LED4,false);
 }
 
 /****************************************************************************
@@ -66,6 +128,8 @@ void board_autoled_initialize(void)
 
 void board_autoled_on(int led)
 {
+  led_clrbits(BOARD_LED1_BIT | BOARD_LED2_BIT | BOARD_LED3_BIT | BOARD_LED4_BIT);
+  led_setbits(led);
 }
 
 /****************************************************************************
@@ -74,6 +138,7 @@ void board_autoled_on(int led)
 
 void board_autoled_off(int led)
 {
+  led_clrbits(led);
 }
 
 #endif /* CONFIG_ARCH_LEDS */
