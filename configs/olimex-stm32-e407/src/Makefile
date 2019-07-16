@@ -1,7 +1,7 @@
 ############################################################################
 # configs/olimex-stm32-e407/src/Makefile
 #
-#   Copyright (C) 2016 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2016, 2019 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 -include $(TOPDIR)/Make.defs
 
 ASRCS =
-CSRCS = stm32_boot.c
+CSRCS = stm32_boot.c stm32_bringup.c stm32_spi.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
@@ -48,7 +48,7 @@ ifeq ($(CONFIG_ARCH_BUTTONS),y)
 CSRCS +=  stm32_buttons.c
 endif
 
-ifeq ($(CONFIG_NSH_LIBRARY),y)
+ifeq ($(CONFIG_LIB_BOARDCTL),y)
 CSRCS += stm32_appinit.c
 endif
 
@@ -69,7 +69,7 @@ CSRCS += stm32_usb.c
 endif
 
 ifeq ($(CONFIG_ADC),y)
-CSRCS +=  stm32_adc.c
+CSRCS += stm32_adc.c
 endif
 
 ifeq ($(CONFIG_CAN),y)
@@ -80,4 +80,21 @@ ifeq ($(CONFIG_ARCH_FPU),y)
 CSRCS += stm32_ostest.c
 endif
 
+ifeq ($(CONFIG_SENSORS_BMP180),y)
+CSRCS += stm32_bmp180.c
+endif
+
+ifeq ($(CONFIG_DAC),y)
+CSRCS += stm32_dac.c
+endif
+
+ifeq ($(CONFIG_SENSORS_INA219),y)
+CSRCS += stm32_ina219.c
+endif
+
+ifeq ($(CONFIG_TIMER),y)
+CSRCS += stm32_timer.c
+endif
+
 include $(TOPDIR)/configs/Board.mk
+
