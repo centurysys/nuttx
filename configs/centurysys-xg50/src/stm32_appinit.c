@@ -79,6 +79,7 @@
 #  include <nuttx/ioexpander/tca9534.h>
 #  include <nuttx/ioexpander/gpio.h>
 #  include <nuttx/ioexpander/ioexpander.h>
+#  include <nuttx/sensors/bmp280.h>
 #  define HAVE_I2C_DRIVER 1
 #endif
 
@@ -265,6 +266,18 @@ int board_app_initialize(uintptr_t arg)
         {
           syslog(LOG_INFO, "TCA9534 registered.\n");
           tca9534_setup(tca9534);
+        }
+    }
+#  endif
+
+#  ifdef CONFIG_SENSORS_BMP280
+  if (i2c)
+    {
+      ret = bmp280_register("/dev/bme280", i2c);
+
+      if (ret < 0)
+        {
+          i2cerr("ERROR: Failed to initialize BMx280 driver\n");
         }
     }
 #  endif
