@@ -57,7 +57,8 @@
 
 #define BMP280_ADDR         0x76
 #define BMP280_FREQ         400000
-#define DEVID               0x58
+#define DEVID_BMP280        0x58
+#define DEVID_BME280        0x60
 
 #define BMP280_DIG_T1_LSB   0x88
 #define BMP280_DIG_T1_MSB   0x89
@@ -83,6 +84,8 @@
 #define BMP280_DIG_P8_MSB   0x9d
 #define BMP280_DIG_P9_LSB   0x9e
 #define BMP280_DIG_P9_MSB   0x9f
+#define BME280_DIG_H1_LSB   0xa1
+#define BME280_DIG_H2_LSB   0xe1
 
 #define BMP280_DEVID        0xd0
 #define BMP280_SOFT_RESET   0xe0
@@ -95,6 +98,8 @@
 #define BMP280_TEMP_MSB     0xfa
 #define BMP280_TEMP_LSB     0xfb
 #define BMP280_TEMP_XLSB    0xfc
+#define BME280_HUM_LSB      0xfd
+#define BME280_HUM_MSB      0xfe
 
 /* Power modes */
 
@@ -120,6 +125,15 @@
 #define BMP280_OSP_X8      (0x04 << 2)
 #define BMP280_OSP_X16     (0x05 << 2)
 
+/* Oversampling for humidity. */
+
+#define BME280_OSH_SKIPPED (0x00 << 0)
+#define BME280_OSH_X1      (0x01 << 0)
+#define BME280_OSH_X2      (0x02 << 0)
+#define BME280_OSH_X4      (0x03 << 0)
+#define BME280_OSH_X8      (0x04 << 0)
+#define BME280_OSH_X16     (0x05 << 0)
+
 /* Predefined oversampling combinations. */
 
 #define BMP280_OS_ULTRA_HIGH_RES  (BMP280_OSP_X16 | BMP280_OST_X2)
@@ -134,12 +148,18 @@
  * Private Type Definitions
  ****************************************************************************/
 
+typedef enum devtype {
+  DEV_BMP280 = 1,
+  DEV_BME280 = 2,
+} devtype_t;
+
 struct bmp280_dev_s
 {
   FAR struct i2c_master_s *i2c; /* I2C interface */
   uint8_t addr;                 /* BMP280 I2C address */
   int freq;                     /* BMP280 Frequency <= 3.4MHz */
   int compensated;              /* 0: uncompensated, 1:compensated */
+  devtype_t device;
   struct bmp280_calib_s
   {
     uint16_t t1;
@@ -154,6 +174,12 @@ struct bmp280_dev_s
     int16_t  p7;
     int16_t  p8;
     int16_t  p9;
+    uint8_t  h1;
+    int16_t  h2;
+    uint8_t  h3;
+    int16_t  h4;
+    int16_t  h5;
+    int8_t   h6;
   } calib;
 
   int32_t  tempfine;
@@ -319,8 +345,17 @@ static int bmp280_checkid(FAR struct bmp280_dev_s *priv)
   up_mdelay(1);
   sninfo("devid: 0x%02x\n", devid);
 
-  if (devid != (uint16_t) DEVID)
+  switch (devid)
     {
+    case DEVID_BMP280:
+      priv->device = DEV_BMP280;
+      break;
+
+    case DEVID_BME280:
+      priv->device = DEV_BME280;
+      break;
+
+    default:
       /* ID is not Correct */
 
       snerr("Wrong Device ID! %02x\n", devid);
@@ -373,7 +408,7 @@ static int bmp280_set_standby(FAR struct bmp280_dev_s *priv, uint8_t value)
 
 static int bmp280_initialize(FAR struct bmp280_dev_s *priv)
 {
-  uint8_t buf[24];
+  uint8_t buf[24 + 8];
   int ret;
 
   /* Get calibration data. */
@@ -412,6 +447,37 @@ static int bmp280_initialize(FAR struct bmp280_dev_s *priv)
   sninfo("P8 = %d\n", priv->calib.p8);
   sninfo("P9 = %d\n", priv->calib.p9);
 
+  if (priv->device == DEV_BME280)
+    {
+      /* BME280 */
+
+      ret = bmp280_getregs(priv, BME280_DIG_H1_LSB, &buf[24], 1);
+      if (ret < 0)
+        {
+          return ret;
+        }
+
+      ret = bmp280_getregs(priv, BME280_DIG_H2_LSB, &buf[25], 7);
+      if (ret < 0)
+        {
+          return ret;
+        }
+
+      priv->calib.h1 = (uint8_t) buf[24];
+      priv->calib.h2 = (int16_t) buf[26] << 8 | buf[25];
+      priv->calib.h3 = (uint8_t) buf[27];
+      priv->calib.h4 = (int16_t) buf[28] << 4 | (buf[29] & 0x0f);
+      priv->calib.h5 = (int16_t) buf[30] << 4 | (buf[29] & 0xf0) >> 4;
+      priv->calib.h6 = (int8_t)  buf[31];
+
+      sninfo("H1 = %u\n", priv->calib.h1);
+      sninfo("H2 = %d\n", priv->calib.h2);
+      sninfo("H3 = %u\n", priv->calib.h3);
+      sninfo("H4 = %d\n", priv->calib.h4);
+      sninfo("H5 = %d\n", priv->calib.h5);
+      sninfo("H6 = %d\n", priv->calib.h6);
+    }
+
   /* Set power mode to sleep */
 
   bmp280_putreg8(priv, BMP280_CTRL_MEAS, BMP280_SLEEP_MODE);
@@ -443,7 +509,7 @@ static int bmp280_initialize(FAR struct bmp280_dev_s *priv)
  ****************************************************************************/
 
 static int32_t bmp280_compensate_temp(FAR struct bmp280_dev_s *priv,
-                                   int32_t temp)
+                                      int32_t temp)
 {
   struct bmp280_calib_s *c = &priv->calib;
   int32_t var1;
@@ -519,6 +585,44 @@ static uint32_t bmp280_compensate_press(FAR struct bmp280_dev_s *priv,
 }
 
 /****************************************************************************
+ * Name: bmp280_compensate_humidity
+ *
+ * Description:
+ *   calculate compensate humidity
+ *
+ * Input Parameters:
+ *   humidity - uncompensate value of humidity.
+ *
+ * Returned Value:
+ *   calculate result of compensate humidity.
+ *
+ ****************************************************************************/
+
+static uint32_t bmp280_compensate_humidity(FAR struct bmp280_dev_s *priv,
+                                           uint32_t humidity, int32_t temp)
+{
+  struct bmp280_calib_s *c = &priv->calib;
+  int32_t v_x1;
+
+  /* Update temperature fine value first. */
+
+  (void) bmp280_compensate_temp(priv, temp);
+
+  v_x1 = (priv->tempfine - ((int32_t)76800));
+  v_x1 = (((((humidity << 14) - (((int32_t)c->h4) << 20) - (((int32_t)c->h5) * v_x1)) +
+            ((int32_t)16384)) >> 15) *
+          (((((((v_x1 * ((int32_t)c->h6)) >> 10) *
+               (((v_x1 * ((int32_t)c->h3)) >> 11) +
+                ((int32_t)32768))) >> 10) + ((int32_t)2097152)) *
+            ((int32_t)c->h2) + 8192) >> 14));
+  v_x1 = (v_x1 - (((((v_x1 >> 15) * (v_x1 >> 15)) >> 7) * ((int32_t)c->h1)) >> 4));
+  v_x1 = (v_x1 < 0 ? 0 : v_x1);
+  v_x1 = (v_x1 > 419430400 ? 419430400 : v_x1);
+
+  return (uint32_t)(v_x1 >> 12);
+}
+
+/****************************************************************************
  * Name: bmp280_getpressure
  *
  * Description:
@@ -543,9 +647,85 @@ static uint32_t bmp280_getpressure(FAR struct bmp280_dev_s *priv)
   if (priv->compensated == ENABLE_COMPENSATED)
     {
       press = bmp280_compensate_press(priv, press, temp);
+      sninfo("  compensated: press = %d, temp = %d\n", press, priv->tempfine);
+    }
+  else
+    {
+      priv->tempfine = temp;
     }
 
   return press;
+}
+
+/****************************************************************************
+ * Name: bme280_gethumidity
+ *
+ * Description:
+ *   Calculate the Humidity using the temperature compensated
+ *   See BME280 data sheet for details
+ *
+ ****************************************************************************/
+
+static uint32_t bme280_gethumidity(FAR struct bmp280_dev_s *priv)
+{
+  uint8_t buf[5];
+  uint32_t humidity;
+  int32_t temp;
+
+  if (priv->device != DEV_BME280)
+    {
+      snerr("humidity not supported.\n");
+      return 0;
+    }
+
+  bmp280_getregs(priv, BMP280_TEMP_MSB, buf, 5);
+
+  temp = COMBINE(buf);
+  humidity = (uint32_t)(buf[3] << 8) | (uint32_t)(buf[4]);
+
+  sninfo("humidity = %u, temp = %d\n", humidity, temp);
+
+  if (priv->compensated == ENABLE_COMPENSATED)
+    {
+      humidity = bmp280_compensate_humidity(priv, humidity, temp);
+      sninfo("  compensated: humidity = %u, temp = %d\n", humidity, priv->tempfine);
+    }
+  else
+    {
+      priv->tempfine = temp;
+    }
+
+  return humidity;
+}
+
+/****************************************************************************
+ * Name: bme280_gettemp
+ *
+ * Description:
+ *   Calculate the Temperature
+ *   See BME280 data sheet for details
+ *
+ ****************************************************************************/
+
+static uint32_t bmp280_gettemp(FAR struct bmp280_dev_s *priv)
+{
+  uint8_t buf[3];
+  int32_t temp;
+
+  bmp280_getregs(priv, BMP280_TEMP_MSB, buf, 3);
+
+  temp = COMBINE(buf);
+
+  if (priv->compensated == ENABLE_COMPENSATED)
+    {
+      temp = bmp280_compensate_temp(priv, temp);
+    }
+  else
+    {
+      temp = (temp * 5 + 128) >> 8;
+    }
+
+  return temp;
 }
 
 /****************************************************************************
@@ -599,6 +779,9 @@ static ssize_t bmp280_read(FAR struct file *filep, FAR char *buffer,
   FAR struct inode        *inode = filep->f_inode;
   FAR struct bmp280_dev_s *priv  = inode->i_private;
   FAR uint32_t            *press = (FAR uint32_t *) buffer;
+  FAR uint32_t            *temp = (FAR uint32_t *) buffer + 1;
+  FAR uint32_t            *humidity = (FAR uint32_t *) buffer + 2;
+  FAR ssize_t              len;
 
   if (!buffer)
     {
@@ -615,10 +798,25 @@ static ssize_t bmp280_read(FAR struct file *filep, FAR char *buffer,
   /* Get the pressure compensated */
 
   *press = bmp280_getpressure(priv);
+  len = 4;
 
-  /* Return size of uint32_t (4 bytes) */
+  if (buflen >= 8)
+    {
+      /* Get the temperature compensated */
 
-  return 4;
+      *temp = (priv->tempfine * 5 + 128) >> 8;
+      len = 8;
+    }
+
+  if (buflen >= 12)
+    {
+      /* Get the humidity compensated */
+
+      *humidity = bme280_gethumidity(priv);
+      len = 12;
+    }
+
+  return len;
 }
 
 /****************************************************************************
