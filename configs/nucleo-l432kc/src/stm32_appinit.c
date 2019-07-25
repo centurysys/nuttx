@@ -159,6 +159,15 @@ int board_app_initialize(uintptr_t arg)
     }
 #endif
 
+#ifdef CONFIG_DEV_GPIO
+  ret = stm32l4_gpio_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize GPIO Driver: %d\n", ret);
+      return ret;
+    }
+#endif
+
 #ifdef HAVE_RTC_DRIVER
   /* Instantiate the STM32L4 lower-half RTC driver */
 
@@ -262,6 +271,17 @@ int board_app_initialize(uintptr_t arg)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: stm32_ina219initialize() failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_SENSORS_ZEROCROSS
+  /* Configure the zero-crossing driver */
+
+  ret = stm32_zerocross_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize Zero-Cross, error %d\n", ret);
+      return ret;
     }
 #endif
 
