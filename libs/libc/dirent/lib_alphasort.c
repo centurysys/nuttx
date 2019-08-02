@@ -1,8 +1,8 @@
 /****************************************************************************
- * configs/z80sim/src/z80_irq.c
+ * libs/libc/dirent/lib_alphasort.c
  *
- *   Copyright (C) 2007-2009, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
+ *   Author: Michael Jung <mijung@gmx.net>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,42 +39,37 @@
 
 #include <nuttx/config.h>
 
-#include <nuttx/irq.h>
-
-#include "up_arch.h"
-#include "z80_internal.h"
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-int z80sim_timerisr(int irq, FAR chipreg_t *regs);
+#include <string.h>
+#include <dirent.h>
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: z80_irq_initialize
+ * Name: alphasort
+ *
+ * Description:
+ *   The  alphasort() function can be used as the comparison function compar()
+ *   for scandir().  It sorts directory entries using strcoll on the strings
+ *   (*a)->d_name and (*b)->d_name.
+ *
+ * Input Parameters:
+ *   a - The first direntry to compare
+ *   b - The second direntry to compare
+ *
+ * Returned Value:
+ *   An integer less than, equal to, or greater than zero if the first
+ *   argument is considered to be respectively less than, equal to, or greater
+ *   than the second.
+ *
  ****************************************************************************/
 
-void z80_irq_initialize(void)
+int alphasort(FAR const struct dirent **a, FAR const struct dirent **b)
 {
-  /* Attach the timer interrupt -- There is not special timer interrupt
-   * enable in the simulation so it must be enabled here before interrupts
-   * are enabled.
-   *
-   * NOTE:  Normally, there are separate enables for "global" interrupts
-   * and specific device interrupts.  In such a "normal" case, the timer
-   * interrupt should be attached and enabled in the function
-   * z80_timer_initialize()
-   */
-
-  irq_attach(Z80_IRQ_SYSTIMER, (xcpt_t)z80sim_timerisr, NULL);
-
-#ifndef CONFIG_SUPPRESS_INTERRUPTS
-  /* And finally, enable interrupts (including the timer) */
-
-  up_irq_restore(Z80_C_FLAG);
+#ifdef CONFIG_LIBC_LOCALE
+  return strcoll((*a)->d_name, (*b)->d_name);
+#else
+  return strcmp((*a)->d_name, (*b)->d_name);
 #endif
 }
