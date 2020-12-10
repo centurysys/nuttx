@@ -332,7 +332,9 @@ int board_app_initialize(uintptr_t arg)
 
 #ifdef CONFIG_BOARDCTL_IOCTL
   board_ioctl(BIOC_CONFIG_GPIO, 0);
+#  ifndef CONFIG_CENTURYSYS_XG50_ADDON_NONE
   board_ioctl(BIOC_ENABLE_B2B, 0);
+#  endif
 #endif
 
   UNUSED(ret);
