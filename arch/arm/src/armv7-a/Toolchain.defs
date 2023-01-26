@@ -19,13 +19,13 @@
 ############################################################################
 
 ifeq ($(CONFIG_ARCH_CORTEXA5),y)
-  ARCHCPUFLAGS += -mcpu=cortex-a5
+  ARCHCPUFLAGS += -march=armv7-a -mtune=cortex-a5
 else ifeq ($(CONFIG_ARCH_CORTEXA7),y)
-  ARCHCPUFLAGS += -mcpu=cortex-a7
+  ARCHCPUFLAGS += -march=armv7-a -mtune=cortex-a7
 else ifeq ($(CONFIG_ARCH_CORTEXA8),y)
-  ARCHCPUFLAGS += -mcpu=cortex-a8
+  ARCHCPUFLAGS += -march=armv7-a -mtune=cortex-a8
 else ifeq ($(CONFIG_ARCH_CORTEXA9),y)
-  ARCHCPUFLAGS += -mcpu=cortex-a9
+  ARCHCPUFLAGS += -march=armv7-a -mtune=cortex-a9
 endif
 
 ifneq ($(CONFIG_ARM_DPFPU32),y)
