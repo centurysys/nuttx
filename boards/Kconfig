@@ -1812,6 +1812,14 @@ config ARCH_BOARD_JUPITER_NANO
 	    This options selects support for NuttX on the Starcat Jupiter Nano
 	    featuring the SAMA5D27C-LD1G SIP with 128MB LPDDR2 RAM.
 
+config ARCH_BOARD_MAS1XX
+	bool "Century Systems MA-S1xx"
+	depends on ARCH_CHIP_ATSAMA5D27
+	select SAMA5D27_MAS1XX_498MHZ
+	select ARCH_HAVE_LEDS
+	---help---
+	    This options selects support for NuttX on the Century Systems MA-S1xx.
+
 config ARCH_BOARD_SAMA5D3X_EK
 	bool "Atmel SAMA5D3x-EK development board"
 	depends on ARCH_CHIP_ATSAMA5D31 || ARCH_CHIP_ATSAMA5D33 || ARCH_CHIP_ATSAMA5D34 || ARCH_CHIP_ATSAMA5D35
@@ -2880,6 +2888,7 @@ config ARCH_BOARD
 	default "sama5d2-xult"              if ARCH_BOARD_SAMA5D2_XULT
 	default "giant-board"               if ARCH_BOARD_GIANT_BOARD
 	default "jupiter-nano"              if ARCH_BOARD_JUPITER_NANO
+	default "mas1xx"                    if ARCH_BOARD_MAS1XX
 	default "sama5d3x-ek"               if ARCH_BOARD_SAMA5D3X_EK
 	default "sama5d3-xplained"          if ARCH_BOARD_SAMA5D3_XPLAINED
 	default "sama5d4-ek"                if ARCH_BOARD_SAMA5D4_EK
