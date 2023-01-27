@@ -18,10 +18,10 @@
  *
  ****************************************************************************/
 
-/* The MAS1XX provides a built-in 4GB eMMC (SDMMC0), and one SD
- * full-size memory card slot at J19 (SDMMC1).
+/* The MAS1XX provides a built-in 10GB eMMC (SDMMC0), and one SD
+ * full-size memory card slot at SD (SDMMC1).
  *
- * SDMMC0: There is a Micron 4Gx8 eMMC managed NAND Flash (MTFC4GLDEA-0M WT)
+ * SDMMC0: There is a Swissbit 10GB eMMC managed NAND Flash
  * connected to SDMMC0.
  *
  *   PA1   SDMMC0_CMD
@@ -29,10 +29,6 @@
  *   PA3   SDMMC0_DAT1
  *   PA4   SDMMC0_DAT2
  *   PA5   SDMMC0_DAT3
- *   PA6   SDMMC0_DAT4
- *   PA7   SDMMC0_DAT5
- *   PA8   SDMMC0_DAT6
- *   PA9   SDMMC0_DAT7
  *   PA0   SDMMC0_CK
  *   PA10  SDMMC0_RSTN
  *

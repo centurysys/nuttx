@@ -3293,6 +3293,9 @@ endif
 if ARCH_BOARD_JUPITER_NANO
 source "boards/arm/sama5/jupiter-nano/Kconfig"
 endif
+if ARCH_BOARD_MAS1XX
+source "boards/arm/sama5/mas1xx/Kconfig"
+endif
 if ARCH_BOARD_SAMA5D3X_EK
 source "boards/arm/sama5/sama5d3x-ek/Kconfig"
 endif

@@ -253,22 +253,6 @@
 #define PIO_SPI0_NPCS0    PIO_SPI0_NPCS0_1
 #define PIO_SPI0_SPCK     PIO_SPI0_SPCK_1
 
-/* CANs are available on J9:
- *
- *   ---- ------- -------------
- *   J9   BOARD      SAMA5D2
- *   PIN  NAME    PIO  FUNCTION
- *   ---- ------- -------------
- *    5   CANRX1  PC27 MCAN1-RX
- *    6   CANTX1  PC26 MCAN1-TX
- *    7   CANRX0  PC11 MCAN0-RX
- *    8   CANTX0  PC10 MCAN0-TX
- *   ---- ------- -------------
- */
-
-#define PIO_MCAN0_RX      PIO_MCAN0_RX_2
-#define PIO_MCAN0_TX      PIO_MCAN0_TX_2
-
 /* SDIO - Used for both Port 0 & 1 ******************************************/
 
 /* 386 KHz for initial inquiry stuff */
