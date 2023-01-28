@@ -152,6 +152,7 @@
 struct sam_dev_s
 {
   struct sdio_dev_s dev;         /* Standard, base SDIO interface */
+  int slot;                      /* sdmmc Interface index */
 
   /* SAMA5-specific extensions */
 
@@ -299,6 +300,7 @@ static int sam_lock(struct sdio_dev_s *dev, bool lock);
 /* Initialization/setup */
 
 static void sam_reset(struct sdio_dev_s *dev);
+static void sam_force_cd(struct sdio_dev_s *dev);
 static sdio_capset_t sam_capabilities(struct sdio_dev_s *dev);
 static sdio_statset_t sam_status(struct sdio_dev_s *dev);
 static void sam_widebus(struct sdio_dev_s *dev, bool enable);
@@ -374,6 +376,7 @@ struct sam_dev_s g_sdmmcdev[SAM_MAX_SDMMC_DEV_SLOTS] =
 #ifdef CONFIG_SAMA5_SDMMC0
   {
     .addr               = SAM_SDMMC0_VBASE,
+    .slot               = 0,
 #if defined(PIN_SDMMC0_CD_GPIO)
     .sw_cd_gpio         = PIN_SDMMC0_CD_GPIO,
 #endif
@@ -433,6 +436,7 @@ struct sam_dev_s g_sdmmcdev[SAM_MAX_SDMMC_DEV_SLOTS] =
 #ifdef CONFIG_SAMA5_SDMMC1
   {
     .addr               = SAM_SDMMC1_VBASE,
+    .slot               = 1,
 #if defined(PIN_SDMMC1_CD_GPIO)
     .sw_cd_gpio         = PIN_SDMMC1_CD_GPIO,
 #endif
@@ -1499,9 +1503,16 @@ static void sam_reset(struct sdio_dev_s *dev)
   struct sam_dev_s *priv = (struct sam_dev_s *)dev;
 
   /* Turn SDMMC peripheral off and then on */
-
-  sam_sdmmc1_disableclk();
-  sam_sdmmc1_enableclk();
+  if (priv->slot == 0)
+    {
+      sam_sdmmc0_disableclk();
+      sam_sdmmc0_enableclk();
+    }
+  else
+    {
+      sam_sdmmc1_disableclk();
+      sam_sdmmc1_enableclk();
+    }
 
   /* Disable all interrupts so that nothing interferes with the following. */
 
@@ -1578,6 +1589,36 @@ static void sam_reset(struct sdio_dev_s *dev)
     }
 
     mcinfo("Reset complete\n");
+}
+
+/****************************************************************************
+ * Name: sam_force_cd
+ *
+ * Description:
+ *   Force Card detection
+ *
+ * Input Parameters:
+ *   dev - An instance of the SDIO device interface
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+static void sam_force_cd(struct sdio_dev_s *dev)
+{
+#define MC1R_FCD (1 << 7)
+#if defined(CONFIG_SAMA5_SDMMC0)
+  struct sam_dev_s *priv = (struct sam_dev_s *)dev;
+  uint8_t mc1r;
+
+  if (priv->slot == 0)
+    {
+      mc1r = sam_getreg8(priv, SAMA5_SDMMC_MC1R_OFFSET);
+      mc1r |= MC1R_FCD;
+      sam_putreg8(priv, mc1r, SAMA5_SDMMC_MC1R_OFFSET);
+    }
+#endif
 }
 
 /****************************************************************************
@@ -3476,7 +3517,7 @@ static void sam_power(struct sam_dev_s *priv)
     {
       voltages |= MMCSD_VDD_32_33 | MMCSD_VDD_33_34;
     }
-
+#if 0
   if (capabilities & SDMMC_HTCAPBLT_VS30)
     {
       voltages |= MMCSD_VDD_29_30 | MMCSD_VDD_30_31;
@@ -3486,7 +3527,7 @@ static void sam_power(struct sam_dev_s *priv)
     {
       voltages |= MMCSD_VDD_19_20;
     }
-
+#endif
   power = fls(voltages) - 1;
 
   uint32_t caps0 = sam_getreg(priv, SAMA5_SDMMC_HTCAPBLT0_OFFSET);
@@ -3610,6 +3651,7 @@ struct sdio_dev_s *sam_sdmmc_sdio_initialize(int slotno)
       sam_configpio(PIO_SDMMC0_DAT0);
       sam_configpio(PIO_SDMMC0_CK);
       sam_configpio(PIO_SDMMC0_CMD);
+      sam_configpio(PIO_SDMMC0_RSTN);
 
 #    if (defined(CONFIG_SAMA5_SDMMC0_WIDTH_D1_D4) || \
         defined(CONFIG_SAMA5_SDMMC0_WIDTH_D1_D8))
@@ -3678,6 +3720,7 @@ struct sdio_dev_s *sam_sdmmc_sdio_initialize(int slotno)
     }
 
   sam_reset(&g_sdmmcdev[slotno].dev);
+  sam_force_cd(&g_sdmmcdev[slotno].dev);
   sam_clock(&g_sdmmcdev[slotno].dev, CLOCK_SDIO_DISABLED);
   sam_power(priv);
   sam_set_interrupts(priv);
