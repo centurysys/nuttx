@@ -24,14 +24,35 @@
 
 #include <nuttx/config.h>
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <errno.h>
 
 #include <nuttx/fs/fs.h>
+#include <nuttx/fs/partition.h>
 
 #include "inode/inode.h"
 
 #ifndef CONFIG_DISABLE_MOUNTPOINT
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: partition_handler
+ ****************************************************************************/
+
+#if defined(CONFIG_MBR_PARTITION) || defined(CONFIG_GPT_PARTITION)
+static void partition_handler(struct partition_s *part, void *arg)
+{
+  const char *parent = (const char *) arg;
+  char path[NAME_MAX + 1];
+
+  sprintf(path, "%sp%d", parent, part->index + 1);
+  register_blockpartition(path, 0666, parent, part->firstblock, part->nblocks);
+}
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -94,6 +115,12 @@ int register_blockdriver(FAR const char *path,
     }
 
   inode_unlock();
+#if defined(CONFIG_MBR_PARTITION) || defined(CONFIG_GPT_PARTITION)
+  if (ret >= 0)
+    {
+      parse_block_partition(path, partition_handler, (void *) path);
+    }
+#endif
   return ret;
 }
 
