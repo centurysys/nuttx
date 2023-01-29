@@ -6321,4 +6321,8 @@ config SAMA5_SDMMC_50MHZ
 
 endchoice # SDMMC bus speed
 
+config SAMA5_SDMMC_DMA
+	bool "SDMMC DMA"
+	default n
+
 endif # ARCH_CHIP_SAMA5
