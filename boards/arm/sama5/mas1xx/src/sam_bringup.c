@@ -121,12 +121,6 @@ static void sam_i2ctool(void)
 #ifdef CONFIG_SAMA5_TWI1
   sam_i2c_register(1);
 #endif
-#ifdef CONFIG_SAMA5_TWI2
-  sam_i2c_register(2);
-#endif
-#ifdef CONFIG_SAMA5_TWI3
-  sam_i2c_register(3);
-#endif
 }
 #else
 #  define sam_i2ctool()
@@ -253,72 +247,6 @@ int sam_bringup(void)
   /* Initialize SDMCC-based MMC/SD card support */
 
   nsh_sdmmc_initialize();
-#endif
-#endif
-
-#ifdef HAVE_HSMCI
-#ifdef CONFIG_SAMA5_HSMCI0
-  /* Initialize the HSMCI0 driver */
-
-  ret = sam_hsmci_initialize(HSMCI0_SLOTNO, HSMCI0_MINOR);
-  if (ret < 0)
-    {
-      _err("ERROR: sam_hsmci_initialize(%d,%d) failed: %d\n",
-           HSMCI0_SLOTNO, HSMCI0_MINOR, ret);
-    }
-
-#ifdef CONFIG_SAMA5D4EK_HSMCI0_MOUNT
-  else
-    {
-      /* REVISIT:
-       *  A delay seems to be required here or the mount will fail.
-       */
-
-      /* Mount the volume on HSMCI0 */
-
-      ret = nx_mount(CONFIG_SAMA5D4EK_HSMCI0_MOUNT_BLKDEV,
-                     CONFIG_SAMA5D4EK_HSMCI0_MOUNT_MOUNTPOINT,
-                     CONFIG_SAMA5D4EK_HSMCI0_MOUNT_FSTYPE,
-                     0, NULL);
-
-      if (ret < 0)
-        {
-          _err("ERROR: Failed to mount %s: %d\n",
-               CONFIG_SAMA5D4EK_HSMCI0_MOUNT_MOUNTPOINT, ret);
-        }
-    }
-#endif
-#endif
-
-#ifdef CONFIG_SAMA5_HSMCI1
-  /* Initialize the HSMCI1 driver */
-
-  ret = sam_hsmci_initialize(HSMCI1_SLOTNO, HSMCI1_MINOR);
-  if (ret < 0)
-    {
-      _err("ERROR: sam_hsmci_initialize(%d,%d) failed: %d\n",
-           HSMCI1_SLOTNO, HSMCI1_MINOR, ret);
-    }
-
-#ifdef CONFIG_SAMA5D4EK_HSMCI1_MOUNT
-  else
-    {
-      /* REVISIT: A delay seems required here or the mount will fail. */
-
-      /* Mount the volume on HSMCI1 */
-
-      ret = nx_mount(CONFIG_SAMA5D4EK_HSMCI1_MOUNT_BLKDEV,
-                     CONFIG_SAMA5D4EK_HSMCI1_MOUNT_MOUNTPOINT,
-                     CONFIG_SAMA5D4EK_HSMCI1_MOUNT_FSTYPE,
-                     0, NULL);
-
-      if (ret < 0)
-        {
-          _err("ERROR: Failed to mount %s: %d\n",
-               CONFIG_SAMA5D4EK_HSMCI1_MOUNT_MOUNTPOINT, ret);
-        }
-    }
-#endif
 #endif
 #endif
 

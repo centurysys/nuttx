@@ -48,13 +48,6 @@ CSRCS += sam_sdmmc.c
 endif
 
 endif
-ifeq ($(CONFIG_SAMA5_HSMCI0),y)
-#CSRCS += sam_hsmci.c
-else
-ifeq ($(CONFIG_SAMA5_HSMCI1),y)
-#CSRCS += sam_hsmci.c
-endif
-endif
 
 ifeq ($(CONFIG_SAMA5_UHPHS),y)
 CSRCS += sam_usb.c
@@ -66,10 +59,6 @@ endif
 
 ifeq ($(CONFIG_SAMA5_EMACA),y)
 CSRCS += sam_ethernet.c
-else
-ifeq ($(CONFIG_SAMA5_GMAC),y)
-CSRCS += sam_ethernet.c
-endif
 endif
 
 ifeq ($(CONFIG_BOARDCTL),y)

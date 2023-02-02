@@ -44,9 +44,7 @@
 
 #define HAVE_SDMMC      1
 #define HAVE_AT25       1
-#define HAVE_NAND       1
 #define HAVE_USBHOST    1
-#define HAVE_USBDEV     1
 #define HAVE_USBMONITOR 1
 #define HAVE_NETWORK    1
 
@@ -70,52 +68,6 @@
 #if defined(HAVE_SDMMC) && !defined(CONFIG_SAMA5_PIOA_IRQ)
 #  warning PIOA interrupts not enabled.  No MMC/SD support.
 #  undef HAVE_SDMMC
-#endif
-
-/* NAND FLASH */
-
-/* Can't support the NAND device if NAND flash is not configured on EBI CS3 */
-
-#ifndef CONFIG_SAMA5_EBICS3_NAND
-#  undef HAVE_NAND
-#endif
-
-/* Can't support NAND features if mountpoints are disabled or if we were not
- * asked to mount the NAND part
- */
-
-#if defined(CONFIG_DISABLE_MOUNTPOINT) || !defined(CONFIG_SAMA5D3XPLAINED_NAND_BLOCKMOUNT)
-#  undef HAVE_NAND
-#endif
-
-/* Can't support NAND if the MTD feature is not enabled */
-
-#if !defined(CONFIG_MTD) || !defined(CONFIG_MTD_NAND)
-#  undef HAVE_NAND
-#endif
-
-/* If we are going to mount the NAND, then they user must also have told
- * us what to do with it by setting one of CONFIG_MAS1XX_NAND_FTL or
- * CONFIG_MAS1XX_NAND_NXFFS.
- */
-
-#ifndef CONFIG_MTD
-#  undef CONFIG_MAS1XX_NAND_NXFFS
-#  undef CONFIG_MAS1XX_NAND_FTL
-#endif
-
-#if !defined(CONFIG_FS_NXFFS) || !defined(CONFIG_NXFFS_NAND)
-#  undef CONFIG_MAS1XX_NAND_NXFFS
-#endif
-
-#if !defined(CONFIG_MAS1XX_NAND_FTL) && !defined(CONFIG_MAS1XX_NAND_NXFFS)
-#  undef HAVE_NAND
-#endif
-
-#if defined(CONFIG_MAS1XX_NAND_FTL) && defined(CONFIG_MAS1XX_NAND_NXFFS)
-#  warning Both CONFIG_MAS1XX_NAND_FTL and CONFIG_MAS1XX_NAND_NXFFS are set
-#  warning Ignoring CONFIG_MAS1XX_NAND_NXFFS
-#  undef CONFIG_MAS1XX_NAND_NXFFS
 #endif
 
 /* AT25 Serial FLASH */
