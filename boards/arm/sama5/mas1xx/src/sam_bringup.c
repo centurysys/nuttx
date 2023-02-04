@@ -243,6 +243,22 @@ int sam_bringup(void)
 
   sam_i2ctool();
 
+#ifdef CONFIG_SAMA5_TWI1
+  board_i2c_initialize();
+#endif
+
+#ifdef HAVE_MACADDR
+  /* Read the Ethernet MAC address from the AT24 EEPROM and configure the
+   * Ethernet driver with that address.
+   */
+
+  ret = sam_emac0_setmac();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: sam_emac0_setmac() failed: %d\n", ret);
+    }
+#endif
+
 #ifdef HAVE_SDMMC
 #ifdef CONFIG_SAMA5_SDMMC
   /* Initialize SDMCC-based MMC/SD card support */
@@ -326,9 +342,10 @@ int sam_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_SAMA5_TWI1
-  board_i2c_initialize();
-#endif
+  if (sam_netinitialize)
+    {
+      sam_netinitialize();
+    }
 
   /* If we got here then perhaps not all initialization was successful, but
    * at least enough succeeded to bring-up NSH with perhaps reduced

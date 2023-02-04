@@ -23,6 +23,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <fcntl.h>
 
 /* Force verbose debug on in this file only to support unit-level testing. */
 
@@ -51,7 +52,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifndef CONFIG_SAMA5_EMACA
+#ifndef CONFIG_SAMA5_EMACB
 #  undef CONFIG_SAMA5_EMAC_ISETH0
 #endif
 
@@ -88,7 +89,7 @@
  ****************************************************************************/
 
 #ifdef CONFIG_SAMA5_PIOE_IRQ
-#ifdef CONFIG_SAMA5_EMACA
+#ifdef CONFIG_SAMA5_EMACB
 static void sam_emac_phy_enable(bool enable)
 {
   phyinfo("IRQ%d: enable=%d\n", IRQ_INT_ETH1, enable);
@@ -134,7 +135,7 @@ static void sam_gmac_phy_enable(bool enable)
 
 void weak_function sam_netinitialize(void)
 {
-#ifdef CONFIG_SAMA5_EMACA
+#ifdef CONFIG_SAMA5_EMACB
   /* Ethernet 10/100 (EMAC A) Port
    *
    * The main board contains a MICREL PHY device (KSZ8051) operating at
@@ -177,6 +178,56 @@ void weak_function sam_netinitialize(void)
   sam_configpio(PIO_INT_ETH0);
 #endif
 }
+
+/****************************************************************************
+ * Name: sam_emac0_setmac
+ *
+ * Description:
+ *   Read the Ethernet MAC address from the AT24 FLASH and configure the
+ *   Ethernet driver with that address.
+ *
+ ****************************************************************************/
+
+#ifdef HAVE_MACADDR
+int sam_emac0_setmac(void)
+{
+  int fd;
+  uint8_t mac[6];
+  ssize_t nread;
+  int ret;
+
+  fd = open("/dev/eeprom", O_RDONLY);
+  if (fd < 0)
+    {
+      _err("unable to open /dev/eeprom device.\n");
+      return -1;
+    }
+
+  nread = read(fd, mac, 6);
+  if (nread < 6)
+    {
+      _err("read() MACADDR failed.\n");
+      return (int)nread;
+    }
+
+  close(fd);
+
+  _info("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+  /* Now configure the EMAC driver to use this MAC address */
+
+  ret = sam_emac_setmacaddr(EMAC0_INTF, mac);
+  if (ret < 0)
+    {
+      _err("Failed to set MAC address: %d\n", ret);
+    }
+
+  return ret;
+}
+#else
+#  define sam_emac0_setmac()
+#endif
 
 /****************************************************************************
  * Name: arch_phy_irq
@@ -252,14 +303,14 @@ int arch_phy_irq(const char *intf, xcpt_t handler, void *arg,
   DEBUGASSERT(intf);
 
   ninfo("%s: handler=%p\n", intf, handler);
-#ifdef CONFIG_SAMA5_EMACA
+#ifdef CONFIG_SAMA5_EMACB
   phyinfo("EMAC: devname=%s\n", SAMA5_EMAC_DEVNAME);
 #endif
 #ifdef CONFIG_SAMA5_GMAC
   phyinfo("GMAC: devname=%s\n", SAMA5_GMAC_DEVNAME);
 #endif
 
-#ifdef CONFIG_SAMA5_EMACA
+#ifdef CONFIG_SAMA5_EMACB
   if (strcmp(intf, SAMA5_EMAC_DEVNAME) == 0)
     {
       phyinfo("Select EMAC\n");

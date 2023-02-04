@@ -48,6 +48,9 @@
 #define HAVE_USBMONITOR 1
 #define HAVE_NETWORK    1
 #define HAVE_I2CTOOL    1
+#define HAVE_MACADDR    1
+
+#define PIO_INT_ETH1      PIO_FIQ_1
 
 /* SDMMC */
 
@@ -208,7 +211,7 @@
 
 /* Networking */
 
-#if !defined(CONFIG_NET) || (!defined(CONFIG_SAMA5_EMACA) && !defined(CONFIG_SAMA5_GMAC))
+#if !defined(CONFIG_NET) || (!defined(CONFIG_SAMA5_EMACB) && !defined(CONFIG_SAMA5_GMAC))
 #  undef HAVE_NETWORK
 #endif
 
@@ -461,6 +464,9 @@ int sam_usbhost_initialize(void);
 #ifdef CONFIG_SAMA5_TWI1
 void board_i2c_initialize(void);
 #endif
+
+void weak_function sam_netinitialize(void);
+int sam_emac0_setmac(void);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __BOARDS_ARM__SAMA5_MAS1XX_SRC_MAS1XX_H */
