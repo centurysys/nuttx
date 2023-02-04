@@ -293,6 +293,7 @@ int sam_gmac_initialize(void);
 int sam_emac_initialize(void);
 #elif defined(CONFIG_SAMA5_EMACB)
 int sam_emac_initialize(int intf);
+int sam_emac_setmacaddr(int intf, uint8_t mac[6]);
 #endif
 
 /****************************************************************************

@@ -4220,4 +4220,76 @@ errout_with_buffers:
   return ret;
 }
 
+/****************************************************************************
+ * Function: sam_emac_setmacaddr
+ *
+ * Description:
+ *   There are two ways that the Ethernet MAC address can be set:
+ *
+ *   1) Application level code can set the Ethernet MAC address using a
+ *      netdev ioctl.  The application level code have gotten the MAC
+ *      address from some configuration parameter or by accessing some
+ *      non-volatile storage containing the address.  This is the
+ *      "canonically correct" way to set the MAC address.
+ *   2) Alternatively, the board logic may support some other less obvious
+ *      non-volatile storage and the board-level boot-up code may access
+ *      this and use this interface to set the Ethernet MAC address more
+ *      directly.  This is mostly a kludge for the case where you just don't
+ *      want to expose a application level storage interface.
+ *
+ * Input Parameters:
+ *   intf - If multiple EMAC peripherals are supported, this identifies the
+ *     the EMAC peripheral being initialized.
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *   Called very early in the initialization sequence.
+ *
+ ****************************************************************************/
+
+int sam_emac_setmacaddr(int intf, uint8_t mac[6])
+{
+  struct sam_emac_s *priv;
+  struct net_driver_s *dev;
+
+  /* Get the driver state structure */
+
+#if defined(CONFIG_SAMA5_EMAC0)
+  if (intf == EMAC0_INTF)
+    {
+      priv = &g_emac0;
+    }
+  else
+#endif
+#if defined(CONFIG_SAMA5_EMAC1)
+  if (intf == EMAC1_INTF)
+    {
+      priv = &g_emac1;
+    }
+  else
+#endif
+    {
+      nerr("ERROR:  Interface %d not supported\n", intf);
+      return -EINVAL;
+    }
+
+  /* Copy the MAC address into the device structure */
+
+  dev = &priv->dev;
+  memcpy(dev->d_mac.ether.ether_addr_octet, mac, 6);
+
+  ninfo("%s MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+        dev->d_ifname,
+        dev->d_mac.ether.ether_addr_octet[0],
+        dev->d_mac.ether.ether_addr_octet[1],
+        dev->d_mac.ether.ether_addr_octet[2],
+        dev->d_mac.ether.ether_addr_octet[3],
+        dev->d_mac.ether.ether_addr_octet[4],
+        dev->d_mac.ether.ether_addr_octet[5]);
+
+  return OK;
+}
+
 #endif /* CONFIG_NET && CONFIG_SAMA5_EMACB */
