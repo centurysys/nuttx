@@ -173,6 +173,7 @@ struct twi_dev_s
   struct wdog_s       timeout;    /* Watchdog to recover from bus hangs */
   volatile int        result;     /* The result of the transfer */
   volatile int        xfrd;       /* Number of bytes transfers */
+  int                 refs;       /* Reference count */
 
   /* Debug stuff */
 
@@ -1430,6 +1431,14 @@ struct i2c_master_s *sam_i2cbus_initialize(int bus)
 
   flags = enter_critical_section();
 
+  /* Test if already initialized or not */
+
+  if (++priv->refs > 1)
+    {
+      leave_critical_section(flags);
+      return &priv->dev;
+    }
+
   /* Attach Interrupt Handler */
 
   ret = irq_attach(priv->attr->irq, twi_interrupt, priv);
@@ -1463,6 +1472,13 @@ int sam_i2cbus_uninitialize(struct i2c_master_s *dev)
   struct twi_dev_s *priv = (struct twi_dev_s *)dev;
 
   i2cinfo("TWI%d Un-initializing\n", priv->attr->twi);
+
+  nxmutex_lock(&priv->lock);
+  if (--priv->refs)
+    {
+      nxmutex_unlock(&priv->lock);
+      return OK;
+    }
 
   /* Disable TWI interrupts */
 
