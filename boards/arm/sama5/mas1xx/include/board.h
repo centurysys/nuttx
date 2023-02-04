@@ -74,6 +74,17 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* TWI (I2C) */
+
+#define PIO_TWI0_CK      (PIO_TWI0_CK_1 | PIO_CFG_PULLUP | \
+                          PIO_CFG_DEGLITCH | PIO_DRIVE_HIGH)
+#define PIO_TWI0_D       (PIO_TWI0_D_1  | PIO_CFG_PULLUP | \
+                          PIO_CFG_DEGLITCH | PIO_DRIVE_HIGH)
+#define PIO_TWI1_CK      (PIO_TWI1_CK_1 | PIO_CFG_PULLUP | \
+                          PIO_CFG_DEGLITCH | PIO_DRIVE_HIGH)
+#define PIO_TWI1_D       (PIO_TWI1_D_1  | PIO_CFG_PULLUP | \
+                          PIO_CFG_DEGLITCH | PIO_DRIVE_HIGH)
+
 /* EMAC RMII connection to KSZ8081 Ethernet PHY *************************/
 
 /* SAMA5D27 Interface        KSZ8081 Interface

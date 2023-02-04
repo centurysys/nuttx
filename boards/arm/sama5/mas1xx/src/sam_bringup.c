@@ -37,6 +37,7 @@
 #include <nuttx/usb/usbhost.h>
 #include <nuttx/usb/usbdev_trace.h>
 
+#include "sam_twi.h"
 #include "mas1xx.h"
 
 #ifdef CONFIG_CDCACM
@@ -323,6 +324,10 @@ int sam_bringup(void)
       _err("ERROR: Failed to mount procfs at %s: %d\n",
            SAMA5_PROCFS_MOUNTPOINT, ret);
     }
+#endif
+
+#ifdef CONFIG_SAMA5_TWI1
+  board_i2c_initialize();
 #endif
 
   /* If we got here then perhaps not all initialization was successful, but

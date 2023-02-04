@@ -47,6 +47,7 @@
 #define HAVE_USBHOST    1
 #define HAVE_USBMONITOR 1
 #define HAVE_NETWORK    1
+#define HAVE_I2CTOOL    1
 
 /* SDMMC */
 
@@ -455,6 +456,10 @@ void weak_function sam_usbinitialize(void);
 
 #ifdef HAVE_USBHOST
 int sam_usbhost_initialize(void);
+#endif
+
+#ifdef CONFIG_SAMA5_TWI1
+void board_i2c_initialize(void);
 #endif
 
 #endif /* __ASSEMBLY__ */
