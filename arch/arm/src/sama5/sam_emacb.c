@@ -3621,6 +3621,7 @@ static inline void sam_ethgpioconfig(struct sam_emac_s *priv)
 
       /* Configure additional PIO pins to support EMAC in MII mode */
 
+#  if defined(CONFIG_SAMA5_EMAC0_MII)
       if (!priv->attr->rmii)
         {
           sam_configpio(PIO_EMAC0_TX2);  /* Transmit data TXD2 */
@@ -3632,6 +3633,7 @@ static inline void sam_ethgpioconfig(struct sam_emac_s *priv)
           sam_configpio(PIO_EMAC0_CRS);  /* Carrier Sense and Data Valid */
           sam_configpio(PIO_EMAC0_COL);  /* Collision Detect */
         }
+#  endif
     }
   else
 #endif
