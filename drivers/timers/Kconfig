@@ -364,6 +364,15 @@ config RX8010SJ_I2C_FREQUENCY
 
 endif # RTC_RX8010SJ
 
+config RTC_DSK324SR
+	bool "DSK324SR RTC Driver"
+	default n
+	select I2C
+	select RTC_DATETIME
+	depends on RTC_EXTERNAL
+	---help---
+		Enables support for the DAISHINKU DSK324SR I2C RTC timer.
+
 config RTC_RPMSG
 	bool "RPMSG RTC Driver"
 	default n
