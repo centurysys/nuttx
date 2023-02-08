@@ -92,4 +92,8 @@ ifeq ($(CONFIG_BOARDCTL_RESET),y)
 CSRCS += sam_reset.c
 endif
 
+ifeq ($(CONFIG_LIBC_ZONEINFO_ROMFS),y)
+CSRCS += sam_zoneinfo.c
+endif
+
 include $(TOPDIR)/boards/Board.mk

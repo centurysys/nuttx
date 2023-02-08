@@ -468,5 +468,9 @@ void board_i2c_initialize(void);
 void weak_function sam_netinitialize(void);
 int sam_emac0_setmac(void);
 
+#ifdef CONFIG_LIBC_ZONEINFO_ROMFS
+int sam_zoneinfo(int minor);
+#endif
+
 #endif /* __ASSEMBLY__ */
 #endif /* __BOARDS_ARM__SAMA5_MAS1XX_SRC_MAS1XX_H */

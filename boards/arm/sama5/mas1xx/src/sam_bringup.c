@@ -296,6 +296,10 @@ int sam_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_LIBC_ZONEINFO_ROMFS
+  sam_zoneinfo(0);
+#endif
+
 #ifdef CONFIG_RTC_DSK324SR
   nsh_rtc_initialize();
 #endif
