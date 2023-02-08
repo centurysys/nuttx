@@ -62,6 +62,11 @@
 #  include "sam_sdmmc.h"
 #endif
 
+#ifdef CONFIG_RTC_DSK324SR
+#  include <nuttx/timers/rtc.h>
+#  include <nuttx/timers/dsk324sr.h>
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -125,6 +130,38 @@ static void sam_i2ctool(void)
 }
 #else
 #  define sam_i2ctool()
+#endif
+
+/****************************************************************************
+ * Name: nsh_rtc_initialize
+ *
+ * Description:
+ *   Initialize RTC driver
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_RTC_DSK324SR
+static int nsh_rtc_initialize(void)
+{
+  struct i2c_master_s *i2c;
+  struct rtc_lowerhalf_s *dsk324sr;
+
+  i2c = sam_i2cbus_initialize(1);
+  if (!i2c)
+    {
+      _err("%s: failed to get I2c1 interface\n", __FUNCTION__);
+      return -ENODEV;
+    }
+
+  dsk324sr = dsk324sr_rtc_lowerhalf(i2c, 0x32);
+  if (!dsk324sr)
+    {
+      _err("%s: failed to get dsk324sr lowerhalf\n", __FUNCTION__);
+      return -ENODEV;
+    }
+
+  return rtc_initialize(0, dsk324sr);
+}
 #endif
 
 /****************************************************************************
@@ -257,6 +294,10 @@ int sam_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: sam_emac0_setmac() failed: %d\n", ret);
     }
+#endif
+
+#ifdef CONFIG_RTC_DSK324SR
+  nsh_rtc_initialize();
 #endif
 
 #ifdef HAVE_SDMMC
