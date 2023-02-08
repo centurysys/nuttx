@@ -403,7 +403,7 @@ static int dsk324sr_rtc_rdtime(struct rtc_lowerhalf_s *lower,
    * to POSIX format that expects the year starting from 1900.
    */
 
-  rtctime->tm_year += 101;
+  rtctime->tm_year += 100;
 
   rtc_dumptime(tp, "Returning");
   return OK;
