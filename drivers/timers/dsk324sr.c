@@ -405,7 +405,6 @@ static int dsk324sr_rtc_rdtime(struct rtc_lowerhalf_s *lower,
 
   rtctime->tm_year += 100;
 
-  rtc_dumptime(tp, "Returning");
   return OK;
 }
 
