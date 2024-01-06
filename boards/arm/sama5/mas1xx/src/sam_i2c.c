@@ -82,5 +82,7 @@ void board_i2c_initialize(void)
       return;
     }
 
+#ifdef CONFIG_I2C_EE_24XX
   ee24xx_initialize(i2c, 0x50, "/dev/eeprom", EEPROM_AT24C02, 1);
+#endif
 }

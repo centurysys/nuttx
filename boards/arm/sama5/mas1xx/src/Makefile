@@ -30,8 +30,12 @@ CSRCS += sam_spi.c
 endif
 endif
 
+ifeq ($(CONFIG_SAMA5_TWI0),y)
+CSRCS += sam_i2c.c
+else
 ifeq ($(CONFIG_SAMA5_TWI1),y)
 CSRCS += sam_i2c.c
+endif
 endif
 
 ifeq ($(CONFIG_SAMA5_DDRCS),y)
