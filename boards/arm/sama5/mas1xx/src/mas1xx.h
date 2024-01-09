@@ -236,16 +236,24 @@
  *   ------------------------------ ------------------- ---------------------
  *   SAMA5D2 PIO                    SIGNAL              USAGE
  *   ------------------------------ ------------------- ---------------------
- *   PA13                           SDHC_CD_PA13        Red LED
- *   PB5                            LED_GREEN_PB5       Green LED
- *   PB0                            LED_BLUE_PB0        Blue LED
+ *   PC1                            GPIO_PC1            MobileLED0 Green
+ *   PC2                            GPIO_PC2            MobileLED0 Red
+ *   PC3                            GPIO_PC3            MobileLED1 Green
+ *   PC4                            GPIO_PC4            MobileLED1 Red
+ *   PC5                            GPIO_PC5            Power LED
  *   ------------------------------ ------------------- ---------------------
  */
 
 #define PIO_LED_GREEN (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
-                       PIO_PORT_PIOB | PIO_PIN5)
-#define PIO_LED_BLUE  (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
-                       PIO_PORT_PIOB | PIO_PIN0)
+                       PIO_PORT_PIOC | PIO_PIN5)
+#define PIO_LED_MOBILE0_G (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_CLEAR | \
+                           PIO_PORT_PIOC | PIO_PIN1)
+#define PIO_LED_MOBILE0_R (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_CLEAR | \
+                           PIO_PORT_PIOC | PIO_PIN2)
+#define PIO_LED_MOBILE1_G (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_CLEAR | \
+                           PIO_PORT_PIOC | PIO_PIN3)
+#define PIO_LED_MOBILE1_R (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_CLEAR | \
+                           PIO_PORT_PIOC | PIO_PIN4)
 
 /* Buttons ******************************************************************/
 
@@ -254,16 +262,13 @@
  *  ------------------------------ ------------------- ----------------------
  *  SAMA5D2 PIO                    SIGNAL              USAGE
  *  ------------------------------ ------------------- ----------------------
- *  PB6                            USER_PB_PB6         PB_USER push button
+ *  PB25                           GPIO_PG25           OUT push button
  *  ------------------------------ ------------------- ----------------------
- *
- *  Closing PB_USER will bring PB6 to ground so 1) PB6 should have a weak
- *  pull-up, and 2) when PB_USER is pressed, a low value will be senses.
  */
 
 #define PIO_BTN_USER (PIO_INPUT | PIO_CFG_PULLUP | PIO_CFG_DEGLITCH | \
-                      PIO_INT_BOTHEDGES | PIO_PORT_PIOB | PIO_PIN6)
-#define IRQ_BTN_USER  SAM_IRQ_PB6
+                      PIO_INT_BOTHEDGES | PIO_PORT_PIOB | PIO_PIN25)
+#define IRQ_BTN_USER  SAM_IRQ_PB25
 
 /* SDMMC clocking
  *
@@ -313,36 +318,15 @@
 
 /* USB Ports ****************************************************************/
 
-/* The MAS1XX features two USB communication ports:
+/* The MAS1XX features one USB communication port:
  *
- *   1. Port A Host High Speed (EHCI) and Full Speed (OHCI) multiplexed with
- *      USB Device High Speed Micro AB connector, J23
- *
- *   2. Port B Host High Speed (EHCI) and Full Speed (OHCI) standard type A
- *      connector, J13
+ *   1. Port B Host High Speed (EHCI) and Full Speed (OHCI) standard type A
+ *      connector.
  *
  * The USB host port (only) is equipped with 500-mA high-side power
  * switch for self-powered and bus-powered applications.
  *
- * The USB device port A (J6) features a VBUS insert detection function.
- *
- *
- * Port A
- *
- *   PIO  Signal Name Function
- *   ---- ----------- -------------------------------------------------------
- *   PE9  VBUS_SENSE VBus detection
- *
- *     Note: No VBus power switch enable on port A.  I think that this limits
- *     this port to a device port or as a host port for self-powered devices
- *     only.
  */
-
-#define PIO_USBA_VBUS_SENSE \
-                     (PIO_INPUT | PIO_CFG_PULLUP | PIO_CFG_DEGLITCH | \
-                      PIO_INT_BOTHEDGES | PIO_PORT_PIOA | PIO_PIN31)
-#define IRQ_USBA_VBUS_SENSE \
-                     SAM_IRQ_PA31
 
 /* Port B
  *
@@ -358,7 +342,7 @@
 
 #define PIO_USBB_VBUS_ENABLE \
                      (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
-                      PIO_PORT_PIOB | PIO_PIN10)
+                      PIO_PORT_PIOA | PIO_PIN31)
 
 /*  Ports B
  *
@@ -369,9 +353,14 @@
 
 #define PIO_USBB_VBUS_OVERCURRENT \
                      (PIO_INPUT | PIO_CFG_PULLUP | PIO_CFG_DEGLITCH | \
-                      PIO_INT_BOTHEDGES | PIO_PORT_PIOA | PIO_PIN29)
+                      PIO_INT_BOTHEDGES | PIO_PORT_PIOB | PIO_PIN0)
 #define IRQ_USBB_VBUS_OVERCURRENT \
-                     SAM_IRQ_PA29
+                     SAM_IRQ_PB0
+
+#define PIO_MOBILE_POWER_KEY (PIO_OUTPUT | PIO_CFG_PULLUP | PIO_OUTPUT_CLEAR | \
+                              PIO_PORT_PIOC | PIO_PIN23)
+#define PIO_MOBILE_RESET_KEY (PIO_OUTPUT | PIO_CFG_PULLUP | PIO_OUTPUT_CLEAR | \
+                              PIO_PORT_PIOC | PIO_PIN24)
 
 /****************************************************************************
  * Public Types

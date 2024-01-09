@@ -200,6 +200,16 @@
 
 #define BUTTON_USER_BIT   (1 << BUTTON_USER)
 
+/* Other GPIOs **************************************************************/
+
+#define PIO_LTE_POWER (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_CLEAR | \
+                       PIO_PORT_PIOA | PIO_PIN31)
+
+#define PIO_DIPSW0 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN1)
+#define PIO_DIPSW1 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN2)
+#define PIO_DIPSW2 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN3)
+#define PIO_DIPSW3 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN4)
+
 /* Pin disambiguation *******************************************************/
 
 /* Alternative pin selections are provided with a numeric suffix like _1, _2,
