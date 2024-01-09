@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/risc-v/k230/canmv230/src/romfs_stub.c
+ * arch/risc-v/src/mpfs/mpfs_mpu.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,21 +18,62 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_RISC_V_SRC_MPFS_MPFS_MPU_H
+#define __ARCH_RISC_V_SRC_MPFS_MPFS_MPU_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/compiler.h>
-weak_data const unsigned char aligned_data(4) romfs_img[] =
-{
-  0x00
-};
-weak_data const unsigned int romfs_img_len = 1;
+#include <stdint.h>
+#include <stdbool.h>
 
 /****************************************************************************
- * Private Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Name: mpfs_mpu_set
+ *
+ * Description:
+ *   Set value to MPFS MPUCFG register.
+ *
+ * Input Parameters:
+ *   reg  - The MPUCFG register to write.
+ *   perm - The region permissions.
+ *   base - The base address of the region.
+ *   size - The length of the region.
+ *
+ * Note:
+ *   Only NAPOT encoded regions are supported, thus the base address and
+ *   size must align with each other.
+ *
+ * Returned Value:
+ *   0 on success; negated error on failure
+ *
  ****************************************************************************/
+
+int mpfs_mpu_set(uintptr_t reg, uintptr_t perm, uintptr_t base,
+                 uintptr_t size);
+
+/****************************************************************************
+ * Name: mpfs_mpu_access_ok
+ *
+ * Description:
+ *   Check if MPFS MPUCFG access is OK for register.
+ *
+ * Input Parameters:
+ *   reg  - The MPUCFG register to check.
+ *   perm - The region permissions.
+ *   base - The base address of the region.
+ *   size - The length of the region.
+ *
+ * Returned Value:
+ *   true if access OK; false if not
+ *
+ ****************************************************************************/
+
+bool mpfs_mpu_access_ok(uintptr_t reg, uintptr_t perm, uintptr_t base,
+                        uintptr_t size);
+
+#endif /* __ARCH_RISC_V_SRC_MPFS_MPFS_MPU_H */

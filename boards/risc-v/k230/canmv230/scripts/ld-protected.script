@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/risc-v/k230/canmv230/scripts/ld-kernel.script
+ * boards/risc-v/k230/canmv230/scripts/ld-protected.script
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,16 +18,28 @@
  *
  ****************************************************************************/
 
+/* NOTE:  This shares memory layout with ld-userland.script */
+
 MEMORY
 {
-    kflash (rx) : ORIGIN = 0x08200000, LENGTH = 2048K   /* w/ cache */
-    ksram (rwx) : ORIGIN = 0x08400000, LENGTH = 2048K   /* w/ cache */
-    pgram (rwx) : ORIGIN = 0x08600000, LENGTH =   10M   /* w/ cache */
+  kflash (rx)  : ORIGIN = 0x8000000, LENGTH = 256K /* w/ cache */
+  uflash (rx)  : ORIGIN = 0x8040000, LENGTH = 256K /* w/ cache */
+
+  ksram (rwx)  : ORIGIN = 0x8200000, LENGTH = 1024K /* w/ cache */
+  usram (rwx)  : ORIGIN = 0x8300000, LENGTH = 1024K /* w/ cache */
 }
+
 
 OUTPUT_ARCH("riscv")
 
-/* Provide the kernel boundaries */
+/* Provide these to avoid using config files for them */
+
+__uflash_start = ORIGIN(uflash);
+__uflash_size = LENGTH(uflash);
+__usram_start = ORIGIN(usram);
+__usram_size = LENGTH(usram);
+
+/* Provide the kernel boundaries as well */
 
 __kflash_start = ORIGIN(kflash);
 __kflash_size = LENGTH(kflash);
@@ -35,94 +47,61 @@ __ksram_start = ORIGIN(ksram);
 __ksram_size = LENGTH(ksram);
 __ksram_end = ORIGIN(ksram) + LENGTH(ksram);
 
-/* Page heap */
-
-__pgheap_start = ORIGIN(pgram);
-__pgheap_size = LENGTH(pgram);
-
+ENTRY(_stext)
+EXTERN(__start)
 SECTIONS
 {
-  . = 0x8200000;
+    .text : {
+        _stext = ABSOLUTE(.);
+        *(.start .start.*)
+        *(.text .text.*)
+        *(.fixup)
+        *(.gnu.warning)
+        *(.rodata .rodata.* .srodata .srodata.*)
+        *(.gnu.linkonce.t.*)
+        *(.glue_7)
+        *(.glue_7t)
+        *(.got)
+        *(.gcc_except_table)
+        *(.gnu.linkonce.r.*)
+        _etext = ABSOLUTE(.);
+    } > kflash
 
-  .text :
-    {
-      _stext = . ;
-      *(.text)
-      *(.text.*)
-      *(.gnu.warning)
-      *(.stub)
-      *(.glue_7)
-      *(.glue_7t)
-      *(.jcr)
+    .init_section : ALIGN(4) {
+        _sinit = ABSOLUTE(.);
+        KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+        KEEP(*(.init_array .ctors))
+        _einit = ABSOLUTE(.);
+    } > kflash
 
-      /* C++ support:  The .init and .fini sections contain specific logic
-       * to manage static constructors and destructors.
-       */
+    _eronly = ABSOLUTE(.);
 
-      *(.gnu.linkonce.t.*)
-      *(.init)             /* Old ABI */
-      *(.fini)             /* Old ABI */
-      _etext = . ;
-    }
+    .data : ALIGN(4) {
+        _sdata = ABSOLUTE(.);
+        *(.data .data.*)
+        *(.sdata .sdata.* .sdata2.*)
+        *(.gnu.linkonce.d.*)
+        *(.gnu.linkonce.s.*)
+        CONSTRUCTORS
+        . = ALIGN(4);
+        _edata = ABSOLUTE(.);
+    } > ksram AT > kflash
 
-  .rodata :
-    {
-      _srodata = . ;
-      *(.rodata)
-      *(.rodata1)
-      *(.rodata.*)
-      *(.gnu.linkonce.r*)
-      _erodata = . ;
-    }
+    PROVIDE(__global_pointer$ = _sdata + ((_edata - _sdata) / 2));
 
-  .tdata : {
-      _stdata = ABSOLUTE(.);
-      *(.tdata .tdata.* .gnu.linkonce.td.*);
-      _etdata = ABSOLUTE(.);
-  }
-
-  .tbss : {
-      _stbss = ABSOLUTE(.);
-      *(.tbss .tbss.* .gnu.linkonce.tb.* .tcommon);
-      _etbss = ABSOLUTE(.);
-  }
-
-  _eronly = ABSOLUTE(.);
-
-  .data :
-    {
-      _sdata = . ;
-      *(.data)
-      *(.data1)
-      *(.data.*)
-      *(.gnu.linkonce.d*)
-      . = ALIGN(4);
-      _edata = . ;
-    }
-
-  .bss :
-    {
-      _sbss = . ;
-      *(.bss)
-      *(.bss.*)
-      *(.sbss)
-      *(.sbss.*)
-      *(.gnu.linkonce.b*)
-      *(COMMON)
-      _ebss = . ;
+    .bss : ALIGN(4) {
+        _sbss = ABSOLUTE(.);
+        *(.bss .bss.*)
+        *(.sbss .sbss.*)
+        *(.gnu.linkonce.b.*)
+        *(.gnu.linkonce.sb.*)
+        *(COMMON)
     } > ksram
 
     /* Page tables here, align to 4K boundary */
-
     .pgtables (NOLOAD) : ALIGN(0x1000) {
         *(.pgtables)
-        . = ALIGN(4);
-    } > ksram
-
-    /* Stack top */
-
-    .stack_top : {
-        . = ALIGN(32);
+         . = ALIGN(32);
         _ebss = ABSOLUTE(.);
     } > ksram
 

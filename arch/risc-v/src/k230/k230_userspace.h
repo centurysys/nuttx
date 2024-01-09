@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/risc-v/k230/canmv230/src/romfs_stub.c
+ * arch/risc-v/src/k230/k230_userspace.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,21 +18,32 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_RISCV_SRC_k230_k230_USERSPACE_H
+#define __ARCH_RISCV_SRC_k230_k230_USERSPACE_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/compiler.h>
-weak_data const unsigned char aligned_data(4) romfs_img[] =
-{
-  0x00
-};
-weak_data const unsigned int romfs_img_len = 1;
+#include <nuttx/config.h>
 
 /****************************************************************************
- * Private Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Name: k230_userspace
+ *
+ * Description:
+ *   For the case of the separate user-/kernel-space build, perform whatever
+ *   platform specific initialization of the user memory is required.
+ *   Normally this just means initializing the user space .data and .bss
+ *   segments.
+ *
  ****************************************************************************/
+
+#ifdef CONFIG_BUILD_PROTECTED
+void k230_userspace(void);
+#endif
+
+#endif /* __ARCH_RISCV_SRC_k230_k230_USERSPACE_H */
