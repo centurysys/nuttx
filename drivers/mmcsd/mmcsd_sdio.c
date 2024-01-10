@@ -3454,8 +3454,10 @@ static int mmcsd_cardidentify(FAR struct mmcsd_state_s *priv)
    * for pre-idle. No effect for SD.
    */
 
+#ifndef CONFIG_ARCH_CHIP_SAMA5D2
   mmcsd_sendcmdpoll(priv, MMCSD_CMD0, 0xf0f0f0f0);
   nxsig_usleep(MMCSD_IDLE_DELAY);
+#endif
 
   /* Set ID mode clocking (<400KHz) */
 
