@@ -44,7 +44,7 @@ config SAMA5_SDMMC0
 	bool "Enable SDMMC0 (built-in eMMC)"
 	default y if SAMA5_SDMMC
 	depends on SAMA5_SDMMC
-	select SAMA5_SDMMC0_WIDTH_D1_D4
+	select SAMA5_SDMMC0_WIDTH_D1_ONLY
 
 config SAMA5_SDMMC0_SIZE
 	int "SDMMC0 size in bytes"
@@ -76,6 +76,11 @@ config SAMA5D27_SDMMC0_MOUNT_FSTYPE
 config SAMA5_SDMMC0_WIDTH_D1_D4
 	bool "SDMMC0 data bus width 4 bits"
 	default y
+	depends on SAMA5_SDMMC0
+
+config SAMA5_SDMMC0_WIDTH_D1_ONLY
+	bool "SDMMC0 data bus width 1 bits"
+	default n
 	depends on SAMA5_SDMMC0
 
 config SAMA5_SDMMC1
@@ -120,5 +125,20 @@ config SAMA5_SDMMC1_WIDTH_D1_D4
 	bool "SDMMC1 data bus width 4 bits"
 	default y
 	depends on SAMA5_SDMMC1
+
+config SAMA5_EMACB_PBASE
+	hex "EMACB PBASE"
+	default 0x3ff00000
+	depends on SAMA5_EMACB
+
+config SAMA5_EMACB_VBASE
+	hex "EMACB VBASE"
+	default 0x3ff00000
+	depends on SAMA5_EMACB
+
+config SAMA5_EMACB_SIZE
+	hex "EMACB SIZE"
+	default 0x00100000
+	depends on SAMA5_EMACB
 
 endif # ARCH_BOARD_MAS1XX
