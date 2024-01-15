@@ -1404,6 +1404,12 @@ static int sam_recvframe(struct sam_emac_s *priv)
                     }
                 }
               while (rxndx != priv->rxndx);
+
+              /* Increment statistics */
+#if defined(CONFIG_NETDEV_STATISTICS)
+              (priv->dev.d_statistics.rx_errors)++;
+#endif
+
               return -EIO;
             }
 
@@ -1440,6 +1446,11 @@ static int sam_recvframe(struct sam_emac_s *priv)
               dev->d_len = (rxdesc->status & EMACRXD_STA_FRLEN_MASK);
               ninfo("packet %d-%" PRId32 " (%d)\n",
                     priv->rxndx, rxndx, dev->d_len);
+
+              /* Increment statistics */
+#if defined(CONFIG_NETDEV_STATISTICS)
+              (priv->dev.d_statistics.rx_packets)++;
+#endif
 
               /* All data have been copied in the application frame buffer,
                * release the RX descriptor
@@ -1569,6 +1580,11 @@ static void sam_receive(struct sam_emac_s *priv)
         {
           ninfo("IPv4 frame\n");
 
+          /* Increment statistics */
+#if defined(CONFIG_NETDEV_STATISTICS)
+          (priv->dev.d_statistics.rx_ipv4)++;
+#endif
+
           /* Receive an IPv4 packet from the network device */
 
           ipv4_input(&priv->dev);
@@ -1590,6 +1606,11 @@ static void sam_receive(struct sam_emac_s *priv)
       if (BUF->type == HTONS(ETHTYPE_IP6))
         {
           ninfo("IPv6 frame\n");
+
+          /* Increment statistics */
+#if defined(CONFIG_NETDEV_STATISTICS)
+          (priv->dev.d_statistics.rx_ipv6)++;
+#endif
 
           /* Give the IPv6 packet to the network layer */
 
@@ -1613,6 +1634,11 @@ static void sam_receive(struct sam_emac_s *priv)
         {
           ninfo("ARP frame\n");
 
+          /* Increment statistics */
+#if defined(CONFIG_NETDEV_STATISTICS)
+          (priv->dev.d_statistics.rx_arp)++;
+#endif
+
           /* Handle ARP packet */
 
           arp_input(&priv->dev);
@@ -1629,6 +1655,11 @@ static void sam_receive(struct sam_emac_s *priv)
       else
 #endif
         {
+          /* Increment statistics */
+#if defined(CONFIG_NETDEV_STATISTICS)
+          (priv->dev.d_statistics.rx_dropped)++;
+#endif
+
           nwarn("WARNING: Dropped, Unknown type: %04x\n", BUF->type);
         }
     }
@@ -1853,6 +1884,11 @@ static void sam_interrupt_work(void *arg)
 
       sam_putreg(priv, SAM_EMAC_TSR_OFFSET, clrbits);
 
+      /* Increment statistics */
+#if defined(CONFIG_NETDEV_STATISTICS)
+      (priv->dev.d_statistics.tx_done)++;
+#endif
+
       /* And handle the TX done event */
 
       sam_txdone(priv);
@@ -2023,6 +2059,13 @@ static void sam_txtimeout_work(void *arg)
   /* Reset the hardware.  Just take the interface down, then back up again. */
 
   net_lock();
+
+  /* Increment statistics */
+#if defined(CONFIG_NETDEV_STATISTICS)
+  (priv->dev.d_statistics.tx_errors)++;
+  (priv->dev.d_statistics.tx_timeouts)++;
+#endif
+
   sam_ifdown(&priv->dev);
   sam_ifup(&priv->dev);
 
