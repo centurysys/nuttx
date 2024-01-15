@@ -77,6 +77,10 @@
 #define SAM_EMAC_SAMB1_OFFSET     0x00c8 /* Specific Address 1 Mask Bottom [31:0] Register */
 #define SAM_EMAC_SAMT1_OFFSET     0x00cc /* Specific Address 1 Mask Top [47:32] Register */
                                          /* 0x00fc: Reserved */
+#define SAM_EMAC_TBQBAPQ_OFFSET(x) (0x0440 + 4 * (x - 1))
+                                         /* Transmit Buffer Queue Base Address Priority Queue x */
+#define SAM_EMAC_RBQBAPQ_OFFSET(x) (0x0480 + 4 * (x - 1))
+                                         /* Receive Buffer Queue Base Address Priority Queue x */
 
 /* Statistics registers */
 
