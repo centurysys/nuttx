@@ -540,6 +540,20 @@ config SAMA5_USART0
 	select USART0_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
 
+config SAMA5_USART0_RS485
+	bool "RS-485 on USART 0"
+	default n
+	depends on USART0_SERIALDRIVER
+
+config SAMA5_USART0_RS485_TXEN_POLARITY
+	int "USART0 RS-485 TXEN pin polarity"
+	default 1
+	range 0 1
+	depends on SAMA5_USART0_RS485
+	---help---
+		Polarity of TXEN pin for RS-485 on USART0. Set to state on DIR pin which
+		enables TX (0 - low / nTXEN, 1 - high / TXEN).
+
 config SAMA5_USART1
 	bool "USART 1"
 	default n
@@ -553,6 +567,20 @@ config SAMA5_USART2
 	depends on SAMA5_HAVE_USART2
 	select USART2_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
+
+config SAMA5_USART2_RS485
+	bool "RS-485 on USART 2"
+	default n
+	depends on USART2_SERIALDRIVER
+
+config SAMA5_USART2_RS485_TXEN_POLARITY
+	int "USART2 RS-485 TXEN pin polarity"
+	default 1
+	range 0 1
+	depends on SAMA5_USART2_RS485
+	---help---
+		Polarity of TXEN pin for RS-485 on USART2. Set to state on DIR pin which
+		enables TX (0 - low / nTXEN, 1 - high / TXEN).
 
 config SAMA5_USART3
 	bool "USART 3"
