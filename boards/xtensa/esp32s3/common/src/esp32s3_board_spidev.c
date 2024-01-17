@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/common/arm_exit.c
+ * boards/xtensa/esp32s3/common/src/esp32s3_board_spidev.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,69 +24,56 @@
 
 #include <nuttx/config.h>
 
-#include <assert.h>
+#include <stdio.h>
 #include <debug.h>
-#include <sched.h>
+#include <errno.h>
 
-#include <nuttx/arch.h>
-#include <nuttx/irq.h>
+#include <nuttx/spi/spi_transfer.h>
 
-#include "task/task.h"
-#include "sched/sched.h"
-#include "group/group.h"
-#include "irq/irq.h"
-#include "arm_internal.h"
+#include "esp32s3_spi.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_exit
+ * Name: board_spidev_initialize
  *
  * Description:
- *   This function causes the currently executing task to cease
- *   to exist.  This is a special case of task_delete() where the task to
- *   be deleted is the currently executing task.  It is more complex because
- *   a context switch must be perform to the next ready to run task.
+ *   Initialize SPI driver and register the /dev/spi device.
+ *
+ * Input Parameters:
+ *   port - The SPI bus number, used to build the device path as /dev/spiN
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; A negated errno value is returned
+ *   to indicate the nature of any failure.
  *
  ****************************************************************************/
 
-void up_exit(int status)
+int board_spidev_initialize(int port)
 {
-  struct tcb_s *tcb = this_task();
+  int ret;
+  struct spi_dev_s *spi;
 
-  /* Make sure that we are in a critical section with local interrupts.
-   * The IRQ state will be restored when the next task is started.
-   */
+  spiinfo("Initializing /dev/spi%d...\n", port);
 
-  enter_critical_section();
+  /* Initialize SPI device */
 
-  nxsched_dumponexit();
+  spi = esp32s3_spibus_initialize(port);
+  if (spi == NULL)
+    {
+      spierr("Failed to initialize SPI%d.\n", port);
+      return -ENODEV;
+    }
 
-  /* Destroy the task at the head of the ready to run list. */
+  ret = spi_register(spi, port);
+  if (ret < 0)
+    {
+      spierr("Failed to register /dev/spi%d: %d\n", port, ret);
 
-  nxtask_exit();
+      esp32s3_spibus_uninitialize(spi);
+    }
 
-  /* Now, perform the context switch to the new ready-to-run task at the
-   * head of the list.
-   */
-
-  tcb = this_task();
-
-  /* Adjusts time slice for SCHED_RR & SCHED_SPORADIC cases
-   * NOTE: the API also adjusts the global IRQ control for SMP
-   */
-
-  nxsched_resume_scheduler(tcb);
-
-  /* Then switch contexts */
-
-  arm_fullcontextrestore(tcb->xcp.regs);
-
-  /* arm_fullcontextrestore() should not return but could if the software
-   * interrupts are disabled.
-   */
-
-  PANIC();
+  return ret;
 }
