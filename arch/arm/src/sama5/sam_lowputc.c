@@ -27,6 +27,7 @@
 #include <stdint.h>
 
 #include <nuttx/irq.h>
+#include <debug.h>
 
 #include "arm_internal.h"
 #include "sam_pio.h"
@@ -484,6 +485,7 @@ void sam_lowsetup(void)
    */
 
 #if defined(CONFIG_USART0_SERIALDRIVER) && defined(CONFIG_SAMA5_FLEXCOM0_USART)
+  _info("Initialize FLEXCOM0 USART PINs.");
   sam_configpio(PIO_FLEXCOM0_IO0);
   sam_configpio(PIO_FLEXCOM0_IO1);
 #ifdef CONFIG_USART0_OFLOWCONTROL
@@ -495,6 +497,7 @@ void sam_lowsetup(void)
 #endif
 
 #if defined(CONFIG_USART1_SERIALDRIVER) && defined(CONFIG_SAMA5_FLEXCOM1_USART)
+  _info("Initialize FLEXCOM1 USART PINs.");
   sam_configpio(PIO_FLEXCOM1_IO0);
   sam_configpio(PIO_FLEXCOM1_IO1);
 #ifdef CONFIG_USART1_OFLOWCONTROL
@@ -506,6 +509,7 @@ void sam_lowsetup(void)
 #endif
 
 #if defined(CONFIG_USART2_SERIALDRIVER) && defined(CONFIG_SAMA5_FLEXCOM2_USART)
+  _info("Initialize FLEXCOM2 USART PINs.");
   sam_configpio(PIO_FLEXCOM2_IO0);
   sam_configpio(PIO_FLEXCOM2_IO1);
 #ifdef CONFIG_USART2_OFLOWCONTROL
@@ -517,6 +521,7 @@ void sam_lowsetup(void)
 #endif
 
 #if defined(CONFIG_USART3_SERIALDRIVER) && defined(CONFIG_SAMA5_FLEXCOM3_USART)
+  _info("Initialize FLEXCOM3 USART PINs.");
   sam_configpio(PIO_FLEXCOM3_IO0);
   sam_configpio(PIO_FLEXCOM3_IO1);
 #ifdef CONFIG_USART3_OFLOWCONTROL
@@ -528,6 +533,7 @@ void sam_lowsetup(void)
 #endif
 
 #if defined(CONFIG_USART4_SERIALDRIVER) && defined(CONFIG_SAMA5_FLEXCOM4_USART)
+  _info("Initialize FLEXCOM4 USART PINs.");
   sam_configpio(PIO_FLEXCOM4_IO0);
   sam_configpio(PIO_FLEXCOM4_IO1);
 #ifdef CONFIG_USART4_OFLOWCONTROL

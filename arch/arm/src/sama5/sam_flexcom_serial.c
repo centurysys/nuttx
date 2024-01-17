@@ -47,8 +47,10 @@
 #include "arm_internal.h"
 #include "chip.h"
 #include "hardware/sam_flexcom.h"
+#include "hardware/sam_pinmap.h"
 #include "sam_config.h"
 #include "sam_dbgu.h"
+#include "sam_pio.h"
 #include "sam_serial.h"
 
 /****************************************************************************
@@ -176,6 +178,12 @@
 #  define FLEXUS4_ASSIGNED     1
 #endif
 
+/* Is RS-485 used? */
+
+#if defined(CONFIG_SAMA5_USART0_RS485) || defined(CONFIG_SAMA5_USART2_RS485)
+#  define HAVE_RS485 1
+#endif
+
 /* The Flexcom modules are driven by the peripheral clock (MCK or MCK2). */
 
 #define SAM_USART_CLOCK  BOARD_FLEXCOM_FREQUENCY /* Frequency of the FLEXCOM clock */
@@ -196,6 +204,11 @@ struct flexus_dev_s
   bool     stopbits2; /* true: Configure with 2 stop bits instead of 1 */
 #if defined(CONFIG_SERIAL_IFLOWCONTROL) || defined(CONFIG_SERIAL_OFLOWCONTROL)
   bool     flowc;     /* input flow control (RTS) enabled */
+#endif
+#ifdef HAVE_RS485
+  pio_pinset_t rs485_txen_gpio;     /* TxEnable GPIO */
+  pio_pinset_t rs485_rxen_gpio;     /* RxEnable GPIO */
+  bool         rs485_txen_polarity; /* TxEnable polarity */
 #endif
 };
 
@@ -277,6 +290,13 @@ static struct flexus_dev_s g_flexus0priv =
 #if defined(CONFIG_USART0_OFLOWCONTROL) || defined(CONFIG_USART0_IFLOWCONTROL)
   .flowc          = true,
 #endif
+#if defined(CONFIG_SAMA5_USART0_RS485)
+  .rs485_txen_gpio = PIO_FLEXCOM0_UART_TXEN,
+  .rs485_dir_polarity = (bool)CONFIG_SAMA5_USART0_RS485_TXEN_POLARITY,
+#  if defined(PIO_FLEXCOM0_UART_RXEN)
+  .rs485_rxen_gpio = PIO_FLEXCOM0_UART_RXEN,
+#  endif
+#endif
 };
 
 static uart_dev_t g_flexus0port =
@@ -342,6 +362,13 @@ static struct flexus_dev_s g_flexus2priv =
   .stopbits2      = CONFIG_USART2_2STOP,
 #if defined(CONFIG_USART2_OFLOWCONTROL) || defined(CONFIG_USART2_IFLOWCONTROL)
   .flowc          = true,
+#endif
+#if defined(CONFIG_SAMA5_USART2_RS485)
+  .rs485_txen_gpio = PIO_FLEXCOM2_UART_TXEN,
+  .rs485_txen_polarity = (bool)CONFIG_SAMA5_USART2_RS485_TXEN_POLARITY,
+#  if defined(PIO_FLEXCOM2_UART_RXEN)
+  .rs485_rxen_gpio = PIO_FLEXCOM2_UART_RXEN,
+#  endif
 #endif
 };
 
@@ -554,6 +581,20 @@ static int flexus_interrupt(int irq, void *context, void *arg)
           uart_xmitchars(dev);
           handled = true;
         }
+
+      if ((pending & FLEXUS_INT_TXEMPTY) != 0)
+        {
+          flexus_serialout(priv, SAM_FLEXUS_IDR_OFFSET, FLEXUS_INT_TXEMPTY);
+
+#ifdef HAVE_RS485
+          if (priv->rs485_txen_gpio != 0)
+            {
+              flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET, FLEXUS_CR_TXEN | FLEXUS_CR_RXEN);
+              sam_piowrite(priv->rs485_txen_gpio, !priv->rs485_txen_polarity);
+            }
+#endif
+          handled = true;
+        }
     }
 
   return OK;
@@ -656,6 +697,19 @@ static int flexus_setup(struct uart_dev_s *dev)
       regval |= FLEXUS_MR_NBSTOP_1;
     }
 
+#ifdef HAVE_RS485
+  if (priv->rs485_txen_gpio != 0)
+    {
+      sam_configpio(priv->rs485_txen_gpio);
+      sam_piowrite(priv->rs485_txen_gpio, !priv->rs485_txen_polarity);
+    }
+  if (priv->rs485_rxen_gpio != 0)
+    {
+      sam_configpio(priv->rs485_rxen_gpio);
+      sam_piowrite(priv->rs485_rxen_gpio, false);
+    }
+#endif
+
   /* And save the new mode register value */
 
   flexus_serialout(priv, SAM_FLEXUS_MR_OFFSET, regval);
@@ -693,6 +747,18 @@ static void flexus_shutdown(struct uart_dev_s *dev)
   flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET,
                    (FLEXUS_CR_RSTRX | FLEXUS_CR_RSTTX | FLEXUS_CR_RXDIS |
                     FLEXUS_CR_TXDIS));
+
+#ifdef HAVE_RS485
+  if (priv->rs485_txen_gpio != 0)
+    {
+      sam_piowrite(priv->rs485_txen_gpio, !priv->rs485_txen_polarity);
+    }
+  if (priv->rs485_rxen_gpio != 0)
+    {
+      /* Power Save */
+      sam_piowrite(priv->rs485_rxen_gpio, true);
+    }
+#endif
 
   /* Disable all interrupts */
 
@@ -1050,6 +1116,13 @@ static void flexus_txint(struct uart_dev_s *dev, bool enable)
   flags = enter_critical_section();
   if (enable)
     {
+#ifdef HAVE_RS485
+      if (priv->rs485_txen_gpio != 0)
+        {
+          flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET, FLEXUS_CR_TXEN);
+          sam_piowrite(priv->rs485_txen_gpio, priv->rs485_txen_polarity);
+        }
+#endif
       /* Set to receive an interrupt when the TX holding register register
        * is empty
        */
@@ -1067,9 +1140,18 @@ static void flexus_txint(struct uart_dev_s *dev, bool enable)
     }
   else
     {
-      /* Disable the TX interrupt */
+      /* Disable TXRDY interrupt */
 
       flexus_serialout(priv, SAM_FLEXUS_IDR_OFFSET, FLEXUS_INT_TXRDY);
+
+#ifdef HAVE_RS485
+      if (priv->rs485_txen_gpio != 0)
+        {
+          /* Enable TXEMPTY interrupt */
+
+          flexus_serialout(priv, SAM_FLEXUS_IER_OFFSET, FLEXUS_INT_TXEMPTY);
+        }
+#endif
     }
 
   leave_critical_section(flags);
