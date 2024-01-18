@@ -489,9 +489,9 @@ xcpt_t sam_setup_overcurrent(xcpt_t handler)
 
   /* Configure the interrupt */
 
-  sam_pioirq(PIO_USBBC_VBUS_OVERCURRENT);
-  irq_attach(IRQ_USBBC_VBUS_OVERCURRENT, handler, NULL);
-  sam_pioirqenable(IRQ_USBBC_VBUS_OVERCURRENT);
+  sam_pioirq(PIO_USBB_VBUS_OVERCURRENT);
+  irq_attach(IRQ_USBB_VBUS_OVERCURRENT, handler, NULL);
+  sam_pioirqenable(IRQ_USBB_VBUS_OVERCURRENT);
 
   /* Return the old handler (so that it can be restored) */
 

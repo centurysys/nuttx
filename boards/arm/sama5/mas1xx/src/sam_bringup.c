@@ -33,12 +33,15 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/irq.h>
 #include <nuttx/kthread.h>
+#include <nuttx/signal.h>
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/usb/usbhost.h>
 #include <nuttx/usb/usbdev_trace.h>
 
 #include "sam_twi.h"
+#include "sam_pio.h"
 #include "mas1xx.h"
+#include "mas1xx_lte.h"
 
 #ifdef CONFIG_CDCACM
 #  include <nuttx/usb/cdcacm.h>
@@ -284,6 +287,10 @@ int sam_bringup(void)
   board_i2c_initialize();
 #endif
 
+#ifdef HAVE_USBHOST
+  lte_pio_initialize();
+#endif
+
 #ifdef HAVE_MACADDR
   /* Read the Ethernet MAC address from the AT24 EEPROM and configure the
    * Ethernet driver with that address.
@@ -364,6 +371,12 @@ int sam_bringup(void)
     {
         _err("ERROR: Failed to start the USB monitor: %d\n", ret);
     }
+#endif
+
+#ifdef HAVE_USBHOST
+  /* Power-ON LTE module */
+
+  lte_power_ctrl(true);
 #endif
 
 #ifdef CONFIG_ADC
