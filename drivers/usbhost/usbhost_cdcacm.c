@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <debug.h>
 
+#include <nuttx/bits.h>
 #include <nuttx/irq.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/arch.h>
@@ -202,6 +203,10 @@
 
 #define USBHOST_MAX_CREFS      INT16_MAX /* Max cref count before signed overflow */
 
+#ifndef ARRAY_SIZE
+#  define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -301,7 +306,12 @@ static inline void usbhost_mkdevname(FAR struct usbhost_cdcacm_s *priv,
 /* CDC/ACM request helpers */
 
 #ifdef HAVE_CTRL_INTERFACE
+static int usbhost_ctrlxfer(FAR struct usbhost_cdcacm_s *priv, uint8_t req,
+                            uint8_t reqtype, uint16_t value, uint16_t index,
+                            void *data, uint16_t size);
 static int  usbhost_linecoding_send(FAR struct usbhost_cdcacm_s *priv);
+static int  usbhost_controllinestate_send(FAR struct usbhost_cdcacm_s *priv,
+                                          bool dtr);
 #ifdef HAVE_INTIN_ENDPOINT
 static void usbhost_notification_work(FAR void *arg);
 static void usbhost_notification_callback(FAR void *arg, ssize_t nbytes);
@@ -374,7 +384,7 @@ static bool usbhost_txempty(FAR struct uart_dev_s *uartdev);
  * device.
  */
 
-static const struct usbhost_id_s g_id[4] =
+static const struct usbhost_id_s g_id[] =
 {
   {
     USB_CLASS_CDC,          /* base     */
@@ -412,7 +422,7 @@ static struct usbhost_registry_s g_cdcacm =
 {
   NULL,                   /* flink    */
   usbhost_create,         /* create   */
-  4,                      /* nids     */
+  ARRAY_SIZE(g_id),       /* nids     */
   &g_id[0]                /* id[]     */
 };
 
@@ -637,29 +647,73 @@ static inline void usbhost_mkdevname(FAR struct usbhost_cdcacm_s *priv,
 }
 
 /****************************************************************************
- * Name: usbhost_linecoding_send
+ * Name: usbhost_cttlxfer
  *
  * Description:
  *   Format and send the on EP0.
  *
  * Input Parameters:
- *   arg - A reference to the class instance to be destroyed.
+ *   priv    - A reference to the USB host class instance.
+ *   req     - The particular request.
+ *   reqtype - The characteristics of the specific request.
+ *   value   - Value for control transfer.
+ *   index   - Index for control transfer.
+ *   data    - Data to transfer.
+ *   size    - The length of the data transferred.
  *
  * Returned Value:
- *   None
+ *   0 on success. Negated errno on failure.
  *
  ****************************************************************************/
 
 #ifdef HAVE_CTRL_INTERFACE
-static int usbhost_linecoding_send(FAR struct usbhost_cdcacm_s *priv)
+static int usbhost_ctrlxfer(FAR struct usbhost_cdcacm_s *priv, uint8_t req,
+                            uint8_t reqtype, uint16_t value, uint16_t index,
+                            void *data, uint16_t size)
 {
   FAR struct usbhost_hubport_s *hport;
-  FAR struct cdc_linecoding_s *linecode;
   FAR struct usb_ctrlreq_s *ctrlreq;
   int ret;
 
   hport = priv->usbclass.hport;
   DEBUGASSERT(hport);
+
+  /* Initialize the control request */
+
+  ctrlreq       = (FAR struct usb_ctrlreq_s *)priv->ctrlreq;
+  ctrlreq->type = reqtype;
+  ctrlreq->req  = req;
+
+  usbhost_putle16(ctrlreq->value, value);
+  usbhost_putle16(ctrlreq->index, index);
+  usbhost_putle16(ctrlreq->len,   size);
+
+  /* And send the request */
+
+  ret = DRVR_CTRLOUT(hport->drvr, hport->ep0, ctrlreq, data);
+  if (ret < 0)
+    {
+      uerr("ERROR: DRVR_CTRLOUT failed: %d\n", ret);
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: usbhost_linecoding_send
+ *
+ * Description:
+ *   Format and send the on EP0.
+ *
+ * Returned Value:
+ *   0 on success. Negated errno on failure.
+ *
+ ****************************************************************************/
+
+static int usbhost_linecoding_send(FAR struct usbhost_cdcacm_s *priv)
+{
+  FAR struct cdc_linecoding_s *linecode;
+  uint8_t reqtype;
 
   /* Initialize the line coding structure */
 
@@ -669,26 +723,45 @@ static int usbhost_linecoding_send(FAR struct usbhost_cdcacm_s *priv)
   linecode->parity = priv->parity;
   linecode->nbits  = priv->nbits;
 
-  /* Initialize the control request */
+  reqtype = USB_DIR_OUT | USB_REQ_TYPE_CLASS | USB_REQ_RECIPIENT_INTERFACE;
 
-  ctrlreq          = (FAR struct usb_ctrlreq_s *)priv->ctrlreq;
-  ctrlreq->type    = USB_DIR_OUT | USB_REQ_TYPE_CLASS |
-                     USB_REQ_RECIPIENT_INTERFACE;
-  ctrlreq->req     = ACM_SET_LINE_CODING;
+  return usbhost_ctrlxfer(priv, ACM_SET_LINE_CODING, reqtype, 0, priv->dataif,
+                          linecode, SIZEOF_CDC_LINECODING);
+}
 
-  usbhost_putle16(ctrlreq->value, 0);
-  usbhost_putle16(ctrlreq->index, priv->ctrlif);
-  usbhost_putle16(ctrlreq->len,   SIZEOF_CDC_LINECODING);
+/****************************************************************************
+ * Name: usbhost_controllinestate_send
+ *
+ * Description:
+ *   Format and send the on EP0.
+ *
+ * Returned Value:
+ *   0 on success. Negated errno on failure.
+ *
+ ****************************************************************************/
 
-  /* And send the request */
+static int usbhost_controllinestate_send(FAR struct usbhost_cdcacm_s *priv,
+                                         bool dtr)
+{
+  uint8_t reqtype;
+  uint16_t val = 0;
 
-  ret = DRVR_CTRLOUT(hport->drvr, hport->ep0, ctrlreq, priv->linecode);
-  if (ret < 0)
+  if (dtr)
     {
-      uerr("ERROR: DRVR_CTRLOUT failed: %d\n", ret);
+      val |= BIT(0);
     }
 
-  return ret;
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  if (priv->rts)
+    {
+      val |= BIT(1);
+    }
+#endif
+
+  reqtype = USB_DIR_OUT | USB_REQ_TYPE_CLASS | USB_REQ_RECIPIENT_INTERFACE;
+
+  return usbhost_ctrlxfer(priv, ACM_SET_CTRL_LINE_STATE, reqtype, 0,
+                          priv->dataif, NULL, 0);
 }
 #endif
 
@@ -2030,6 +2103,12 @@ static int usbhost_connect(FAR struct usbhost_class_s *usbclass,
     {
       uerr("ERROR: usbhost_linecoding_send() failed: %d\n", ret);
     }
+
+  ret = usbhost_controllinestate_send(priv, true);
+  if (ret < 0)
+    {
+      uerr("ERROR: usbhost_controllinestate_send() failed: %d\n", ret);
+    }
 #endif
 
   /* Register the lower half serial instance with the upper half serial
@@ -2133,6 +2212,8 @@ static int usbhost_disconnected(FAR struct usbhost_class_s *usbclass)
   uart_connected(&priv->uartdev, false);
 
   /* Cancel any ongoing Bulk transfers */
+
+  priv->rxena = false;
 
   ret = DRVR_CANCEL(hport->drvr, priv->bulkin);
   if (ret < 0)
@@ -2267,11 +2348,14 @@ static int usbhost_setup(FAR struct uart_dev_s *uartdev)
 static void usbhost_shutdown(FAR struct uart_dev_s *uartdev)
 {
   FAR struct usbhost_cdcacm_s *priv;
+  FAR struct usbhost_hubport_s *hport;
   irqstate_t flags;
+  int ret;
 
   uinfo("Entry\n");
   DEBUGASSERT(uartdev && uartdev->priv);
   priv = (FAR struct usbhost_cdcacm_s *)uartdev->priv;
+  hport = priv->usbclass.hport;
 
   /* Decrement the reference count on the block driver */
 
@@ -2285,6 +2369,16 @@ static void usbhost_shutdown(FAR struct uart_dev_s *uartdev)
    */
 
   nxmutex_unlock(&priv->lock);
+
+  /* Cancel now data transaction */
+
+  priv->rxena = false;
+
+  ret = DRVR_CANCEL(hport->drvr, priv->bulkin);
+  if (ret < 0)
+    {
+      uerr("ERROR: Bulk IN DRVR_CANCEL failed: %d\n", ret);
+    }
 
   /* We need to disable interrupts momentarily to assure that there are
    * no asynchronous disconnect events.
@@ -2568,42 +2662,36 @@ static void usbhost_rxint(FAR struct uart_dev_s *uartdev, bool enable)
 {
   FAR struct usbhost_cdcacm_s *priv;
   int ret;
+  irqstate_t flags;
 
   DEBUGASSERT(uartdev && uartdev->priv);
   priv = (FAR struct usbhost_cdcacm_s *)uartdev->priv;
 
-  /* Are we enabling or disabling RX reception? */
+  flags = enter_critical_section();
+
+  /* Are we enabling RX reception? */
 
   if (enable && !priv->rxena)
     {
-      /* Cancel any pending, delayed RX data reception work */
-
-      work_cancel(LPWORK, &priv->rxwork);
-
-      /* Restart immediate RX data reception work (unless RX flow control
-       * is in effect.
-       */
-
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
       if (priv->rts)
 #endif
         {
-          ret = work_queue(LPWORK, &priv->rxwork,
-                           usbhost_rxdata_work, priv, 0);
-          DEBUGASSERT(ret >= 0);
-          UNUSED(ret);
+          if (work_available(&priv->rxwork))
+            {
+              ret = work_queue(LPWORK, &priv->rxwork,
+                               usbhost_rxdata_work, priv, 0);
+              DEBUGASSERT(ret >= 0);
+              UNUSED(ret);
+            }
         }
-    }
-  else if (!enable && priv->rxena)
-    {
-      /* Cancel any pending RX data reception work */
-
-      work_cancel(LPWORK, &priv->rxwork);
     }
 
   /* Save the new RX enable state */
 
   priv->rxena = enable;
+
+  leave_critical_section(flags);
 }
 
 /****************************************************************************
@@ -2720,9 +2808,12 @@ static void usbhost_txint(FAR struct uart_dev_s *uartdev, bool enable)
 {
   FAR struct usbhost_cdcacm_s *priv;
   int ret;
+  irqstate_t flags;
 
   DEBUGASSERT(uartdev && uartdev->priv);
   priv = (FAR struct usbhost_cdcacm_s *)uartdev->priv;
+
+  flags = enter_critical_section();
 
   /* Are we enabling or disabling TX transmission? */
 
@@ -2746,9 +2837,11 @@ static void usbhost_txint(FAR struct uart_dev_s *uartdev, bool enable)
       work_cancel(LPWORK, &priv->txwork);
     }
 
-  /* Save the new RX enable state */
+  /* Save the new TX enable state */
 
   priv->txena = enable;
+
+  leave_critical_section(flags);
 }
 
 /****************************************************************************
