@@ -2685,11 +2685,11 @@ static void usbhost_rxint(FAR struct uart_dev_s *uartdev, bool enable)
               UNUSED(ret);
             }
         }
+
+      /* Save the new RX enable state */
+
+      priv->rxena = enable;
     }
-
-  /* Save the new RX enable state */
-
-  priv->rxena = enable;
 
   leave_critical_section(flags);
 }
