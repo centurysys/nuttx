@@ -79,6 +79,18 @@ SECTIONS
     } > sdram
     PROVIDE_HIDDEN (__exidx_end = .);
 
+    .tdata : {
+        _stdata = ABSOLUTE(.);
+        *(.tdata .tdata.* .gnu.linkonce.td.*);
+        _etdata = ABSOLUTE(.);
+    } > sdram
+
+    .tbss : {
+        _stbss = ABSOLUTE(.);
+        *(.tbss .tbss.* .gnu.linkonce.tb.* .tcommon);
+        _etbss = ABSOLUTE(.);
+    } > sdram
+
     .data :
     {
         _sdata = ABSOLUTE(.);
