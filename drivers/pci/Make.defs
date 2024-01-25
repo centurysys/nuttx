@@ -1,5 +1,5 @@
 ############################################################################
-# boards/x86_64/intel64/qemu-intel64/src/Makefile
+# drivers/pci/Make.defs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -18,16 +18,13 @@
 #
 ############################################################################
 
-include $(TOPDIR)/Make.defs
+ifeq ($(CONFIG_PCI),y)
 
-CSRCS = qemu_boot.c qemu_bringup.c qemu_freq.c qemu_net.c
+CSRCS += pci.c
 
-ifeq ($(CONFIG_BOARDCTL),y)
-  CSRCS += qemu_appinit.c
+# Include PCI device driver build support
+
+DEPPATH += --dep-path pci
+VPATH += :pci
+CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)drivers$(DELIM)pci
 endif
-
-ifeq ($(CONFIG_QEMU_PCI),y)
-  CSRCS += qemu_pci.c
-endif
-
-include $(TOPDIR)/boards/Board.mk

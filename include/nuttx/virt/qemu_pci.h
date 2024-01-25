@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/x86_64/intel64/qemu-intel64/src/qemu_intel64.h
+ * include/nuttx/virt/qemu_pci.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,39 +18,40 @@
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_X86_64_INTEL64_QEMU_INTEL64_SRC_QEMU_INTEL64_H
-#define __BOARDS_X86_64_INTEL64_QEMU_INTEL64_SRC_QEMU_INTEL64_H
+#ifndef __INCLUDE_NUTTX_VIRT_QEMU_PCI_H
+#define __INCLUDE_NUTTX_VIRT_QEMU_PCI_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/compiler.h>
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/* GPIO Pin Definitions *****************************************************/
-
-/****************************************************************************
- * Public Types
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-#ifndef __ASSEMBLY__
+#include <stdbool.h>
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-void qemu_pci_init(void);
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
 
-int qemu_bringup(void);
+#ifdef CONFIG_VIRT_QEMU_PCI_TEST
+extern const struct pci_dev_type_s g_pci_type_qemu_pci_test;
+#endif
 
-#endif /* __ASSEMBLY__ */
-#endif /* __BOARDS_X86_64_INTEL64_QEMU_INTEL64_SRC_QEMU_INTEL64_H */
+#ifdef CONFIG_VIRT_QEMU_EDU
+extern const struct pci_dev_type_s g_pci_type_qemu_edu;
+#endif
+
+#undef EXTERN
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __INCLUDE_NUTTX_VIRT_QEMU_PCI_H */
