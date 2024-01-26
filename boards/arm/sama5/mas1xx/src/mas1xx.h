@@ -454,6 +454,10 @@ int sam_usbhost_initialize(void);
 void board_i2c_initialize(void);
 #endif
 
+#ifdef CONFIG_ADC
+int sam_adc_setup(void);
+#endif
+
 void weak_function sam_netinitialize(void);
 int sam_emac0_setmac(void);
 
