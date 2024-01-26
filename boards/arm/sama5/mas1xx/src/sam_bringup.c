@@ -25,10 +25,13 @@
 #include <nuttx/config.h>
 
 #include <sys/mount.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
 #include <debug.h>
 #include <string.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
 
 #include <nuttx/fs/fs.h>
 #include <nuttx/irq.h>
@@ -135,6 +138,36 @@ static void sam_i2ctool(void)
 #  define sam_i2ctool()
 #endif
 
+#ifdef CONFIG_RTC_DSK324SR
+/****************************************************************************
+ * Name: rtc_rtc2sys
+ ****************************************************************************/
+
+static void rtc_rtc2sys(void)
+{
+  int fd;
+  struct rtc_time rtctime;
+  struct tm tm;
+  struct timespec ts;
+
+  fd = open("/dev/rtc0", O_RDONLY);
+  ioctl(fd, RTC_RD_TIME, &rtctime);
+  close(fd);
+
+  tm.tm_year = rtctime.tm_year;
+  tm.tm_mon = rtctime.tm_mon;
+  tm.tm_mday = rtctime.tm_mday;
+  tm.tm_hour = rtctime.tm_hour;
+  tm.tm_min = rtctime.tm_min;
+  tm.tm_sec = rtctime.tm_sec;
+
+  ts.tv_sec = timegm(&tm);
+  ts.tv_sec += 9 * 60 * 60;
+  ts.tv_nsec = 0;
+
+  clock_settime(CLOCK_REALTIME, &ts);
+}
+
 /****************************************************************************
  * Name: nsh_rtc_initialize
  *
@@ -143,11 +176,11 @@ static void sam_i2ctool(void)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_RTC_DSK324SR
 static int nsh_rtc_initialize(void)
 {
   struct i2c_master_s *i2c;
   struct rtc_lowerhalf_s *dsk324sr;
+  int ret;
 
   i2c = sam_i2cbus_initialize(1);
   if (!i2c)
@@ -163,7 +196,14 @@ static int nsh_rtc_initialize(void)
       return -ENODEV;
     }
 
-  return rtc_initialize(0, dsk324sr);
+  ret = rtc_initialize(0, dsk324sr);
+
+  if (ret == OK)
+    {
+      rtc_rtc2sys();
+    }
+
+  return ret;
 }
 #endif
 
@@ -180,7 +220,9 @@ static int nsh_rtc_initialize(void)
 static int nsh_sdmmc_initialize(void)
 {
   struct sdio_dev_s *sdmmc0;
+#ifdef CONFIG_SAMA5_SDMMC1
   struct sdio_dev_s *sdmmc1;
+#endif
   int ret = 0;
 
   /* Get an instance of the SDIO interface */
