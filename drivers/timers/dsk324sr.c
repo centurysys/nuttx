@@ -69,6 +69,12 @@
  * Private Types
  ****************************************************************************/
 
+typedef enum {
+  UNKNOWN = 0,
+  DSK324SR,
+  DD3225TS,
+} rtc_type_t;
+
 /* This is the private type for the RTC state.  It must be cast compatible
  * with struct rtc_lowerhalf_s.
  */
@@ -90,6 +96,7 @@ struct dsk324sr_lowerhalf_s
   struct i2c_master_s *i2c;
 
   uint8_t addr;
+  rtc_type_t type;
 
   bool initialized;
 };
@@ -287,22 +294,87 @@ static int write_byte_data(const struct dsk324sr_lowerhalf_s *lower, uint8_t add
 }
 
 /****************************************************************************
+ * Name: get_rtc_type
+ ****************************************************************************/
+
+static rtc_type_t get_rtc_type(const struct dsk324sr_lowerhalf_s *lower)
+{
+  uint8_t buf[32];
+  char *rtcname;
+  int err, retry;
+  rtc_type_t type = UNKNOWN;
+
+  for (retry = 10; retry >= 0; retry--)
+    {
+      err = read_block_data(lower, DSK324SR_REG_RTCSEC, 30, buf);
+      if (err < 0)
+        {
+          continue;
+        }
+      else
+        {
+          if (memcmp(&buf[0], &buf[15], 7) == 0)
+            {
+              rtcname = "DD3225TS";
+              type = DD3225TS;
+            }
+          else if (memcmp(&buf[0], &buf[14], 7) == 0)
+            {
+              rtcname = "DS324SR";
+              type = DSK324SR;
+            }
+          else
+            {
+              continue;
+            }
+
+          _info("RTC %s detected.\n", rtcname);
+          break;
+        }
+    }
+
+  if (type != UNKNOWN)
+    {
+      err = read_byte_data(lower, DSK324SR_REG_SELECT, buf);
+
+      if (err >= 0)
+        {
+          buf[0] |= DSK324SR_SELECT_TCS_30S;
+
+          err = write_byte_data(lower, DSK324SR_REG_SELECT, buf[0]);
+
+          if (err >= 0)
+            {
+              _info("SEL Register updated to 30s.\n");
+            }
+          else
+            {
+              _err("SEL Register updated failed.\n");
+            }
+        }
+
+      if (type == DD3225TS)
+        {
+          buf[0] = 0;
+
+          err = write_byte_data(lower, DD3225TS_REG_TEST, buf[0]);
+
+          if (err < 0)
+            {
+              _err("Clear TEST register failed.\n");
+            }
+        }
+    }
+
+  return type;
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
  * Name: dsk324sr_rtc_rdtime
- *
- * Description:
- *   Implements the rdtime() method of the RTC driver interface
- *
- * Input Parameters:
- *   lower   - A reference to RTC lower half driver state structure
- *   rcttime - The location in which to return the current RTC time.
- *
- * Returned Value:
- *   Zero (OK) on success; a negated errno on failure
- *
  ****************************************************************************/
 
 static int dsk324sr_rtc_rdtime(struct rtc_lowerhalf_s *lower,
@@ -410,17 +482,6 @@ static int dsk324sr_rtc_rdtime(struct rtc_lowerhalf_s *lower,
 
 /****************************************************************************
  * Name: dsk324sr_rtc_settime
- *
- * Description:
- *   Implements the settime() method of the RTC driver interface
- *
- * Input Parameters:
- *   lower   - A reference to RTC lower half driver state structure
- *   rcttime - The new time to set
- *
- * Returned Value:
- *   Zero (OK) on success; a negated errno on failure
- *
  ****************************************************************************/
 
 static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
@@ -512,6 +573,25 @@ static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
   return ret;
 }
 
+#ifdef CONFIG_RTC_ALARM
+/****************************************************************************
+ * Name: dsk324sr_rtc_setalarm
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: dsk324sr_rtc_setrelative
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: dsk324sr_rtc_cancelalarm
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: dsk324sr_rtc_rdalarm
+ ****************************************************************************/
+
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -534,6 +614,8 @@ static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
 struct rtc_lowerhalf_s *dsk324sr_rtc_lowerhalf(struct i2c_master_s *i2c,
                                                uint8_t addr)
 {
+  rtc_type_t type;
+
   if (g_rtc_lowerhalf.initialized || !i2c)
     {
       return NULL;
@@ -541,6 +623,15 @@ struct rtc_lowerhalf_s *dsk324sr_rtc_lowerhalf(struct i2c_master_s *i2c,
 
   g_rtc_lowerhalf.i2c = i2c;
   g_rtc_lowerhalf.addr = addr;
+
+  type = get_rtc_type(&g_rtc_lowerhalf);
+
+  if (type == UNKNOWN)
+    {
+      return NULL;
+    }
+
+  g_rtc_lowerhalf.type = type;
   g_rtc_lowerhalf.initialized = true;
 
   return (struct rtc_lowerhalf_s *)&g_rtc_lowerhalf;

@@ -85,4 +85,6 @@
 #  define DSK324SR_CONTROL_TEST      (1 << 6)
 #  define DSK324SR_CONTROL_RESET     (1 << 7)
 
+#define DD3225TS_REG_TEST            0x0e /* TEST register (DS3225TS only) */
+
 #endif /* __DRIVERS_TIMERS_DSK324SR_H */
