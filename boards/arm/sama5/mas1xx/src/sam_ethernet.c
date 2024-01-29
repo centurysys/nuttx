@@ -25,6 +25,8 @@
 #include <nuttx/config.h>
 #include <fcntl.h>
 
+#include "mas1xx_param.h"
+
 /* Force verbose debug on in this file only to support unit-level testing. */
 
 #ifdef CONFIG_NETDEV_PHY_DEBUG
@@ -191,26 +193,10 @@ void weak_function sam_netinitialize(void)
 #ifdef HAVE_MACADDR
 int sam_emac0_setmac(void)
 {
-  int fd;
   uint8_t mac[6];
-  ssize_t nread;
   int ret;
 
-  fd = open("/dev/eeprom", O_RDONLY);
-  if (fd < 0)
-    {
-      _err("unable to open /dev/eeprom device.\n");
-      return -1;
-    }
-
-  nread = read(fd, mac, 6);
-  if (nread < 6)
-    {
-      _err("read() MACADDR failed.\n");
-      return (int)nread;
-    }
-
-  close(fd);
+  mas1xx_param_get_macaddr(mac, 6);
 
   _info("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);

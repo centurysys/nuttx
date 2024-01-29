@@ -45,6 +45,7 @@
 #include "sam_pio.h"
 #include "mas1xx.h"
 #include "mas1xx_lte.h"
+#include "mas1xx_param.h"
 
 #ifdef CONFIG_CDCACM
 #  include <nuttx/usb/cdcacm.h>
@@ -327,6 +328,7 @@ int sam_bringup(void)
 
 #ifdef CONFIG_SAMA5_TWI1
   board_i2c_initialize();
+  mas1xx_init_parameter();
 #endif
 
 #ifdef HAVE_USBHOST
