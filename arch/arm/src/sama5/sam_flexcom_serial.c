@@ -589,7 +589,7 @@ static int flexus_interrupt(int irq, void *context, void *arg)
 #ifdef HAVE_RS485
           if (priv->rs485_txen_gpio != 0)
             {
-              flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET, FLEXUS_CR_TXEN | FLEXUS_CR_RXEN);
+              flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET, FLEXUS_CR_TXDIS | FLEXUS_CR_RXEN);
               sam_piowrite(priv->rs485_txen_gpio, !priv->rs485_txen_polarity);
             }
 #endif
@@ -1119,7 +1119,7 @@ static void flexus_txint(struct uart_dev_s *dev, bool enable)
 #ifdef HAVE_RS485
       if (priv->rs485_txen_gpio != 0)
         {
-          flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET, FLEXUS_CR_TXEN);
+          flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET, FLEXUS_CR_TXEN | FLEXUS_CR_RXDIS);
           sam_piowrite(priv->rs485_txen_gpio, priv->rs485_txen_polarity);
         }
 #endif
