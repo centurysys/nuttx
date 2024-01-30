@@ -900,10 +900,12 @@ FAR struct ioexpander_dev_s *pca9538_initialize
 {
   FAR struct pca9538_dev_s *pcadev;
 
-  DEBUGASSERT(i2cdev != NULL && config != NULL &&
-                config->set_nreset_pin != NULL);
+  DEBUGASSERT(i2cdev != NULL && config != NULL);
 
-  config->set_nreset_pin(true);
+  if (config->set_nreset_pin)
+    {
+      config->set_nreset_pin(true);
+    }
 
 #ifdef CONFIG_PCA9538_MULTIPLE
   /* Allocate the device state structure */
