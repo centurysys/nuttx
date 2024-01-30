@@ -429,9 +429,15 @@ int sam_bringup(void)
   ret = sam_adc_setup();
   if (ret < 0)
     {
-      syslog(LOG_ERR, "ERROR: sam_adc_setup failed: %d\n", ret);
+      _err("ERROR: sam_adc_setup failed: %d\n", ret);
     }
 #endif
+
+  ret = mas1xx_xio_initialize();
+  if (ret < 0)
+    {
+      _err("ERROR: failed to initialize XIO: %d\n", ret);
+    }
 
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */
