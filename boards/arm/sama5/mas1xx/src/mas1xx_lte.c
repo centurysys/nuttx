@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/sama5/mas1xx/src/sam_reset.c
+ * boards/arm/sama5/mas1xx/src/mas1xx_lte.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -55,7 +55,7 @@ static void lte_powerkey_worker(void *arg)
   useconds_t wait;
 
   current = get_lte_status();
-  onoff = *(bool *)arg;
+  onoff = (bool)arg;
 
   _info("Control: %s\n", onoff ? "ON" : "OFF");
 
@@ -140,7 +140,8 @@ bool lte_power_ctrl(bool on)
       return true;
     }
 
-  ret = work_queue(LPWORK, &lte_power_work, lte_powerkey_worker, (void *)&arg, 0);
+  ret = work_queue(LPWORK, &lte_power_work, lte_powerkey_worker,
+                   (void *)arg, 0);
   return ret == 0;
 }
 
