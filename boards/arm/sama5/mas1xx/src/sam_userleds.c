@@ -18,17 +18,16 @@
  *
  ****************************************************************************/
 
-/* There is an RGB LED on board the MAS1XX.  The RED component is
- * driven by the SDHC_CD pin (PA13) and so will not be used.  The LEDs are
- * provided VDD_LED and so bringing the LED low will will illuminated the
- * LED.
+/* There is Red/Green LEDs on board the MAS1xx.
  *
  *   ------------------------------ ------------------- ---------------------
  *   SAMA5D2 PIO                    SIGNAL              USAGE
  *   ------------------------------ ------------------- ---------------------
- *   PA13                           SDHC_CD_PA13        Red LED
- *   PB5                            LED_GREEN_PB5       Green LED
- *   PB0                            LED_BLUE_PB0        Blue LED
+ *   PC1                            GPIO_PC1            MobileLED0(G)
+ *   PC2                            GPIO_PC2            MobileLED0(R)
+ *   PC3                            GPIO_PC3            MobileLED1(G)
+ *   PC4                            GPIO_PC4            MobileLED1(R)
+ *   PC5                            GPIO_PC5            PowerLED(G)
  *   ------------------------------ ------------------- ---------------------
  */
 
@@ -47,6 +46,50 @@
 #include "sam_pio.h"
 #include "mas1xx.h"
 
+#ifndef ARRAY_SIZE
+#  define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+struct led_bits
+{
+  uint32_t bit;
+  uint32_t cfg;
+};
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static const struct led_bits leds[] =
+{
+  {
+    .bit = BOARD_MOBILE0_G,
+    .cfg = PIO_LED_MOBILE0_G
+  },
+  {
+    .bit = BOARD_MOBILE0_R,
+    .cfg = PIO_LED_MOBILE0_R
+  },
+  {
+    .bit = BOARD_MOBILE1_G,
+    .cfg = PIO_LED_MOBILE1_G
+  },
+  {
+    .bit = BOARD_MOBILE1_R,
+    .cfg = PIO_LED_MOBILE1_R
+  },
+#ifndef CONFIG_ARCH_LEDS
+  {
+    .bit = BOARD_POWER_G,
+    .cfg = PIO_LED_POWER_G
+  },
+#endif
+};
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -59,11 +102,15 @@ uint32_t board_userled_initialize(void)
 {
   /* Configure LED PIOs for output */
 
+  sam_configpio(PIO_LED_MOBILE0_G);
+  sam_configpio(PIO_LED_MOBILE0_R);
+  sam_configpio(PIO_LED_MOBILE1_G);
+  sam_configpio(PIO_LED_MOBILE1_R);
 #ifndef CONFIG_ARCH_LEDS
-  sam_configpio(PIO_LED_GREEN);
+  sam_configpio(PIO_LED_POWER_G);
 #endif
-  sam_configpio(PIO_LED_BLUE);
-  return BOARD_NLEDS;
+
+  return ARRAY_SIZE(leds);
 }
 
 /****************************************************************************
@@ -74,20 +121,32 @@ void board_userled(int led, bool ledon)
 {
   uint32_t ledcfg;
 
+  switch (led)
+    {
+      case BOARD_MOBILE0_G:
+        ledcfg = PIO_LED_MOBILE0_G;
+        break;
+
+      case BOARD_MOBILE0_R:
+        ledcfg = PIO_LED_MOBILE0_R;
+        break;
+
+      case BOARD_MOBILE1_G:
+        ledcfg = PIO_LED_MOBILE1_G;
+        break;
+
+      case BOARD_MOBILE1_R:
+        ledcfg = PIO_LED_MOBILE1_R;
+        break;
+
 #ifndef CONFIG_ARCH_LEDS
-  if (led == BOARD_GREEN)
-    {
-      ledcfg = PIO_LED_GREEN;
-    }
-  else
+      case BOARD_POWER_G:
+        ledcfg = PIO_LED_POWER_G;
+        break;
 #endif
-  if (led == BOARD_BLUE)
-    {
-      ledcfg = PIO_LED_BLUE;
-    }
-  else
-    {
-      return;
+
+      default:
+        return;
     }
 
   /* Low illuminates */
@@ -101,17 +160,14 @@ void board_userled(int led, bool ledon)
 
 void board_userled_all(uint32_t ledset)
 {
+  int i;
   bool ledon;
+  const struct led_bits *led;
 
-#ifndef CONFIG_ARCH_LEDS
-  /* Low illuminates */
-
-  ledon = ((ledset & BOARD_GREEN_BIT) == 0);
-  sam_piowrite(PIO_LED_GREEN, ledon);
-#endif
-
-  /* Low illuminates */
-
-  ledon = ((ledset &BOARD_BLUE_BIT) != 0);
-  sam_piowrite(PIO_LED_BLUE, ledon);
+  for (i = 0; i < ARRAY_SIZE(leds); i++)
+    {
+      led = &leds[i];
+      ledon = (ledset & led->bit) != 0;
+      sam_piowrite(led->cfg, !ledon);
+    }
 }

@@ -84,9 +84,8 @@ endif
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += sam_autoleds.c
-else
-CSRCS += sam_userleds.c
 endif
+CSRCS += sam_userleds.c
 
 ifeq ($(CONFIG_ARCH_BUTTONS),y)
 CSRCS += sam_buttons.c

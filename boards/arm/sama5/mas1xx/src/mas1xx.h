@@ -227,25 +227,19 @@
 
 /* LEDs *********************************************************************/
 
-/* There is an RGB LED on board the MAS1XX.
- * The RED component is driven by the SDHC_CD pin (PA13) and so will not
- * be used.
- * The LEDs are provided VDD_LED and so bringing the LED low will illuminate
- * the LED.
+/* There are R/B LEDs on board the MAS1xx.
  *
  *   ------------------------------ ------------------- ---------------------
  *   SAMA5D2 PIO                    SIGNAL              USAGE
  *   ------------------------------ ------------------- ---------------------
- *   PC1                            GPIO_PC1            MobileLED0 Green
- *   PC2                            GPIO_PC2            MobileLED0 Red
- *   PC3                            GPIO_PC3            MobileLED1 Green
- *   PC4                            GPIO_PC4            MobileLED1 Red
- *   PC5                            GPIO_PC5            Power LED
+ *   PC1                            GPIO_PC1            MobileLED0(G)
+ *   PC2                            GPIO_PC2            MobileLED0(R)
+ *   PC3                            GPIO_PC3            MobileLED1(G)
+ *   PC4                            GPIO_PC4            MobileLED1(R)
+ *   PC5                            GPIO_PC5            PowerLED(G)
  *   ------------------------------ ------------------- ---------------------
  */
 
-#define PIO_LED_GREEN (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
-                       PIO_PORT_PIOC | PIO_PIN5)
 #define PIO_LED_MOBILE0_G (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_CLEAR | \
                            PIO_PORT_PIOC | PIO_PIN1)
 #define PIO_LED_MOBILE0_R (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_CLEAR | \
@@ -254,6 +248,8 @@
                            PIO_PORT_PIOC | PIO_PIN3)
 #define PIO_LED_MOBILE1_R (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_CLEAR | \
                            PIO_PORT_PIOC | PIO_PIN4)
+#define PIO_LED_POWER_G   (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
+                           PIO_PORT_PIOC | PIO_PIN5)
 
 /* Buttons ******************************************************************/
 

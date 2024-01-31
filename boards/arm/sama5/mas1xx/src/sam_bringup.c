@@ -75,6 +75,17 @@
 #  include <nuttx/timers/dsk324sr.h>
 #endif
 
+#undef HAVE_LEDS
+#if defined(CONFIG_USERLED_LOWER)
+#  define HAVE_LEDS 1
+#endif
+
+#ifdef CONFIG_EXAMPLES_LEDS_DEVPATH
+#  define LED_DRIVER_PATH CONFIG_EXAMPLES_LEDS_DEVPATH
+#else
+#  define LED_DRIVER_PATH "/dev/userleds"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -322,6 +333,16 @@ static int nsh_sdmmc_initialize(void)
 int sam_bringup(void)
 {
   int ret;
+
+#ifdef HAVE_LEDS
+  /* Register the LED driver */
+
+  ret = userled_lower_initialize(LED_DRIVER_PATH);
+  if (ret < 0)
+    {
+      _err("ERROR: userled_lower_initialize() failed: %d\n", ret);
+    }
+#endif
 
   /* Register I2C drivers on behalf of the I2C tool */
 

@@ -117,43 +117,41 @@
 
 /* LED definitions **********************************************************/
 
-/* There is an RGB LED on board the SAMA5D2-XULT.
- * The RED component is driven by the SDHC_CD pin (PA13) and so will not
- * be used.  The LEDs are provided VDD_LED and so bringing the LED low will
- * will illuminated the LED.
+/* There are R/B LEDs on board the MAS1xx.
  *
  *   ------------------------------ ------------------- ---------------------
  *   SAMA5D2 PIO                    SIGNAL              USAGE
  *   ------------------------------ ------------------- ---------------------
- *   PA13                           SDHC_CD_PA13        Red LED
- *   PB5                            LED_GREEN_PB5       Green LED
- *   PB0                            LED_BLUE_PB0        Blue LED
+ *   PC1                            GPIO_PC1            MobileLED0(G)
+ *   PC2                            GPIO_PC2            MobileLED0(R)
+ *   PC3                            GPIO_PC3            MobileLED1(G)
+ *   PC4                            GPIO_PC4            MobileLED1(R)
+ *   PC5                            GPIO_PC5            PowerLED(G)
  *   ------------------------------ ------------------- ---------------------
  */
 
+
+/* LED index values for use with board_userled() */
+
+#define BOARD_MOBILE0_G   0
+#define BOARD_MOBILE0_R   1
+#define BOARD_MOBILE1_G   2
+#define BOARD_MOBILE1_R   3
 #ifndef CONFIG_ARCH_LEDS
-
-/* LED index values for use with board_userled() */
-
-#define BOARD_GREEN       0
-#define BOARD_BLUE        1
-#define BOARD_NLEDS       2
-
-/* LED bits for use with board_userled_all() */
-
-#define BOARD_GREEN_BIT  (1 << BOARD_GREEN)
-#define BOARD_BLUE_BIT   (1 << BOARD_BLUE)
-
+#  define BOARD_POWER_G   4
+#  define BOARD_NLEDS     5
 #else
-
-/* LED index values for use with board_userled() */
-
-#define BOARD_BLUE        0
-#define BOARD_NLEDS       1
+#  define BOARD_NLEDS     4
+#endif
 
 /* LED bits for use with board_userled_all() */
 
-#define BOARD_BLUE_BIT   (1 << BOARD_BLUE)
+#define BOARD_MOBILE0_G_BIT (1 << BOARD_MOBILE0_G)
+#define BOARD_MOBILE0_R_BIT (1 << BOARD_MOBILE0_R)
+#define BOARD_MOBILE1_G_BIT (1 << BOARD_MOBILE1_G)
+#define BOARD_MOBILE1_R_BIT (1 << BOARD_MOBILE1_R)
+#ifndef CONFIG_ARCH_LEDS
+#  define BOARD_POWER_G_BIT (1 << BOARD_POWER_G)
 #endif
 
 /* These LEDs are not used by the board port unless CONFIG_ARCH_LEDS is
@@ -202,13 +200,13 @@
 
 /* Other GPIOs **************************************************************/
 
-#define PIO_LTE_POWER (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
-                       PIO_PORT_PIOA | PIO_PIN31)
+#define PIO_LTE_POWER  (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
+                        PIO_PORT_PIOA | PIO_PIN31)
 #define PIO_LTE_PWRKEY (PIO_OUTPUT | PIO_CFG_PULLUP | PIO_OUTPUT_CLEAR | \
                         PIO_PORT_PIOC | PIO_PIN23)
-#define PIO_LTE_RESET (PIO_OUTPUT | PIO_CFG_PULLUP | PIO_OUTPUT_CLEAR | \
-                       PIO_PORT_PIOC | PIO_PIN24)
-#define PIO_LTE_READY (PIO_INPUT | PIO_CFG_DEFAULT | PIO_PORT_PIOC | PIO_PIN26)
+#define PIO_LTE_RESET  (PIO_OUTPUT | PIO_CFG_PULLUP | PIO_OUTPUT_CLEAR | \
+                        PIO_PORT_PIOC | PIO_PIN24)
+#define PIO_LTE_READY  (PIO_INPUT | PIO_CFG_DEFAULT | PIO_PORT_PIOC | PIO_PIN26)
 
 #define PIO_DIPSW0 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN1)
 #define PIO_DIPSW1 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN2)

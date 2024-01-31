@@ -82,9 +82,9 @@
 
 void board_autoled_initialize(void)
 {
-  /* Configure LED PIOs for output */
+  /* Configure LED PIO for output */
 
-  sam_configpio(PIO_LED_GREEN);
+  sam_configpio(PIO_LED_POWER_G);
 }
 
 /****************************************************************************
@@ -104,7 +104,7 @@ void board_autoled_on(int led)
         {
           /* Green LED is ON (Low illuminates) */
 
-          sam_piowrite(PIO_LED_GREEN, false);
+          sam_piowrite(PIO_LED_POWER_G, false);
         }
         break;
 
@@ -133,7 +133,7 @@ void board_autoled_off(int led)
         {
           /* Power LED is OFF (Low illuminates) */
 
-          sam_piowrite(PIO_LED_GREEN, true);
+          sam_piowrite(PIO_LED_POWER_G, true);
         }
         break;
     }
