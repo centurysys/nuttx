@@ -38,10 +38,6 @@ CSRCS += sam_i2c.c
 endif
 endif
 
-ifeq ($(CONFIG_SAMA5_DDRCS),y)
-CSRCS += sam_sdram.c
-endif
-
 ifeq ($(CONFIG_MTD_AT25),y)
 ifeq ($(CONFIG_SAMA5_SPI0),y)
 CSRCS += sam_at25.c
@@ -76,10 +72,6 @@ endif
 
 ifeq ($(CONFIG_ADC),y)
 CSRCS += sam_adc.c
-endif
-
-ifeq ($(CONFIG_USBMSC),y)
-CSRCS += sam_usbmsc.c
 endif
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
