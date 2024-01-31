@@ -29,9 +29,13 @@
 #include <debug.h>
 
 #if defined(CONFIG_IOEXPANDER_PCA9538)
-#include <nuttx/ioexpander/pca9538.h>
-#include <nuttx/ioexpander/ioexpander.h>
-#include <nuttx/ioexpander/gpio.h>
+#  include <nuttx/ioexpander/pca9538.h>
+#  include <nuttx/ioexpander/ioexpander.h>
+#  include <nuttx/ioexpander/gpio.h>
+
+#  ifdef CONFIG_ADC_LTC2487
+#    include <nuttx/analog/ltc2487.h>
+#  endif
 #endif
 
 #include <nuttx/arch.h>
@@ -103,6 +107,7 @@ static int init_xio_02(void)
 {
   struct i2c_master_s     *i2c = NULL;
   struct ioexpander_dev_s *ioe = NULL;
+  int ret = OK;
 
   i2c = sam_i2cbus_initialize(1);
 
@@ -121,7 +126,15 @@ static int init_xio_02(void)
 
   xio_02_pincfg(ioe);
 
-  return OK;
+#  ifdef CONFIG_ADC_LTC2487
+  ret = ltc2487_register("/dev/adc1", i2c, 0x14);
+  if (ret == 0)
+    {
+      _info("%s: LTC2487 registered.\n", __FUNCTION__);
+    }
+#  endif
+
+  return ret;
 }
 #endif
 
@@ -159,5 +172,6 @@ int mas1xx_xio_initialize(void)
         break;
     }
 
+  initialized = true;
   return ret;
 }

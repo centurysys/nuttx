@@ -109,6 +109,12 @@
 #define AN_SAMV7_AFEC_FIRST (AN_MCP48XX_FIRST + AN_MCP48XX_NCMDS)
 #define AN_SAMV7_AFEC_NCMDS 1
 
+/* See include/nuttx/analog/ltc2487.h */
+
+#define AN_LTC2487_FIRST (AN_SAMV7_AFEC_FIRST + AN_SAMV7_AFEC_NCMDS)
+#define AN_LTC2487_NCMDS 5
+
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
