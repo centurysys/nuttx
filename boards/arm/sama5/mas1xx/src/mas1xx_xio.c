@@ -83,20 +83,22 @@ struct pca9538_config_s g_pca9538_cfg =
 static void xio_02_pincfg(struct ioexpander_dev_s *ioe)
 {
   /* Pin 0: DC Power OUT */
+  const char *name_DCOUT = "gpio_DC_OUT";
+  const char *name_ADCPOWER = "gpio_ADC_POWER";
 
   IOEXP_SETDIRECTION(ioe, 0, IOEXPANDER_DIRECTION_OUT);
   IOEXP_WRITEPIN(ioe, 0, false);
-  gpio_lower_half(ioe, 0, GPIO_OUTPUT_PIN, 0);
+  gpio_lower_half_byname(ioe, 0, GPIO_OUTPUT_PIN, (char *)name_DCOUT);
 
-  _info("Register \"DC Power OUT\" as GPIO minor 0\n");
+  _info("Register \"DC Power OUT\" as %s.\n", name_DCOUT);
 
   /* Pin 4: ADC Power ON */
 
   IOEXP_SETDIRECTION(ioe, 4, IOEXPANDER_DIRECTION_OUT);
   IOEXP_WRITEPIN(ioe, 4, true);
-  gpio_lower_half(ioe, 4, GPIO_OUTPUT_PIN, 1);
+  gpio_lower_half_byname(ioe, 4, GPIO_OUTPUT_PIN, (char *)name_ADCPOWER);
 
-  _info("Register \"ADC Power ON\" as GPIO minor 1\n");
+  _info("Register \"ADC Power ON\" as %s.\n", name_ADCPOWER);
 }
 
 /****************************************************************************
