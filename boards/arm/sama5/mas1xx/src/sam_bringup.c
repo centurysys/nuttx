@@ -46,6 +46,7 @@
 #include "mas1xx.h"
 #include "mas1xx_lte.h"
 #include "mas1xx_param.h"
+#include "mas1xx_xio.h"
 
 #ifdef CONFIG_CDCACM
 #  include <nuttx/usb/cdcacm.h>
