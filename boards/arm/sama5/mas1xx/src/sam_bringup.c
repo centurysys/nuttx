@@ -37,6 +37,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/kthread.h>
 #include <nuttx/signal.h>
+#include <nuttx/leds/userled.h>
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/usb/usbhost.h>
 #include <nuttx/usb/usbdev_trace.h>
@@ -343,6 +344,8 @@ int sam_bringup(void)
       _err("ERROR: userled_lower_initialize() failed: %d\n", ret);
     }
 #endif
+
+  sam_gpio_initialize();
 
   /* Register I2C drivers on behalf of the I2C tool */
 

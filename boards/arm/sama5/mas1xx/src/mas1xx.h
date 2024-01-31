@@ -34,6 +34,7 @@
 #include <arch/irq.h>
 #include <nuttx/irq.h>
 
+#include "sam_pio.h"
 #include "hardware/sam_pinmap.h"
 
 /****************************************************************************
@@ -266,6 +267,21 @@
                       PIO_INT_BOTHEDGES | PIO_PORT_PIOB | PIO_PIN25)
 #define IRQ_BTN_USER  SAM_IRQ_PB25
 
+/* DIN/DOUT *****************************************************************/
+
+#define PIO_DIN0 (PIO_INPUT | PIO_CFG_PULLUP | PIO_CFG_SCHMITT | \
+                  PIO_PORT_PIOD | PIO_PIN6)
+#define PIO_DIN1 (PIO_INPUT | PIO_CFG_PULLUP | PIO_CFG_SCHMITT | \
+                  PIO_PORT_PIOD | PIO_PIN7)
+#define PIO_DIN2 (PIO_INPUT | PIO_CFG_PULLUP | PIO_CFG_SCHMITT | \
+                  PIO_PORT_PIOD | PIO_PIN8)
+#define PIO_DIN3 (PIO_INPUT | PIO_CFG_PULLUP | PIO_CFG_SCHMITT | \
+                  PIO_PORT_PIOD | PIO_PIN9)
+#define PIO_DO0  (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
+                  PIO_PORT_PIOD | PIO_PIN10)
+#define PIO_DO1  (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
+                  PIO_PORT_PIOD | PIO_PIN11)
+
 /* SDMMC clocking
  *
  * Multimedia Card Interface clock (MCCK or MCI_CK) is Master Clock (MCK)
@@ -460,6 +476,8 @@ int sam_emac0_setmac(void);
 #ifdef CONFIG_LIBC_ZONEINFO_ROMFS
 int sam_zoneinfo(int minor);
 #endif
+
+void sam_gpio_initialize(void);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __BOARDS_ARM__SAMA5_MAS1XX_SRC_MAS1XX_H */

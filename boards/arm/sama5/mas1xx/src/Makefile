@@ -20,7 +20,7 @@
 
 include $(TOPDIR)/Make.defs
 
-CSRCS = sam_boot.c mas1xx_lte.c mas1xx_param.c mas1xx_xio.c
+CSRCS = sam_boot.c sam_gpio.c mas1xx_lte.c mas1xx_param.c mas1xx_xio.c
 
 ifeq ($(CONFIG_SAMA5_SPI0),y)
 CSRCS += sam_spi.c
