@@ -555,7 +555,7 @@
 
 #define PMC_PCR_CMD                    (1 << 12) /* Bit 12: Command */
 
-#if defined(ATSAMA5D2) || defined(ATSAMA5D3)
+#if defined(ATSAMA5D3)
 #  define SAMA5_HAVE_PMC_PCR_DIV       1         /* Supports conditional compilation */
 #  define PMC_PCR_DIV_SHIFT            (16)      /* Bits 16-17: Divisor Value */
 #  define PMC_PCR_DIV_MASK             (3 << PMC_PCR_DIV_SHIFT)
