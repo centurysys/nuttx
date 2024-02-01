@@ -87,6 +87,10 @@
 #  define LED_DRIVER_PATH "/dev/userleds"
 #endif
 
+#if defined(CONFIG_SAMA5_WDT) && defined(CONFIG_WATCHDOG)
+  #include "sam_wdt.h"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -343,6 +347,10 @@ int sam_bringup(void)
     {
       _err("ERROR: userled_lower_initialize() failed: %d\n", ret);
     }
+#endif
+
+#if defined(CONFIG_SAMA5_WDT) && defined(CONFIG_WATCHDOG)
+  sam_wdt_initialize();
 #endif
 
   sam_gpio_initialize();
