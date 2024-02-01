@@ -778,18 +778,6 @@ static int twi_interrupt(int irq, void *context, void *arg)
         }
     }
 
-  /* Check for NACK */
-
-  else if ((pending & TWI_INT_NACK) != 0)
-    {
-      /* Wake up the thread with an I/O error indication */
-
-      i2cerr("NACKed: TWI%d pending: %08" PRIx32 "\n",
-             priv->attr->twi, pending);
-      twi_putrel(priv, SAM_TWI_CR_OFFSET, TWI_CR_LOCKCLR);
-      twi_wakeup(priv, -EIO);
-    }
-
   /* Check for errors */
 
   else if ((pending & TWI_INT_ERRORS) != 0)
@@ -1270,8 +1258,6 @@ static void twi_hw_initialize(struct twi_dev_s *priv, uint32_t frequency)
   /* Set master mode */
 
   twi_putrel(priv, SAM_TWI_CR_OFFSET, TWI_CR_MSEN);
-
-  twi_putrel(priv, SAM_TWI_CR_OFFSET, TWI_CR_LOCKCLR);
 
   /* Determine the maximum valid frequency setting */
 
