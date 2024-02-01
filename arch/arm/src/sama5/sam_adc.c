@@ -1256,6 +1256,7 @@ static void sam_adc_shutdown(struct adc_dev_s *dev)
 
   sam_adc_reset(dev);
 
+#if 0
 #ifndef CONFIG_SAMA5_TSD
   /* doing this if the TSD is required will stop it working */
 
@@ -1268,6 +1269,7 @@ static void sam_adc_shutdown(struct adc_dev_s *dev)
   /* Then detach the ADC interrupt handler. */
 
   irq_detach(SAM_IRQ_ADC);
+#endif
 #endif
 }
 
@@ -2236,6 +2238,7 @@ struct adc_dev_s *sam_adc_initialize(void)
       /* Determine the maximum ADC peripheral clock frequency */
 
       mck = BOARD_MCK_FREQUENCY;
+#if defined(SAMA5_HAVE_PMC_PCR_DIV)
       if (mck <= SAM_ADC_MAXPERCLK)
         {
           priv->frequency = mck;
@@ -2261,6 +2264,11 @@ struct adc_dev_s *sam_adc_initialize(void)
           aerr("ERROR: Cannot realize ADC input frequency\n");
           return NULL;
         }
+#else
+      /* No DIV field in the PCR register */
+      priv->frequency = mck;
+      regval          = 0;
+#endif /* SAMA5_HAVE_PMC_PCR_DIV */
 
       /* Set the maximum ADC peripheral clock frequency */
 
