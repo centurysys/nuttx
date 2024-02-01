@@ -74,6 +74,7 @@
 #  define DSK324SR_FLAG_VDLF         (1 << 4) /* Voltage Detect Low */
 #  define DSK324SR_FLAG_VDHF         (1 << 5) /* Voltage Detect High */
 #  define DSK324SR_FLAG_VDF          (DSK324SR_FLAG_VDHF | DSK324SR_FLAG_VDLF)
+#  define DSK324SR_FLAG_TEST         (1 << 7) /* TEST (DD3225TS only) */
 
 #define DSK324SR_REG_CONTROL         0x0d  /* Control register. */
 #  define DSK324SR_CONTROL_UTIE      (1 << 0)

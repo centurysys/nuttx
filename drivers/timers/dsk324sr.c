@@ -58,7 +58,7 @@
 #endif
 
 #ifndef CONFIG_DSK324SR_I2C_FREQUENCY
-#  define CONFIG_DSK324SR_I2C_FREQUENCY 400000
+#  define CONFIG_DSK324SR_I2C_FREQUENCY 100000
 #endif
 
 #if CONFIG_DSK324SR_I2C_FREQUENCY > 400000
@@ -353,6 +353,25 @@ static rtc_type_t get_rtc_type(const struct dsk324sr_lowerhalf_s *lower)
             }
         }
 
+      err = read_byte_data(lower, DSK324SR_REG_FLAG, buf);
+
+      if (err >= 0)
+        {
+          if ((buf[0] & DSK324SR_FLAG_VDHF) != 0)
+            {
+              _info("high voltage detected, date/time is not reliable.\n");
+            }
+
+          if ((buf[0] & DSK324SR_FLAG_VDLF) != 0)
+            {
+              _info("low voltage detected, date/time is not reliable.\n");
+            }
+
+          buf[0] &= ~(DSK324SR_FLAG_VDF | DSK324SR_FLAG_TEST);
+
+          err = write_byte_data(lower, DSK324SR_REG_FLAG, buf[0]);
+        }
+
       if (type == DD3225TS)
         {
           buf[0] = 0;
@@ -567,7 +586,7 @@ static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
       return ret;
     }
 
-  buffer[0] &= ~DSK324SR_FLAG_VDF;
+  buffer[0] &= ~(DSK324SR_FLAG_VDF | DSK324SR_FLAG_TEST);
   ret = write_byte_data(priv, DSK324SR_REG_FLAG, buffer[0]);
 
   return ret;
