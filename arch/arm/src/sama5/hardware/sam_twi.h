@@ -125,6 +125,7 @@
 #define TWI_CR_SVDIS                (1 << 5)  /* Bit 5:  TWI Slave Mode Disabled */
 #define TWI_CR_QUICK                (1 << 6)  /* Bit 6:  SMBUS Quick Command */
 #define TWI_CR_SWRST                (1 << 7)  /* Bit 7:  Software Reset */
+#define TWI_CR_LOCKCLR              (1 << 26) /* Bit 26: Lock Clear */
 
 /* TWI Master Mode Register */
 
