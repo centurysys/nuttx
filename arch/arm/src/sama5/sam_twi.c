@@ -738,8 +738,7 @@ static int twi_interrupt(int irq, void *context, void *arg)
 
           /* Send the STOP condition */
 
-          regval  = twi_getrel(priv, SAM_TWI_CR_OFFSET);
-          regval |= TWI_CR_STOP;
+          regval = TWI_CR_STOP;
           twi_putrel(priv, SAM_TWI_CR_OFFSET, regval);
         }
 
@@ -777,6 +776,18 @@ static int twi_interrupt(int irq, void *context, void *arg)
 
           twi_wakeup(priv, OK);
         }
+    }
+
+  /* Check for NACK */
+
+  else if ((pending & TWI_INT_NACK) != 0)
+    {
+      /* Wake up the thread with an I/O error indication */
+
+      i2cerr("NACKed: TWI%d pending: %08" PRIx32 "\n",
+             priv->attr->twi, pending);
+      twi_putrel(priv, SAM_TWI_CR_OFFSET, TWI_CR_LOCKCLR);
+      twi_wakeup(priv, -EIO);
     }
 
   /* Check for errors */
@@ -1170,6 +1181,13 @@ static void twi_setfrequency(struct twi_dev_s *priv, uint32_t frequency)
   unsigned int ckdiv;
   unsigned int cldiv;
   uint32_t regval;
+  int offset;
+
+#ifdef ATSAMA5D2
+  offset = 3;
+#else
+  offset = 4;
+#endif
 
   if (frequency != priv->frequency)
     {
@@ -1179,7 +1197,7 @@ static void twi_setfrequency(struct twi_dev_s *priv, uint32_t frequency)
         {
           /* Calculate the CLDIV value using the current CKDIV guess */
 
-          cldiv = ((priv->twiclk / (frequency << 1)) - 4) / (1 << ckdiv);
+          cldiv = ((priv->twiclk / (frequency << 1)) - offset) / (1 << ckdiv);
 
           /* Is CLDIV in range? */
 
@@ -1252,6 +1270,8 @@ static void twi_hw_initialize(struct twi_dev_s *priv, uint32_t frequency)
   /* Set master mode */
 
   twi_putrel(priv, SAM_TWI_CR_OFFSET, TWI_CR_MSEN);
+
+  twi_putrel(priv, SAM_TWI_CR_OFFSET, TWI_CR_LOCKCLR);
 
   /* Determine the maximum valid frequency setting */
 
