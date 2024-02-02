@@ -1306,6 +1306,13 @@ static void twi_hw_initialize(struct twi_dev_s *priv, uint32_t frequency)
   priv->frequency = 0;
   twi_setfrequency(priv, frequency);
 
+#ifdef ATSAMA5D2
+  /* Set the digital filter */
+
+  regval = TWI_FILTR_THRES(6) | TWI_FILTR_PADFEN | TWI_FILTR_FILT;
+  twi_putrel(priv, SAM_TWI_FILTR_OFFSET, regval);
+#endif
+
   /* Enable Interrupts */
 
   up_enable_irq(priv->attr->irq);

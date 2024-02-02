@@ -48,7 +48,8 @@
 #define SAM_TWI_IMR_OFFSET          0x002c /* Interrupt Mask Register */
 #define SAM_TWI_RHR_OFFSET          0x0030 /* Receive Holding Register */
 #define SAM_TWI_THR_OFFSET          0x0034 /* Transmit Holding Register */
-                                           /* 0x0038-0x00e0: Reserved */
+#define SAM_TWI_FILTR_OFFSET        0x0044 /* Filter Register */
+                                           /* 0x0048-0x00e0: Reserved */
 #define SAM_TWI_WPMR_OFFSET         0x00e4 /* Protection Mode Register */
 #define SAM_TWI_WPSR_OFFSET         0x00e8 /* Protection Status Register */
                                            /* 0x00ec-0x00fc: Reserved */
@@ -199,6 +200,15 @@
 
 #define TWI_THR_TXDATA_SHIFT        (0)       /* Bits 0-7:  Master or Slave Transmit Holding Data */
 #define TWI_THR_TXDATA_MASK         (0xff << TWI_THR_TXDATA_SHIFT)
+
+/* TWI Filter Register */
+
+#define TWI_FILTR_THRES_SHIFT       (8)       /* Bits 8-10: Digital Filter Threshold */
+#define TWI_FILTR_THRES_MASK        (0x07 << TWI_FILTR_THRES_SHIFT)
+#define TWI_FILTR_THRES(n)          (((uint32_t)(n) << TWI_FILTR_THRES_SHIFT) & TWI_FILTR_THRES_MASK)
+#define TWI_FILTR_PADCFG            (1 << 2)  /* Bit 2: PAD Filter Config */
+#define TWI_FILTR_PADFEN            (1 << 1)  /* Bit 1: PAD Filter Enable */
+#define TWI_FILTR_FILT              (1 << 0)  /* Bit 0: RX Digital Filter */
 
 /* Protection Mode Register */
 
