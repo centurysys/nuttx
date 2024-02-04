@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/nrf53/nrf53_rptun.h
+ * boards/xtensa/esp32/common/src/esp32_board_dac.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,44 +18,62 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H
-#define __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/analog/dac.h>
+#include <stdio.h>
+#include <debug.h>
 
-#ifndef __ASSEMBLY__
+#include <nuttx/arch.h>
+#include <esp32_dac.h>
 
 /****************************************************************************
- * Public Data
+ * Private Data
  ****************************************************************************/
 
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C"
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: board_dac_initialize
+ *
+ * Description:
+ *   Initialize and register the Digital to Analog Convertor (DAC) driver.
+ *
+ * Input Parameters:
+ *   path - The device number, used to build the device path as
+ *           /dev/dacN
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int board_dac_initialize(const char *path)
 {
-#else
-#define EXTERN extern
-#endif
+  int ret;
 
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
+  /* Initialize DAC */
 
-/****************************************************************************
- * Name: nrf53_rptun_init
- ****************************************************************************/
+  struct dac_dev_s *dev = esp32_dac_initialize();
+  if (dev != NULL)
+    {
+      /* Try to register the DAC */
 
-int nrf53_rptun_init(const char *cpuname);
+      ret = dac_register(path, dev);
+      if (ret < 0)
+        {
+          snerr("ERROR: Error registering DAC\n");
+        }
+    }
+  else
+    {
+      ret = -ENODEV;
+    }
 
-#undef EXTERN
-#if defined(__cplusplus)
+  return ret;
 }
-#endif
-
-#endif /* __ASSEMBLY__ */
-#endif /* __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H */

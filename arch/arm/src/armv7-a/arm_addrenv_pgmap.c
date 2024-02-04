@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/nrf53/nrf53_rptun.h
+ * arch/arm/src/armv7-a/arm_addrenv_pgmap.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,44 +18,58 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H
-#define __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#ifndef __ASSEMBLY__
+#include <nuttx/arch.h>
+#include <nuttx/compiler.h>
+#include <nuttx/pgalloc.h>
+
+#include "pgalloc.h"
 
 /****************************************************************************
- * Public Data
+ * Public Functions
  ****************************************************************************/
 
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C"
+/****************************************************************************
+ * Name: up_addrenv_page_vaddr
+ *
+ * Description:
+ *   Find the kernel virtual address associated with physical page.
+ *
+ * Input Parameters:
+ *   page - The page physical address.
+ *
+ * Returned Value:
+ *   Page kernel virtual address on success; NULL on failure.
+ *
+ ****************************************************************************/
+
+uintptr_t up_addrenv_page_vaddr(uintptr_t page)
 {
-#else
-#define EXTERN extern
-#endif
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-/****************************************************************************
- * Name: nrf53_rptun_init
- ****************************************************************************/
-
-int nrf53_rptun_init(const char *cpuname);
-
-#undef EXTERN
-#if defined(__cplusplus)
+  return arm_pgvaddr(page);
 }
-#endif
 
-#endif /* __ASSEMBLY__ */
-#endif /* __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H */
+/****************************************************************************
+ * Name: up_addrenv_page_wipe
+ *
+ * Description:
+ *   Wipe a page of physical memory, first mapping it into kernel virtual
+ *   memory.
+ *
+ * Input Parameters:
+ *   page - The page physical address.
+ *
+ * Returned Value:
+ *   None.
+ *
+ ****************************************************************************/
+
+void up_addrenv_page_wipe(uintptr_t page)
+{
+  uintptr_t vaddr = arm_pgvaddr(page);
+  memset((void *)vaddr, 0, MM_PGSIZE);
+}

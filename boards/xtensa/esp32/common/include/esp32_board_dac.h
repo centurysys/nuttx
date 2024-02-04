@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/nrf53/nrf53_rptun.h
+ * boards/xtensa/esp32/common/include/esp32_board_dac.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H
-#define __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H
+#ifndef __BOARDS_XTENSA_ESP32_COMMON_INCLUDE_ESP32_DAC_H
+#define __BOARDS_XTENSA_ESP32_COMMON_INCLUDE_ESP32_DAC_H
 
 /****************************************************************************
  * Included Files
@@ -27,14 +27,23 @@
 
 #include <nuttx/config.h>
 
-#ifndef __ASSEMBLY__
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Type Definitions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
 
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
-#undef EXTERN
-#if defined(__cplusplus)
+#ifdef __cplusplus
 #define EXTERN extern "C"
 extern "C"
 {
@@ -43,19 +52,33 @@ extern "C"
 #endif
 
 /****************************************************************************
+ * Inline Functions
+ ****************************************************************************/
+
+/****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nrf53_rptun_init
+ * Name: board_dac_initialize
+ *
+ * Description:
+ *   Initialize and register the Digital to Analog Convertor (DAC) driver.
+ *
+ * Input Parameters:
+ *   path - The device number, used to build the device path as
+ *          /dev/dacN
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
  ****************************************************************************/
 
-int nrf53_rptun_init(const char *cpuname);
+int board_dac_initialize(const char *path);
 
 #undef EXTERN
-#if defined(__cplusplus)
+#ifdef __cplusplus
 }
 #endif
 
-#endif /* __ASSEMBLY__ */
-#endif /* __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H */
+#endif /* __BOARDS_XTENSA_ESP32_COMMON_INCLUDE_ESP32_DAC_H */

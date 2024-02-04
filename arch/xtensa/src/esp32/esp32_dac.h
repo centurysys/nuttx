@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/nrf53/nrf53_rptun.h
+ * arch/xtensa/src/esp32/esp32_dac.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,44 +18,48 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H
-#define __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H
+#ifndef __ARCH_XTENSA_SRC_ESP32_ESP32_DAC_H
+#define __ARCH_XTENSA_SRC_ESP32_ESP32_DAC_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/analog/dac.h>
+#include "hardware/esp32_sens.h"
+#include "hardware/esp32_rtc_io.h"
 
-#ifndef __ASSEMBLY__
+/****************************************************************************
+ * Pre-processor definitions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
 
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C"
-{
-#else
-#define EXTERN extern
-#endif
+/****************************************************************************
+ * Name: esp32_dac_initialize
+ *
+ * Description:
+ *   Initialize the DAC.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Valid dac device structure reference on success; a NULL on failure.
+ *
+ ****************************************************************************/
+
+struct dac_dev_s *esp32_dac_initialize(void);
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-/****************************************************************************
- * Name: nrf53_rptun_init
- ****************************************************************************/
-
-int nrf53_rptun_init(const char *cpuname);
-
-#undef EXTERN
-#if defined(__cplusplus)
-}
-#endif
-
-#endif /* __ASSEMBLY__ */
-#endif /* __ARCH_ARM_SRC_NRF53_NRF53_RPTUN_H */
+#endif /* __ARCH_XTENSA_SRC_ESP32_ESP32_DAC_H */
