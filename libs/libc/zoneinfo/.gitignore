@@ -1,5 +1,6 @@
 /.tzbuilt
 /.tzunpack
+/.built
 /romfs_zoneinfo.img
 /romfs_zoneinfo.h
 /tzbin
