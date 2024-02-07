@@ -180,7 +180,6 @@ static void rtc_rtc2sys(void)
   tm.tm_sec = rtctime.tm_sec;
 
   ts.tv_sec = timegm(&tm);
-  ts.tv_sec += 9 * 60 * 60;
   ts.tv_nsec = 0;
 
   clock_settime(CLOCK_REALTIME, &ts);
