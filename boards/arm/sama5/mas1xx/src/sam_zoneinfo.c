@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <debug.h>
 
 #include <nuttx/drivers/ramdisk.h>
 #include <nuttx/zoneinfo.h>
@@ -78,8 +79,8 @@ int sam_zoneinfo(int minor)
 
   /* Mount the ROMFS file system */
 
-  printf("Mounting ROMFS filesystem at target=%s with source=%s\n",
-         CONFIG_LIBC_TZDIR, devname);
+  _info("Mounting ROMFS filesystem at target=%s with source=%s\n",
+        CONFIG_LIBC_TZDIR, devname);
 
   ret = mount(devname, CONFIG_LIBC_TZDIR, "romfs", MS_RDONLY, NULL);
   if (ret < 0)
@@ -88,7 +89,10 @@ int sam_zoneinfo(int minor)
       return ret;
     }
 
-  printf("TZ database mounted at %s\n", CONFIG_LIBC_TZDIR);
+  _info("TZ database mounted at %s\n", CONFIG_LIBC_TZDIR);
+
+  ret = setenv("TZ", "Asia/Tokyo", true);
+
   return OK;
 }
 #endif /* CONFIG_LIB_ZONEINFO_ROMFS */
