@@ -369,6 +369,7 @@ config RTC_DSK324SR
 	default n
 	select I2C
 	select RTC_DATETIME
+	select RTC_IOCTL
 	depends on RTC_EXTERNAL
 	---help---
 		Enables support for the DAISHINKU DSK324SR I2C RTC timer.

@@ -30,6 +30,7 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/clock.h>
 #include <nuttx/mutex.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <nuttx/timers/rtc.h>
@@ -111,6 +112,12 @@ static int dsk324sr_rtc_rdtime(struct rtc_lowerhalf_s *lower,
                                struct rtc_time *rtctime);
 static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
                                 const struct rtc_time *rtctime);
+static int dsk324sr_rtc_alarm_read(struct rtc_lowerhalf_s *lower,
+                                   struct rtc_wkalrm *alarm);
+static int dsk324sr_rtc_alarm_set(struct rtc_lowerhalf_s *lower,
+                                  const struct rtc_wkalrm *alarm);
+static int dsk324sr_rtc_ioctl(struct rtc_lowerhalf_s *lower, int cmd,
+                              unsigned long arg);
 
 /****************************************************************************
  * Private Data
@@ -122,6 +129,7 @@ static const struct rtc_ops_s g_rtc_ops =
 {
   .rdtime      = dsk324sr_rtc_rdtime,
   .settime     = dsk324sr_rtc_settime,
+  .ioctl       = dsk324sr_rtc_ioctl,
 #ifdef CONFIG_RTC_ALARM
   .setalarm    = dsk324sr_rtc_setalarm,
   .setrelative = dsk324sr_rtc_setrelative,
@@ -592,24 +600,168 @@ static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
   return ret;
 }
 
-#ifdef CONFIG_RTC_ALARM
 /****************************************************************************
- * Name: dsk324sr_rtc_setalarm
+ * Name: dsk324sr_rtc_alarm_read
  ****************************************************************************/
 
-/****************************************************************************
- * Name: dsk324sr_rtc_setrelative
- ****************************************************************************/
+static int dsk324sr_rtc_alarm_read(struct rtc_lowerhalf_s *lower,
+                                   struct rtc_wkalrm *alarm)
+{
+  struct dsk324sr_lowerhalf_s *priv;
+  struct i2c_msg_s msg[2];
+  uint8_t buffer[14];
+  uint8_t addr;
+  int ret;
+
+  memset(alarm, 0, sizeof(struct rtc_wkalrm));
+
+  priv = (struct dsk324sr_lowerhalf_s *)lower;
+
+  /* The start address of the read is the seconds address (0x00)
+   * The chip increments the address to read from after each read.
+   */
+
+  addr = DSK324SR_REG_RTCSEC;
+
+  msg[0].frequency = CONFIG_DSK324SR_I2C_FREQUENCY;
+  msg[0].addr      = priv->addr;
+  msg[0].flags     = I2C_M_NOSTOP;
+  msg[0].buffer    = &addr;
+  msg[0].length    = 1;
+
+  /* Setup the read. Seven (7) registers will be read.
+   * (Seconds, minutes, hours, wday, date, month and year)
+   */
+
+  msg[1].frequency = CONFIG_DSK324SR_I2C_FREQUENCY;
+  msg[1].addr      = priv->addr;
+  msg[1].flags     = I2C_M_READ;
+  msg[1].buffer    = buffer;
+  msg[1].length    = 14;
+
+  /* Perform the transfer. The transfer may be performed repeatedly of the
+   * seconds values decreases, meaning that was a rollover in the seconds.
+   */
+
+  ret = I2C_TRANSFER(priv->i2c, msg, 2);
+  if (ret < 0)
+    {
+      rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
+      return ret;
+    }
+
+  if (buffer[DSK324SR_REG_CONTROL] & DSK324SR_CONTROL_AIE)
+    {
+      alarm->enabled = 1;
+    }
+
+  if (buffer[DSK324SR_REG_FLAG] & DSK324SR_FLAG_AF)
+    {
+      alarm->pending = 1;
+    }
+
+  alarm->time.tm_year = rtc_bcd2bin(buffer[DSK324SR_REG_RTCYEAR] &
+                                    DSK324SR_RTCYEAR_BCDMASK) + 100;
+  alarm->time.tm_mon  = rtc_bcd2bin(buffer[DSK324SR_REG_RTCMTH]  &
+                                    DSK324SR_RTCMTH_BCDMASK) - 1;
+  alarm->time.tm_mday = rtc_bcd2bin(buffer[DSK324SR_REG_RTCWKDAYALM] &
+                                    DSK324SR_RTCWKDAYALM_BCDMASK);
+  alarm->time.tm_hour = rtc_bcd2bin(buffer[DSK324SR_REG_RTCHOURALM] &
+                                    DSK324SR_RTCHOURALM_BCDMASK);
+  alarm->time.tm_min  = rtc_bcd2bin(buffer[DSK324SR_REG_RTCMINALM] &
+                                    DSK324SR_RTCMINALM_BCDMASK);
+
+  if (alarm->time.tm_mday == 0)
+    {
+      alarm->time.tm_mday = rtc_bcd2bin(buffer[DSK324SR_REG_RTCDATE]  &
+                                        DSK324SR_RTCDATE_BCDMASK);
+    }
+
+  if (alarm->time.tm_hour == 0)
+    {
+      alarm->time.tm_hour = rtc_bcd2bin(buffer[DSK324SR_REG_RTCHOUR]  &
+                                        DSK324SR_RTCHOUR_BCDMASK);
+    }
+
+  if (alarm->time.tm_min == 0)
+    {
+      alarm->time.tm_min = rtc_bcd2bin(buffer[DSK324SR_REG_RTCMIN]  &
+                                       DSK324SR_RTCMIN_BCDMASK);
+    }
+
+  alarm->time.tm_wday = clock_dayoftheweek(alarm->time.tm_mday, alarm->time.tm_mon + 1,
+                                           alarm->time.tm_year + TM_YEAR_BASE);
+
+  return OK;
+}
 
 /****************************************************************************
- * Name: dsk324sr_rtc_cancelalarm
+ * Name: dsk324sr_rtc_alarm_set
  ****************************************************************************/
+
+static int _rtc_alarm_set(struct rtc_lowerhalf_s *lower,
+                          const struct rtc_wkalrm *alarm)
+{
+  return -ENOTTY;
+}
 
 /****************************************************************************
- * Name: dsk324sr_rtc_rdalarm
+ * Name: dsk324sr_rtc_alarm_set
  ****************************************************************************/
 
-#endif
+static int dsk324sr_rtc_alarm_set(struct rtc_lowerhalf_s *lower,
+                                  const struct rtc_wkalrm *alarm)
+{
+  return -ENOTTY;
+}
+
+/****************************************************************************
+ * Name: dsk324sr_rtc_ioctl
+ ****************************************************************************/
+
+static int dsk324sr_rtc_ioctl(struct rtc_lowerhalf_s *lower, int cmd,
+                              unsigned long arg)
+{
+  int ret = -ENOSYS;
+
+  switch (cmd)
+    {
+    case RTC_ALM_READ:
+      {
+        struct rtc_wkalrm *alarm;
+
+        if (arg == 0)
+          {
+            ret = -EFAULT;
+            break;
+          }
+
+        alarm = (struct rtc_wkalrm *)((uintptr_t)arg);
+        ret = dsk324sr_rtc_alarm_read(lower, alarm);
+      }
+      break;
+
+    case RTC_ALM_SET:
+      {
+        const struct rtc_wkalrm *alarm;
+
+        if (arg == 0)
+          {
+            ret = -EFAULT;
+            break;
+          }
+
+        alarm = (const struct rtc_wkalrm *)((uintptr_t)arg);
+        ret = dsk324sr_rtc_alarm_set(lower, alarm);
+      }
+      break;
+
+    default:
+      break;
+    }
+
+  return ret;
+}
 
 /****************************************************************************
  * Public Functions

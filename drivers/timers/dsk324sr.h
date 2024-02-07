@@ -22,6 +22,12 @@
 #define __DRIVERS_TIMERS_DSK324SR_H
 
 /****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/timers/rtc.h>
+
+/****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
@@ -52,6 +58,15 @@
 #define DSK324SR_REG_RTCYEAR         0x06  /* Year register. */
 #  define DSK324SR_RTCYEAR_10YEAR    (15 << 4)
 #  define DSK324SR_RTCYEAR_BCDMASK   0xFF
+
+#define DSK324SR_REG_RTCMINALM         0x07  /* Minutes Alarm register. */
+#  define DSK324SR_RTCMINALM_BCDMASK   0x7F
+
+#define DSK324SR_REG_RTCHOURALM        0x08  /* Hours Alarm register. */
+#  define DSK324SR_RTCHOURALM_BCDMASK  0x3F
+
+#define DSK324SR_REG_RTCWKDAYALM       0x09  /* Week/Day Alarm register. */
+#  define DSK324SR_RTCWKDAYALM_BCDMASK 0x3F
 
 #define DSK324SR_REG_SELECT          0x0b  /* Select Register */
 #  define DSK324SR_SELECT_UTS        (1 << 0)

@@ -32,6 +32,25 @@
 #ifdef CONFIG_RTC_DSK324SR
 
 /****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Linux-like ioctl */
+#define RTC_ALM_READ _RTCIOC(RTC_USER_IOCBASE)
+#define RTC_ALM_SET  _RTCIOC(RTC_USER_IOCBASE + 1)
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+struct rtc_wkalrm
+{
+  uint8_t enabled; /* 0 = alarm disabled, 1 = alarm enabled */
+  uint8_t pending; /* 0 = alarm not pending, 1 = alarm pending */
+  struct rtc_time time;  /* time the alarm is set to */
+};
+
+/****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
