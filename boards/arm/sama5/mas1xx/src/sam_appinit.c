@@ -24,10 +24,14 @@
 
 #include <nuttx/config.h>
 #include <syslog.h>
+#include <errno.h>
 #include <debug.h>
 
 #include <nuttx/board.h>
+#include <arch/board/boardctl.h>
 
+#include "arm_internal.h"
+#include "hardware/sam_shdwc.h"
 #include "mas1xx.h"
 
 #ifndef CONFIG_BUILD_KERNEL
@@ -78,3 +82,81 @@ int board_app_initialize(uintptr_t arg)
 }
 
 #endif /* CONFIG_BUILD_KERNEL */
+
+#ifdef CONFIG_BOARDCTL_IOCTL
+int board_ioctl(unsigned int cmd, uintptr_t arg)
+{
+  int ret = -ENOTTY;
+
+  switch (cmd)
+    {
+      case BIOC_ENABLE_WAKEUP:
+        {
+          uint32_t val;
+
+          val= getreg32(SAM_SHDWC_WUIR);
+          val |= ((uint32_t)arg) & SHDWC_WUIR_WKUPEN_MASK;
+          putreg32(val, SAM_SHDWC_WUIR);
+
+          ret = OK;
+        }
+        break;
+
+      case BIOC_DISABLE_WAKEUP:
+        {
+          uint32_t val;
+
+          val = getreg32(SAM_SHDWC_WUIR);
+          val ^= ((uint32_t)arg) & SHDWC_WUIR_WKUPEN_MASK;
+          putreg32(val, SAM_SHDWC_WUIR);
+
+          ret = OK;
+        }
+        break;
+
+      case BIOC_GET_WAKEUP:
+        {
+          uint32_t val;
+
+          if (!arg)
+            {
+              ret = -EFAULT;
+              break;
+            }
+
+          val = getreg32(SAM_SHDWC_WUIR) & SHDWC_WUIR_WKUPEN_MASK;
+          *(uint32_t *)arg = val;
+
+          ret = OK;
+        }
+        break;
+
+      case BIOC_SHUTDOWN:
+        {
+          putreg32(SHDWC_CR_SHDW + SHDWC_CR_KEY, SAM_SHDWC_CR);
+
+          /* not reached. */
+          ret = OK;
+        }
+        break;
+
+      default:
+        break;
+    }
+
+  return ret;
+}
+#endif
+
+#if defined(CONFIG_BOARDCTL_UNIQUEID)
+int board_uniqueid(uint8_t *uniqueid)
+{
+  if (uniqueid == NULL)
+    {
+      return -EINVAL;
+    }
+
+  uniqueid = 1;
+  return OK;
+}
+#endif
