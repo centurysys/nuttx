@@ -347,7 +347,7 @@ static rtc_type_t get_rtc_type(const struct dsk324sr_lowerhalf_s *lower)
 
       if (err >= 0)
         {
-          buf[0] |= DSK324SR_SELECT_TCS_30S;
+          buf[0] |= DSK324SR_SELECT_TCS_30S | DSK324SR_SELECT_AS;
 
           err = write_byte_data(lower, DSK324SR_REG_SELECT, buf[0]);
 
@@ -382,9 +382,7 @@ static rtc_type_t get_rtc_type(const struct dsk324sr_lowerhalf_s *lower)
 
       if (type == DD3225TS)
         {
-          buf[0] = 0;
-
-          err = write_byte_data(lower, DD3225TS_REG_TEST, buf[0]);
+          err = write_byte_data(lower, DD3225TS_REG_TEST, 0);
 
           if (err < 0)
             {
@@ -395,10 +393,6 @@ static rtc_type_t get_rtc_type(const struct dsk324sr_lowerhalf_s *lower)
 
   return type;
 }
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
 
 /****************************************************************************
  * Name: dsk324sr_rtc_rdtime
@@ -464,6 +458,8 @@ static int dsk324sr_rtc_rdtime(struct rtc_lowerhalf_s *lower,
           rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
           return ret;
         }
+
+      usleep(2);
     }
   while ((buffer[0] & DSK324SR_RTCSEC_BCDMASK) >
          (seconds & DSK324SR_RTCSEC_BCDMASK));
@@ -484,7 +480,7 @@ static int dsk324sr_rtc_rdtime(struct rtc_lowerhalf_s *lower,
 
   /* Return the day of the week (0-6) */
 
-  rtctime->tm_wday = (rtc_bcd2bin(buffer[3]) & DSK324SR_RTCWKDAY_BCDMASK) - 1;
+  rtctime->tm_wday = rtc_bcd2bin(buffer[3] & DSK324SR_RTCWKDAY_BCDMASK);
 
   /* Return the day of the month (1-31) */
 
@@ -557,9 +553,9 @@ static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
 
   buffer[3] = rtc_bin2bcd(rtctime->tm_hour);
 
-  /* Save the day of the week (1-7) */
+  /* Save the day of the week (0-6) */
 
-  buffer[4] = rtc_bin2bcd(rtctime->tm_wday + 1);
+  buffer[4] = rtc_bin2bcd(rtctime->tm_wday);
 
   /* Save the day of the month (1-31) */
 
