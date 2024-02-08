@@ -696,9 +696,82 @@ static int dsk324sr_rtc_alarm_read(struct rtc_lowerhalf_s *lower,
  ****************************************************************************/
 
 static int _rtc_alarm_set(struct rtc_lowerhalf_s *lower,
-                          const struct rtc_wkalrm *alarm)
+                          const struct rtc_time *alarm)
 {
-  return -ENOTTY;
+  struct dsk324sr_lowerhalf_s *priv;
+  uint8_t buffer[8], ctrl;
+  int ret;
+
+  priv = (struct dsk324sr_lowerhalf_s *)lower;
+
+  /* Clear Alarm Enable */
+
+  ret = read_byte_data(priv, DSK324SR_REG_CONTROL, &ctrl);
+  if (ret < 0)
+    {
+      rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
+      return ret;
+    }
+
+  ctrl &= ~DSK324SR_CONTROL_AIE;
+
+  ret = write_byte_data(priv, DSK324SR_REG_CONTROL, ctrl);
+  if (ret < 0)
+    {
+      rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
+      return ret;
+    }
+
+  /* Clear Alarm Flag */
+
+  ret = read_byte_data(priv, DSK324SR_REG_FLAG, &ctrl);
+  if (ret < 0)
+    {
+      rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
+      return ret;
+    }
+
+  ctrl &= ~DSK324SR_FLAG_AF;
+
+  ret = write_byte_data(priv, DSK324SR_REG_FLAG, ctrl);
+  if (ret < 0)
+    {
+      rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
+      return ret;
+    }
+
+  /* Construct the message */
+
+  buffer[0] = rtc_bin2bcd(alarm->tm_min);
+  buffer[1] = rtc_bin2bcd(alarm->tm_hour);
+  buffer[2] = rtc_bin2bcd(alarm->tm_mday);
+
+  ret = write_block_data(priv, DSK324SR_REG_RTCMINALM, 3, buffer);
+  if (ret < 0)
+    {
+      rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
+      return ret;
+    }
+
+  /* Set Alarm Enable */
+
+  ret = read_byte_data(priv, DSK324SR_REG_CONTROL, &ctrl);
+  if (ret < 0)
+    {
+      rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
+      return ret;
+    }
+
+  ctrl |= DSK324SR_CONTROL_AIE;
+
+  ret = write_byte_data(priv, DSK324SR_REG_CONTROL, ctrl);
+  if (ret < 0)
+    {
+      rtcerr("ERROR: I2C_TRANSFER failed: %d\n", ret);
+      return ret;
+    }
+
+  return ret;
 }
 
 /****************************************************************************
@@ -708,7 +781,41 @@ static int _rtc_alarm_set(struct rtc_lowerhalf_s *lower,
 static int dsk324sr_rtc_alarm_set(struct rtc_lowerhalf_s *lower,
                                   const struct rtc_wkalrm *alarm)
 {
-  return -ENOTTY;
+  struct rtc_time rtctime, alarmtime;
+  struct timespec ts_rtc, ts_alarm;
+  time_t time_diff;
+  int ret;
+
+  ret = dsk324sr_rtc_rdtime(lower, &rtctime);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  memcpy(&alarmtime, &alarm->time, sizeof(struct rtc_time));
+  alarmtime.tm_sec = 0; /* support Month, Hour, Minute only */
+
+  ts_rtc.tv_sec = timegm((struct tm *)&rtctime);
+  ts_rtc.tv_nsec = 0;
+
+  ts_alarm.tv_sec = timegm((struct tm *)&alarmtime);
+  ts_alarm.tv_nsec = 0;
+
+  if (ts_rtc.tv_sec >= ts_alarm.tv_sec)
+    {
+      _err("past time.\n");
+      return -EINVAL;
+    }
+
+  time_diff = ts_alarm.tv_sec - ts_rtc.tv_sec;
+
+  if (time_diff < 60 || time_diff > (7 * 24 * 60 * 60 * 60))
+    {
+      _err("underflow/overflow\n");
+      return -EOVERFLOW;
+    }
+
+  return _rtc_alarm_set(lower, &alarm->time);
 }
 
 /****************************************************************************
