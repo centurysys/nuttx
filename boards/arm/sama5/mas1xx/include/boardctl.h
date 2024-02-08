@@ -37,8 +37,8 @@
 #define BIOC_SHUTDOWN        (BOARDIOC_USER + 4)
 
 #define BIT(n)        (1 << n)
-#define WKUPEN_OPTSW  BIT(4)
-#define WKUPEN_MSP430 BIT(5)
-#define WKUPEN_ALARM  BIT(6)
+#define WKUPEN_OPTSW  BIT(2 + 4)
+#define WKUPEN_MSP430 BIT(2 + 5)
+#define WKUPEN_ALARM  BIT(2 + 6)
 
 #endif
