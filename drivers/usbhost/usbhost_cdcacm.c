@@ -41,6 +41,8 @@
 #include <nuttx/clock.h>
 #include <nuttx/fs/ioctl.h>
 #include <nuttx/mutex.h>
+#include <nuttx/semaphore.h>
+#include <nuttx/pthread.h>
 #include <nuttx/serial/serial.h>
 
 #include <nuttx/usb/usb.h>
@@ -274,6 +276,11 @@ struct usbhost_cdcacm_s
   usbhost_ep_t   intin;          /* Interrupt IN endpoint (optional) */
 #endif
 
+  volatile bool  opened;
+  volatile bool  wait_open;
+  sem_t          rx_sem;
+  sem_t          tx_sem;
+
   /* This is the serial data buffer */
 
   char           rxbuffer[CONFIG_USBHOST_CDCACM_RXBUFSIZE];
@@ -320,8 +327,8 @@ static void usbhost_notification_callback(FAR void *arg, ssize_t nbytes);
 
 /* UART buffer data transfer */
 
-static void usbhost_txdata_work(FAR void *arg);
-static void usbhost_rxdata_work(FAR void *arg);
+static int usbhost_txdata(FAR void *arg);
+static int usbhost_rxdata(FAR void *arg);
 
 /* Worker thread actions */
 
@@ -751,12 +758,7 @@ static int usbhost_controllinestate_send(FAR struct usbhost_cdcacm_s *priv,
       val |= BIT(0);
     }
 
-#ifdef CONFIG_SERIAL_IFLOWCONTROL
-  if (priv->rts)
-    {
-      val |= BIT(1);
-    }
-#endif
+  val |= BIT(1);
 
   reqtype = USB_DIR_OUT | USB_REQ_TYPE_CLASS | USB_REQ_RECIPIENT_INTERFACE;
 
@@ -942,7 +944,7 @@ static void usbhost_notification_callback(FAR void *arg, ssize_t nbytes)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: usbhost_txdata_work
+ * Name: usbhost_txdata
  *
  * Description:
  *   Send more OUT data to the attached CDC/ACM device.
@@ -955,7 +957,7 @@ static void usbhost_notification_callback(FAR void *arg, ssize_t nbytes)
  *
  ****************************************************************************/
 
-static void usbhost_txdata_work(FAR void *arg)
+static int usbhost_txdata(FAR void *arg)
 {
   FAR struct usbhost_cdcacm_s *priv;
   FAR struct usbhost_hubport_s *hport;
@@ -964,13 +966,10 @@ static void usbhost_txdata_work(FAR void *arg)
   ssize_t nwritten;
   int txndx;
   int txtail;
-  int ret;
+  int ret = OK;
 
   priv = (FAR struct usbhost_cdcacm_s *)arg;
-  DEBUGASSERT(priv);
-
   hport = priv->usbclass.hport;
-  DEBUGASSERT(hport);
 
   uartdev = &priv->uartdev;
   txbuf   = &uartdev->xmit;
@@ -981,7 +980,7 @@ static void usbhost_txdata_work(FAR void *arg)
     {
       /* Terminate the work now *without* rescheduling */
 
-      return;
+      return ret;
     }
 
   /* Loop until The UART TX buffer is empty (or we become disconnected) */
@@ -1015,17 +1014,19 @@ static void usbhost_txdata_work(FAR void *arg)
 
       txbuf->tail = txtail;
 
-      /* Bytes were removed from the TX buffer.  Inform any waiters that
-       * there is space available in the TX buffer.
-       */
-
-      uart_datasent(uartdev);
-
       /* Send the filled TX buffer to the CDC/ACM device */
 
       nwritten = DRVR_TRANSFER(hport->drvr, priv->bulkout,
                                priv->outbuf, txndx);
-      if (nwritten < 0)
+      if (nwritten > 0)
+        {
+          /* Bytes were removed from the TX buffer.  Inform any waiters that
+           * there is space available in the TX buffer.
+           */
+
+          uart_datasent(uartdev);
+        }
+      else
         {
           /* The most likely reason for a failure is that CDC/ACM device
            * NAK'ed our packet OR that the device has been disconnected.
@@ -1034,8 +1035,9 @@ static void usbhost_txdata_work(FAR void *arg)
            * the device is disconnected).
            */
 
-          uerr("ERROR: DRVR_TRANSFER for packet failed: %d\n",
+          _err("ERROR: DRVR_TRANSFER for packet failed: %d\n",
                (int)nwritten);
+          ret = ERROR;
           break;
         }
     }
@@ -1061,23 +1063,11 @@ static void usbhost_txdata_work(FAR void *arg)
            */
 
           uerr("ERROR: DRVR_TRANSFER for ZLP failed: %d\n", (int)nwritten);
+          ret = ERROR;
         }
     }
 
-  /* Check again if TX reception is enabled and that the device is still
-   * connected.  These states could have changed since we started the
-   * transfer.
-   */
-
-  if (priv->txena && !priv->disconnected)
-    {
-      /* Schedule TX data work to occur after a delay. */
-
-      ret = work_queue(LPWORK, &priv->txwork, usbhost_txdata_work, priv,
-                       USBHOST_CDCACM_TXDELAY);
-      DEBUGASSERT(ret >= 0);
-      UNUSED(ret);
-    }
+  return ret;
 }
 
 /****************************************************************************
@@ -1094,7 +1084,7 @@ static void usbhost_txdata_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static void usbhost_rxdata_work(FAR void *arg)
+static int usbhost_rxdata(FAR void *arg)
 {
   FAR struct usbhost_cdcacm_s *priv;
   FAR struct usbhost_hubport_s *hport;
@@ -1104,13 +1094,10 @@ static void usbhost_rxdata_work(FAR void *arg)
   int nxfrd;
   int nexthead;
   int rxndx;
-  int ret;
+  int ret = OK;
 
   priv    = (FAR struct usbhost_cdcacm_s *)arg;
-  DEBUGASSERT(priv);
-
   hport   = priv->usbclass.hport;
-  DEBUGASSERT(hport);
 
   uartdev = &priv->uartdev;
   rxbuf   = &uartdev->recv;
@@ -1140,11 +1127,7 @@ static void usbhost_rxdata_work(FAR void *arg)
    * 3. RX rec
    */
 
-#ifdef CONFIG_SERIAL_IFLOWCONTROL
-  while (priv->rxena && priv->rts && !priv->disconnected)
-#else
   while (priv->rxena && !priv->disconnected)
-#endif
     {
       /* Stop now if there is no room for another
        * character in the RX buffer.
@@ -1154,6 +1137,7 @@ static void usbhost_rxdata_work(FAR void *arg)
         {
           /* Break out of the loop, rescheduling the work */
 
+          priv->rxena = false;
           break;
         }
 
@@ -1177,6 +1161,7 @@ static void usbhost_rxdata_work(FAR void *arg)
 
               uerr("ERROR: DRVR_TRANSFER for packet failed: %d\n",
                    (int)nread);
+              ret = ERROR;
               break;
             }
 
@@ -1247,25 +1232,6 @@ static void usbhost_rxdata_work(FAR void *arg)
    * states could have changed since we started the transfer.
    */
 
-#ifdef CONFIG_SERIAL_IFLOWCONTROL
-  if (priv->rxena && priv->rts && work_available(&priv->rxwork) &&
-      !priv->disconnected)
-#else
-  if (priv->rxena && work_available(&priv->rxwork) && !priv->disconnected)
-#endif
-    {
-      /* Schedule RX data reception work to occur after a delay.  This will
-       * affect our responsive in certain cases.  The delayed work, however,
-       * will be cancelled and replaced with immediate work when the upper
-       * layer demands more data.
-       */
-
-      ret = work_queue(LPWORK, &priv->rxwork, usbhost_rxdata_work, priv,
-                       USBHOST_CDCACM_RXDELAY);
-      DEBUGASSERT(ret >= 0);
-      UNUSED(ret);
-    }
-
   /* If any bytes were added to the buffer, inform any waiters there there
    * is new incoming data available.
    */
@@ -1274,6 +1240,101 @@ static void usbhost_rxdata_work(FAR void *arg)
     {
       uart_datareceived(uartdev);
     }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: usbhost_tx_thread
+ ****************************************************************************/
+
+static void *usbhost_tx_thread(void *arg)
+{
+  struct usbhost_cdcacm_s *priv;
+  struct uart_dev_s *uartdev;
+  struct uart_buffer_s *txbuf;
+  int ret;
+  int txtail;
+
+  priv    = (struct usbhost_cdcacm_s *)arg;
+  uartdev = &priv->uartdev;
+  txbuf   = &uartdev->xmit;
+
+  while (true)
+    {
+      txtail = txbuf->tail;
+
+      if ((txtail == txbuf->head) || !priv->txena)
+        {
+          priv->txena = false;
+          sem_wait(&priv->tx_sem);
+        }
+
+      if (priv->disconnected)
+        {
+          break;
+        }
+
+      if (txtail != txbuf->head && priv->txena && !priv->disconnected)
+        {
+          ret = usbhost_txdata((void *)priv);
+
+          if (priv->disconnected)
+            {
+              break;
+            }
+        }
+    }
+
+  pthread_exit((void *)1);
+}
+
+/****************************************************************************
+ * Name: usbhost_rx_thread
+ ****************************************************************************/
+
+static void *usbhost_rx_thread(void *arg)
+{
+  FAR struct usbhost_cdcacm_s *priv;
+  FAR struct usbhost_hubport_s *hport;
+  FAR struct uart_dev_s *uartdev;
+  FAR struct uart_buffer_s *rxbuf;
+  int nexthead;
+  int ret;
+
+  priv    = (struct usbhost_cdcacm_s *)arg;
+  hport   = priv->usbclass.hport;
+  uartdev = &priv->uartdev;
+  rxbuf   = &uartdev->recv;
+
+  while (true)
+    {
+      if (!priv->opened)
+        {
+          priv->wait_open = true;
+          sem_wait(&priv->rx_sem);
+        }
+
+      if (priv->disconnected)
+        {
+          break;
+        }
+
+      nexthead = rxbuf->head + 1;
+      if (!priv->rxena)
+        {
+          sem_wait(&priv->rx_sem);
+        }
+
+      ret = usbhost_rxdata(priv);
+
+      if (priv->disconnected)
+        {
+          break;
+        }
+    }
+
+  pthread_exit((void *)1);
 }
 
 /****************************************************************************
@@ -1991,6 +2052,11 @@ usbhost_create(FAR struct usbhost_hubport_s *hport,
           priv->rts            = true;
 #endif
 
+          nxsem_init(&priv->rx_sem, 0, 0);
+          nxsem_init(&priv->tx_sem, 0, 0);
+          priv->opened = false;
+          priv->wait_open = false;
+
           /* Return the instance of the USB CDC/ACM class */
 
           return &priv->usbclass;
@@ -2051,6 +2117,8 @@ static int usbhost_connect(FAR struct usbhost_class_s *usbclass,
   FAR struct usbhost_hubport_s *hport;
 #endif
   char devname[DEV_NAMELEN];
+  char threadname[20];
+  pthread_t thread;
   int ret;
 
   DEBUGASSERT(priv != NULL &&
@@ -2111,12 +2179,34 @@ static int usbhost_connect(FAR struct usbhost_class_s *usbclass,
     }
 #endif
 
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+
+  struct sched_param param;
+  param.sched_priority = 150;
+  pthread_attr_setschedparam(&attr, &param);
+
+  if (pthread_create(&thread, &attr, usbhost_tx_thread, (void *)priv) == OK)
+    {
+      sprintf(threadname, "ACM%d_TX", priv->minor);
+      pthread_setname_np(thread, threadname);
+    }
+
+  param.sched_priority = 192;
+  pthread_attr_setschedparam(&attr, &param);
+
+  if (pthread_create(&thread, &attr, usbhost_rx_thread, (void *)priv) == OK)
+    {
+      sprintf(threadname, "ACM%d_RX", priv->minor);
+      pthread_setname_np(thread, threadname);
+    }
+
   /* Register the lower half serial instance with the upper half serial
    * driver.
    */
 
   usbhost_mkdevname(priv, devname);
-  uinfo("Register device: %s\n", devname);
+  _info("Register device: %s\n", devname);
 
   ret = uart_register(devname, &priv->uartdev);
   if (ret < 0)
@@ -2329,6 +2419,13 @@ static int usbhost_setup(FAR struct uart_dev_s *uartdev)
 
       priv->crefs++;
       ret = OK;
+
+      priv->opened = true;
+      if (priv->wait_open)
+        {
+          priv->wait_open = false;
+          sem_post(&priv->rx_sem);
+        }
     }
 
   leave_critical_section(flags);
@@ -2662,33 +2759,29 @@ static void usbhost_rxint(FAR struct uart_dev_s *uartdev, bool enable)
 {
   FAR struct usbhost_cdcacm_s *priv;
   int ret;
+  int sval;
   irqstate_t flags;
 
-  DEBUGASSERT(uartdev && uartdev->priv);
   priv = (FAR struct usbhost_cdcacm_s *)uartdev->priv;
 
   flags = enter_critical_section();
 
   /* Are we enabling RX reception? */
 
-  if (enable && !priv->rxena)
+  if (enable)
     {
-#ifdef CONFIG_SERIAL_IFLOWCONTROL
-      if (priv->rts)
-#endif
+      if (!priv->rxena)
         {
-          if (work_available(&priv->rxwork))
-            {
-              ret = work_queue(LPWORK, &priv->rxwork,
-                               usbhost_rxdata_work, priv, 0);
-              DEBUGASSERT(ret >= 0);
-              UNUSED(ret);
-            }
+          priv->rxena = true;
+
+          if ((sem_getvalue(&priv->rx_sem, &sval) == 0) &&
+              sval < 1)
+            sem_post(&priv->rx_sem);
         }
-
-      /* Save the new RX enable state */
-
-      priv->rxena = enable;
+    }
+  else
+    {
+      priv->rxena = false;
     }
 
   leave_critical_section(flags);
@@ -2765,9 +2858,6 @@ static bool usbhost_rxflowcontrol(FAR struct uart_dev_s *uartdev,
 
       priv->rts = false;
 
-      /* Cancel any pending RX data reception work */
-
-      work_cancel(LPWORK, &priv->rxwork);
       return true;
     }
   else if (!priv->rts && !upper)
@@ -2778,18 +2868,6 @@ static bool usbhost_rxflowcontrol(FAR struct uart_dev_s *uartdev,
        */
 
        priv->rts = true;
-
-      /* Restart RX data reception work flow unless RX reception is
-       * disabled.
-       */
-
-      if (priv->rxena && work_available(&priv->rxwork))
-        {
-          ret = work_queue(LPWORK, &priv->rxwork,
-                           usbhost_rxdata_work, priv, 0);
-          DEBUGASSERT(ret >= 0);
-          UNUSED(ret);
-        }
     }
 
   return false;
@@ -2807,39 +2885,32 @@ static bool usbhost_rxflowcontrol(FAR struct uart_dev_s *uartdev,
 static void usbhost_txint(FAR struct uart_dev_s *uartdev, bool enable)
 {
   FAR struct usbhost_cdcacm_s *priv;
-  int ret;
+  int sval;
   irqstate_t flags;
 
-  DEBUGASSERT(uartdev && uartdev->priv);
   priv = (FAR struct usbhost_cdcacm_s *)uartdev->priv;
 
   flags = enter_critical_section();
 
   /* Are we enabling or disabling TX transmission? */
 
-  if (enable && !priv->txena)
+  if (enable)
     {
-      /* Cancel any pending, delayed TX data transmission work */
+      if (!priv->txena)
+        {
+          priv->txena = true;
 
-      work_cancel(LPWORK, &priv->txwork);
-
-      /* Restart immediate TX data transmission work */
-
-      ret = work_queue(LPWORK, &priv->txwork,
-                       usbhost_txdata_work, priv, 0);
-      DEBUGASSERT(ret >= 0);
-      UNUSED(ret);
+          if ((sem_getvalue(&priv->tx_sem, &sval) == 0) &&
+              sval < 1)
+            {
+              sem_post(&priv->tx_sem);
+            }
+        }
     }
-  else if (!enable && priv->txena)
+  else
     {
-      /* Cancel any pending TX data transmission work */
-
-      work_cancel(LPWORK, &priv->txwork);
+      priv->txena = false;
     }
-
-  /* Save the new TX enable state */
-
-  priv->txena = enable;
 
   leave_critical_section(flags);
 }
