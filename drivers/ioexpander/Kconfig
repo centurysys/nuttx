@@ -349,6 +349,13 @@ config TCA64XX_INT_POLLDELAY
 
 endif # IOEXPANDER_TCA64XX
 
+config IOEXPANDER_TCA6507
+	bool "TCA6507 LED controller"
+	default n
+	depends on I2C
+	---help---
+		Enable support for the TCA6507 LED Controller
+
 config IOEXPANDER_PCF8574
 	bool "PCF8574 I2C IO expander"
 	default n
