@@ -26,12 +26,15 @@
 #include <nuttx/signal.h>
 #include <nuttx/wqueue.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <debug.h>
 
 #if defined(CONFIG_IOEXPANDER_TCA6507)
 #  include <nuttx/ioexpander/tca6507.h>
 #  include <nuttx/ioexpander/ioexpander.h>
 #  include <nuttx/ioexpander/gpio.h>
+
+#  include <nuttx/pthread.h>
 #endif
 
 #include <nuttx/arch.h>
@@ -79,6 +82,32 @@ struct tca6507_config_s g_tca6507_cfg =
  ****************************************************************************/
 
 #if defined(CONFIG_IOEXPANDER_TCA6507)
+
+static void *led_thread(void *arg)
+{
+  char *dev = (char *)arg;
+  int fd, i;
+
+  fd = open(dev, O_RDWR);
+
+  if (fd > 0)
+    {
+      while (true)
+        {
+          write(fd, "1", 1);
+          usleep(100 * 1000);
+          write(fd, "0", 1);
+          usleep(200 * 1000);
+          write(fd, "1", 1);
+          usleep(500 * 1000);
+          write(fd, "0", 1);
+          usleep(200 * 1000);
+        }
+    }
+
+  pthread_exit((void *)1);
+}
+
 /****************************************************************************
  * Name: tca6507_pincfg
  ****************************************************************************/
@@ -95,6 +124,7 @@ static void tca6507_pincfg(struct ioexpander_dev_s *ioe)
     { .idx = 5, .name = "LED_Stat2_G" },
     { .idx = 6, .name = "LED_Stat3_G" }
   };
+  pthread_t thread;
 
   for (i = 0; i < ARRAY_SIZE(leds); i++)
     {
@@ -103,8 +133,12 @@ static void tca6507_pincfg(struct ioexpander_dev_s *ioe)
 
       _info("Register LED %s.\n", leds[i].name);
     }
-}
 
+  if (pthread_create(&thread, NULL, led_thread, (void *)"/dev/LED_Stat1_G") == OK)
+    {
+      pthread_setname_np(thread, "LED");
+    }
+}
 #endif
 
 /****************************************************************************

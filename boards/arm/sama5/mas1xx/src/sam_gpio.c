@@ -180,7 +180,7 @@ void sam_gpio_initialize(void)
     {
       gpio = &g_gpout[i];
 
-      gpio->gpio.gp_pintype  = GPIO_OUTPUT_PIN;
+      gpio->gpio.gp_pintype = GPIO_OUTPUT_PIN;
       gpio->gpio.gp_ops = &gpout_ops;
 
       gpio_pin_register_byname(&gpio->gpio, gpio->name);

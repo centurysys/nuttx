@@ -196,15 +196,15 @@ static struct sam_sdmmc_state_s *sam_sdmmc_state(int slotno)
   struct sam_sdmmc_state_s *state = NULL;
 
 #ifdef CONFIG_SAMA5_SDMMC0
-#ifdef CONFIG_SAMA5_SDMMC1
+#  ifdef CONFIG_SAMA5_SDMMC1
   if (slotno == 0)
-#endif
+#  endif
     {
       state = &g_sdmmc0;
     }
-#ifdef CONFIG_SAMA5_SDMMC1
+#  ifdef CONFIG_SAMA5_SDMMC1
   else
-#endif
+#  endif
 #endif
 
 #ifdef CONFIG_SAMA5_SDMMC1

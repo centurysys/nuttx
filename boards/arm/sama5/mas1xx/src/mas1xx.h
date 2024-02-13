@@ -282,6 +282,9 @@
 #define PIO_DO1  (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
                   PIO_PORT_PIOD | PIO_PIN11)
 
+#define PIO_MSP430_RST (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
+                        PIO_PORT_PIOD | PIO_PIN12)
+
 /* SDMMC clocking
  *
  * Multimedia Card Interface clock (MCCK or MCI_CK) is Master Clock (MCK)

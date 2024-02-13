@@ -45,6 +45,7 @@
 #include "sam_twi.h"
 #include "sam_pio.h"
 #include "mas1xx.h"
+#include "mas1xx_led.h"
 #include "mas1xx_lte.h"
 #include "mas1xx_param.h"
 #include "mas1xx_xio.h"
@@ -362,6 +363,8 @@ int sam_bringup(void)
   board_i2c_initialize();
   mas1xx_init_parameter();
 #endif
+
+  mas1xx_led_initialize();
 
 #ifdef HAVE_USBHOST
   lte_pio_initialize();

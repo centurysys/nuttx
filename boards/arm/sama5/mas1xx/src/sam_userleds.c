@@ -82,12 +82,6 @@ static const struct led_bits leds[] =
     .bit = BOARD_MOBILE1_R,
     .cfg = PIO_LED_MOBILE1_R
   },
-#ifndef CONFIG_ARCH_LEDS
-  {
-    .bit = BOARD_POWER_G,
-    .cfg = PIO_LED_POWER_G
-  },
-#endif
 };
 
 /****************************************************************************
@@ -106,8 +100,12 @@ uint32_t board_userled_initialize(void)
   sam_configpio(PIO_LED_MOBILE0_R);
   sam_configpio(PIO_LED_MOBILE1_G);
   sam_configpio(PIO_LED_MOBILE1_R);
+  sam_configpio(PIO_LED_ENABLE);
+  sam_piowrite(PIO_LED_ENABLE, true);
 #ifndef CONFIG_ARCH_LEDS
   sam_configpio(PIO_LED_POWER_G);
+  sam_piowrite(PIO_LED_POWER_G, true);
+  _info("PowerLED initialized.\n");
 #endif
 
   return ARRAY_SIZE(leds);
@@ -138,12 +136,6 @@ void board_userled(int led, bool ledon)
       case BOARD_MOBILE1_R:
         ledcfg = PIO_LED_MOBILE1_R;
         break;
-
-#ifndef CONFIG_ARCH_LEDS
-      case BOARD_POWER_G:
-        ledcfg = PIO_LED_POWER_G;
-        break;
-#endif
 
       default:
         return;

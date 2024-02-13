@@ -81,9 +81,9 @@
 #define PIO_TWI0_D       (PIO_TWI0_D_1  | PIO_CFG_PULLUP | \
                           PIO_CFG_DEGLITCH | PIO_DRIVE_HIGH)
 #define PIO_TWI1_CK      (PIO_TWI1_CK_1 | PIO_CFG_PULLUP | \
-                          PIO_CFG_DEGLITCH | PIO_DRIVE_HIGH)
+                          PIO_CFG_DEGLITCH | PIO_DRIVE_MEDIUM)
 #define PIO_TWI1_D       (PIO_TWI1_D_1  | PIO_CFG_PULLUP | \
-                          PIO_CFG_DEGLITCH | PIO_DRIVE_HIGH)
+                          PIO_CFG_DEGLITCH | PIO_DRIVE_MEDIUM)
 
 /* EMAC RMII connection to KSZ8081 Ethernet PHY *************************/
 
@@ -212,6 +212,9 @@
 #define PIO_DIPSW1 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN2)
 #define PIO_DIPSW2 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN3)
 #define PIO_DIPSW3 (PIO_INPUT | PIO_CFG_PULLUP | PIO_PORT_PIOB | PIO_PIN4)
+
+#define PIO_LED_ENABLE (PIO_OUTPUT | PIO_CFG_DEFAULT | PIO_OUTPUT_SET | \
+                        PIO_PORT_PIOD | PIO_PIN24)
 
 /* Pin disambiguation *******************************************************/
 
