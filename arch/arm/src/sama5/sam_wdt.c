@@ -451,6 +451,16 @@ static int sam_settimeout(struct watchdog_lowerhalf_s *lower,
       return -ERANGE;
     }
 
+  regval = sam_getreg(SAM_WDT_MR);
+  if ((regval & WDT_MR_WDDIS) != 0)
+    {
+      _info("clear WDDIS bit\n");
+      regval &= ~WDT_MR_WDDIS;
+      sam_putreg(regval, SAM_WDT_MR);
+
+      nxsig_usleep(200);
+    }
+
   /* Calculate the reload value to achiee this (approximate) timeout.
    *
    * Examples with WDT_FREQUENCY = 32768 / 128 = 256:
