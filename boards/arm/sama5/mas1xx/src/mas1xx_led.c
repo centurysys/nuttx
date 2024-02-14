@@ -99,9 +99,9 @@ static void *led_thread(void *arg)
           write(fd, "0", 1);
           usleep(200 * 1000);
           write(fd, "1", 1);
-          usleep(500 * 1000);
+          usleep(100 * 1000);
           write(fd, "0", 1);
-          usleep(200 * 1000);
+          usleep(600 * 1000);
         }
     }
 
