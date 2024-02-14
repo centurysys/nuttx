@@ -604,7 +604,7 @@ static int twi_wait(struct twi_dev_s *priv, unsigned int size)
    * sizes.
    */
 
-  timeout = MSEC2TICK(TWI_TIMEOUT_MSPB);
+  timeout = MSEC2TICK(TWI_TIMEOUT_MSPB * size);
   if (timeout < 1)
     {
       timeout = 1;
