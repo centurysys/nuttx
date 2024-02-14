@@ -454,7 +454,7 @@ static int sam_settimeout(struct watchdog_lowerhalf_s *lower,
   regval = sam_getreg(SAM_WDT_MR);
   if ((regval & WDT_MR_WDDIS) != 0)
     {
-      _info("clear WDDIS bit\n");
+      _info("WDT: Disabled, clear WDDIS bit on MR.\n");
       regval &= ~WDT_MR_WDDIS;
       sam_putreg(regval, SAM_WDT_MR);
 
