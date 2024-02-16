@@ -339,6 +339,13 @@ int sam_bringup(void)
 {
   int ret;
 
+#ifdef CONFIG_FS_TMPFS
+  /* Mount the tmpfs file system */
+
+  nx_mount(NULL, CONFIG_LIBC_TMPDIR, "tmpfs", 0, NULL);
+  nx_mount(NULL, "/var", "tmpfs", 0, NULL);
+#endif
+
 #ifdef HAVE_LEDS
   /* Register the LED driver */
 
@@ -453,9 +460,11 @@ int sam_bringup(void)
 #endif
 
 #ifdef HAVE_USBHOST
-  /* Power-ON LTE module */
+#  ifdef CONFIG_MAS1XX_LTE_AUTO_ON
 
+  /* Power-ON LTE module */
   lte_power_ctrl(true);
+#  endif
 #endif
 
 #ifdef CONFIG_ADC

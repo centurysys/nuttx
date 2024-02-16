@@ -25,6 +25,11 @@ config MAS1XX_USBHOST_PRIO
 	default 100
 	depends on USBHOST
 
+config MAS1XX_LTE_AUTO_ON
+	bool "Automatically Power-ON LTE module on boot"
+	default n
+	depends on USBHOST
+
 config SAMA5_SDMMC
 	bool "enable SDMMC controller"
 	default y if SAMA5_HAVE_SDMMC
