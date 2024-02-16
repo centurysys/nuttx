@@ -91,4 +91,9 @@ ifeq ($(CONFIG_LIBC_ZONEINFO_ROMFS),y)
 CSRCS += sam_zoneinfo.c
 endif
 
+ifeq ($(CONFIG_ETC_ROMFS),y)
+  RCSRCS = etc/init.d/rc.sysinit etc/init.d/rcS
+  RCRAWS = etc/zoneinfo/Asia/Tokyo
+endif
+
 include $(TOPDIR)/boards/Board.mk

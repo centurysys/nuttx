@@ -391,6 +391,8 @@ int sam_bringup(void)
 
 #ifdef CONFIG_LIBC_ZONEINFO_ROMFS
   sam_zoneinfo(0);
+#else
+  setenv("TZ", "Asia/Tokyo", true);
 #endif
 
 #ifdef CONFIG_RTC_DSK324SR
@@ -483,6 +485,7 @@ int sam_bringup(void)
       _err("ERROR: failed to initialize XIO: %d\n", ret);
     }
 
+#if 0
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */
 
@@ -492,6 +495,7 @@ int sam_bringup(void)
       _err("ERROR: Failed to mount procfs at %s: %d\n",
            SAMA5_PROCFS_MOUNTPOINT, ret);
     }
+#endif
 #endif
 
   if (sam_netinitialize)
