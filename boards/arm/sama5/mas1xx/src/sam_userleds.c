@@ -67,19 +67,19 @@ struct led_bits
 static const struct led_bits leds[] =
 {
   {
-    .bit = BOARD_MOBILE0_G,
+    .bit = BOARD_MOBILE0_G_BIT,
     .cfg = PIO_LED_MOBILE0_G
   },
   {
-    .bit = BOARD_MOBILE0_R,
+    .bit = BOARD_MOBILE0_R_BIT,
     .cfg = PIO_LED_MOBILE0_R
   },
   {
-    .bit = BOARD_MOBILE1_G,
+    .bit = BOARD_MOBILE1_G_BIT,
     .cfg = PIO_LED_MOBILE1_G
   },
   {
-    .bit = BOARD_MOBILE1_R,
+    .bit = BOARD_MOBILE1_R_BIT,
     .cfg = PIO_LED_MOBILE1_R
   },
 };
