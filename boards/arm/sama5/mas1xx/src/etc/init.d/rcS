@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm64/rk3399/nanopi_m4/src/etc/init.d/rcS
+ * boards/arm/sama5/mas1xx/src/etc/init.d/rcS
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -20,4 +20,8 @@
 
 #include <nuttx/config.h>
 
-lte_ctrl status
+#ifdef CONFIG_CENTURYSYS_MOBILE_WATCH_NX
+
+mobile_watch_nx &
+
+#endif
