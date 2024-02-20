@@ -2716,7 +2716,7 @@ static int sam_recvshortcrc(struct sdio_dev_s *dev, uint32_t cmd,
 
   /* We need a short delay here to let the SDMMC peripheral respond */
 
-  nxsig_usleep(10);
+  nxsig_usleep(3000);
 
   return ret;
 }
@@ -3725,7 +3725,10 @@ struct sdio_dev_s *sam_sdmmc_sdio_initialize(int slotno)
     }
 
   sam_reset(&g_sdmmcdev[slotno].dev);
-  sam_force_cd(&g_sdmmcdev[slotno].dev);
+  if (slotno == 0)
+    {
+      sam_force_cd(&g_sdmmcdev[slotno].dev);
+    }
   sam_clock(&g_sdmmcdev[slotno].dev, CLOCK_SDIO_DISABLED);
   sam_power(priv);
   sam_set_interrupts(priv);
