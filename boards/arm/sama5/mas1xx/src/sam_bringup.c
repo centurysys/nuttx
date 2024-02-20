@@ -37,6 +37,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/kthread.h>
 #include <nuttx/signal.h>
+#include <nuttx/syslog/syslog.h>
 #include <nuttx/leds/userled.h>
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/usb/usbhost.h>
@@ -343,7 +344,17 @@ int sam_bringup(void)
   /* Mount the tmpfs file system */
 
   nx_mount(NULL, CONFIG_LIBC_TMPDIR, "tmpfs", 0, NULL);
-  nx_mount(NULL, "/var", "tmpfs", 0, NULL);
+  nx_mount(NULL, "/var/log", "tmpfs", 0, NULL);
+
+#  ifdef CONFIG_SYSLOG_FILE
+  struct syslog_channel_s *channel;
+  channel = syslog_file_channel("/var/log/syslog");
+
+  if (channel == NULL)
+    {
+      syslog(LOG_ERR, "ERROR: syslog_file_channel() failed\n");
+    }
+#  endif
 #endif
 
 #ifdef HAVE_LEDS
