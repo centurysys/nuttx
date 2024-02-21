@@ -494,7 +494,7 @@ static int dsk324sr_rtc_rdtime(struct rtc_lowerhalf_s *lower,
 
   rtctime->tm_year = rtc_bcd2bin(buffer[6] & DSK324SR_RTCYEAR_BCDMASK);
 
-  /* The Year is stored in the RTC starting from 2001. We need to convert it
+  /* The Year is stored in the RTC starting from 2000. We need to convert it
    * to POSIX format that expects the year starting from 1900.
    */
 
@@ -511,7 +511,7 @@ static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
                                 const struct rtc_time *rtctime)
 {
   struct dsk324sr_lowerhalf_s *priv;
-  uint8_t buffer[8];
+  uint8_t buffer[7];
   uint8_t ctrl;
   int ret;
 
@@ -537,42 +537,38 @@ static int dsk324sr_rtc_settime(struct rtc_lowerhalf_s *lower,
 
   /* Construct the message */
 
-  /* Write starting with the seconds register */
-
-  buffer[0] = DSK324SR_REG_RTCSEC;
-
   /* Save seconds (0-59) converted to BCD. And keep ST cleared. */
 
-  buffer[1] = rtc_bin2bcd(rtctime->tm_sec);
+  buffer[0] = rtc_bin2bcd(rtctime->tm_sec);
 
   /* Save minutes (0-59) converted to BCD */
 
-  buffer[2] = rtc_bin2bcd(rtctime->tm_min);
+  buffer[1] = rtc_bin2bcd(rtctime->tm_min);
 
   /* Save hour (0-23) with 24-hour time indication */
 
-  buffer[3] = rtc_bin2bcd(rtctime->tm_hour);
+  buffer[2] = rtc_bin2bcd(rtctime->tm_hour);
 
   /* Save the day of the week (0-6) */
 
-  buffer[4] = rtc_bin2bcd(rtctime->tm_wday);
+  buffer[3] = rtc_bin2bcd(rtctime->tm_wday);
 
   /* Save the day of the month (1-31) */
 
-  buffer[5] = rtc_bin2bcd(rtctime->tm_mday);
+  buffer[4] = rtc_bin2bcd(rtctime->tm_mday);
 
   /* Save the month (1-12) */
 
-  buffer[6] = rtc_bin2bcd(rtctime->tm_mon + 1);
+  buffer[5] = rtc_bin2bcd(rtctime->tm_mon + 1);
 
   /* Save the year (00-99) */
 
-  /* First we need to convert "tm_year" to value starting from 2001.
+  /* First we need to convert "tm_year" to value starting from 2000.
    * The "tm_year" in POSIX is relative to 1900, so 2019 is 119,
-   * so you just need to subtract 101: year = (1900 + value) - 2001
+   * so you just need to subtract 100: year = (1900 + value) - 2000
    */
 
-  buffer[7] = rtc_bin2bcd(rtctime->tm_year - 101);
+  buffer[6] = rtc_bin2bcd(rtctime->tm_year - 100);
 
   ret = write_block_data(priv, DSK324SR_REG_RTCSEC, 7, buffer);
   if (ret < 0)
