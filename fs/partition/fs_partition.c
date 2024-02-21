@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <debug.h>
 
 #include "driver/driver.h"
 #include "partition.h"
@@ -201,6 +202,7 @@ int parse_block_partition(FAR const char *path,
   ret = open_blockdriver(path, MS_RDONLY, &state.blk);
   if (ret < 0)
     {
+      _err("open_blockdriver(%s) failed with %d\n", path, ret);
       return ret;
     }
 
@@ -225,12 +227,18 @@ int parse_block_partition(FAR const char *path,
       if (ret >= 0)
         {
           DEBUGASSERT(geo.geo_sectorsize);
+          _info("blocksize: %d, nblocks: %d\n", geo.geo_sectorsize,
+                geo.geo_nsectors);
 
           state.blocksize = geo.geo_sectorsize;
           state.erasesize = geo.geo_sectorsize;
           state.nblocks   = geo.geo_nsectors;
 
           ret = parse_partition(&state, handler, arg);
+        }
+      else
+        {
+          _err("%s: get geometry() failed with %d\n", path, ret);
         }
     }
 

@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <debug.h>
 
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/partition.h>
@@ -97,6 +98,7 @@ int register_blockdriver(FAR const char *path,
   ret = inode_lock();
   if (ret < 0)
     {
+      _err("! inode_lock() failed, ret = %d\n", ret);
       return ret;
     }
 
@@ -112,6 +114,8 @@ int register_blockdriver(FAR const char *path,
       node->u.i_bops  = bops;
       node->i_private = priv;
       ret             = OK;
+
+      _info("%s registered.\n", path);
     }
 
   inode_unlock();

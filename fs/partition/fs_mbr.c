@@ -22,6 +22,7 @@
  * Included Files
  ****************************************************************************/
 
+#include <stdio.h>
 #include <debug.h>
 #include <endian.h>
 #include <string.h>
@@ -112,18 +113,21 @@ int parse_mbr_partition(FAR struct partition_state_s *state,
   buffer = kmm_malloc(num * state->blocksize);
   if (!buffer)
     {
+      _err("kmm_malloc() failed, -ENOMEM\n");
       return -ENOMEM;
     }
 
   ret = read_partition_block(state, buffer, 0, num);
   if (ret < 0)
     {
+      _err("read_partition_block() failed with %d\n", ret);
       kmm_free(buffer);
       return ret;
     }
 
   if (buffer[0x1fe] != 0x55 || buffer[0x1ff] != 0xaa)
     {
+      _info("cannot found MBR magic(0x55, 0xaa)\n");
       kmm_free(buffer);
       return -EINVAL;
     }
@@ -171,7 +175,7 @@ int parse_mbr_partition(FAR struct partition_state_s *state,
 
           if (buffer[0x1fe] != 0x55 || buffer[0x1ff] != 0xaa)
             {
-              ferr("block %" PRIu32 " doesn't contain an EBR signature\n",
+              _err("block %" PRIu32 " doesn't contain an EBR signature\n",
                    ebr_block);
               ret = -EINVAL;
               goto out;
