@@ -2716,7 +2716,7 @@ static int sam_recvshortcrc(struct sdio_dev_s *dev, uint32_t cmd,
 
   /* We need a short delay here to let the SDMMC peripheral respond */
 
-  nxsig_usleep(3000);
+  //nxsig_usleep(5000);
 
   return ret;
 }
