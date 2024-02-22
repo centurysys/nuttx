@@ -32,6 +32,8 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <nuttx/fs/fs.h>
 #include <nuttx/irq.h>
@@ -100,6 +102,10 @@
 #define NSECTORS(n) \
   (((n)+CONFIG_SAMA5D4EK_ROMFS_ROMDISK_SECTSIZE-1) / \
    CONFIG_SAMA5D4EK_ROMFS_ROMDISK_SECTSIZE)
+
+#ifndef ARRAY_SIZE
+#  define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 /****************************************************************************
  * Private Functions
@@ -325,6 +331,28 @@ static int nsh_sdmmc_initialize(void)
 #endif
 
 /****************************************************************************
+ * Name: make_var_directories
+ ****************************************************************************/
+
+static void __attribute__((used)) make_var_directories(void)
+{
+  int i, ret;
+  const char *var_dirs[] = {"sem", "mqueue", "ftok"};
+  char buf[32];
+
+  for (i = 0; i < ARRAY_SIZE(var_dirs); i++)
+    {
+      sprintf(buf, "/var/%s", var_dirs[i]);
+      ret = mkdir(buf, 0777);
+
+      if (ret == 0)
+        {
+          syslog(LOG_INFO, "%s created.\n", buf);
+        }
+    }
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -344,15 +372,25 @@ int sam_bringup(void)
   /* Mount the tmpfs file system */
 
   nx_mount(NULL, CONFIG_LIBC_TMPDIR, "tmpfs", 0, NULL);
-  nx_mount(NULL, "/var/log", "tmpfs", 0, NULL);
+  nx_mount(NULL, "/var", "tmpfs", 0, NULL);
 
 #  ifdef CONFIG_SYSLOG_FILE
-  struct syslog_channel_s *channel;
-  channel = syslog_file_channel("/var/log/syslog");
+  ret = mkdir("/var/log", 0777);
 
-  if (channel == NULL)
+  if (ret == 0)
     {
-      syslog(LOG_ERR, "ERROR: syslog_file_channel() failed\n");
+      struct syslog_channel_s *channel;
+
+      syslog(LOG_INFO, "/var/log created.\n");
+
+      channel = syslog_file_channel("/var/log/syslog");
+
+      if (channel == NULL)
+        {
+          syslog(LOG_ERR, "ERROR: syslog_file_channel() failed\n");
+        }
+
+      make_var_directories();
     }
 #  endif
 #endif
