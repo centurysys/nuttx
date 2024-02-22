@@ -77,10 +77,20 @@
                                            __ASSERT_LINE__, msg, regs)
 
 #define __ASSERT__(f, file, line, _f) \
-  (predict_false(!(f))) ? __assert(file, line, _f) : ((void)0)
+  do                                  \
+    {                                 \
+      if (predict_false(!(f)))        \
+        __assert(file, line, _f);     \
+    }                                 \
+  while (0)
 
 #define __VERIFY__(f, file, line, _f) \
-  (predict_false((f) < 0)) ? __assert(file, line, _f) : ((void)0)
+  do                                  \
+    {                                 \
+      if (predict_false((f) < 0))     \
+        __assert(file, line, _f);     \
+    }                                 \
+  while (0)
 
 #ifdef CONFIG_DEBUG_ASSERTIONS_EXPRESSION
 #  define _ASSERT(f,file,line) __ASSERT__(f, file, line, #f)
@@ -96,7 +106,7 @@
 #  define DEBUGVERIFY(f) _VERIFY(f, __DEBUG_ASSERT_FILE__, __DEBUG_ASSERT_LINE__)
 #else
 #  define DEBUGPANIC()
-#  define DEBUGASSERT(f) ((void)(0))
+#  define DEBUGASSERT(f) ((void)(1 || (f)))
 #  define DEBUGVERIFY(f) ((void)(f))
 #endif
 
@@ -106,7 +116,7 @@
  */
 
 #ifdef NDEBUG
-#  define assert(f) ((void)(0))
+#  define assert(f) ((void)(1 || (f)))
 #  define VERIFY(f) assert(f)
 #else
 #  define assert(f) _ASSERT(f, __ASSERT_FILE__, __ASSERT_LINE__)
