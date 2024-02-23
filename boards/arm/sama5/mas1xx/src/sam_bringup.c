@@ -337,7 +337,7 @@ static int nsh_sdmmc_initialize(void)
 static void __attribute__((used)) make_var_directories(void)
 {
   int i, ret;
-  const char *var_dirs[] = {"sem", "mqueue", "ftok"};
+  const char *var_dirs[] = {"sem", "mqueue", "ftok", "run"};
   char buf[32];
 
   for (i = 0; i < ARRAY_SIZE(var_dirs); i++)
