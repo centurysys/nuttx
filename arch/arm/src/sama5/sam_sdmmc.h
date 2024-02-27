@@ -36,6 +36,29 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#ifndef CONFIG_SAMA5_SDMMC_VBASE
+#  define CONFIG_SAMA5_SDMMC_VBASE 0x3fd00000
+#endif
+
+#ifndef CONFIG_SAMA5_SDMMC_PBASE
+#  define CONFIG_SAMA5_SDMMC_PBASE 0x3fd00000
+#endif
+
+#ifndef CONFIG_SAMA5_SDMMC_SIZE
+#  define CONFIG_SAMA5_SDMMC_SIZE 0x00100000
+#endif
+
+#if (CONFIG_SAMA5_SDMMC_VBASE & 0x000fffff) != 0
+#  error CONFIG_SAMA5_SDMMC_FB_VBASE not aligned to 1MB boundary
+#endif
+
+#if (CONFIG_SAMA5_SDMMC_PBASE & 0x000fffff) != 0
+#  error CONFIG_SAMA5_SDMMC_PBASE not aligned to 1MB boundary
+#endif
+
+#define SAMA5_SDMMC_NSECTIONS \
+  ((CONFIG_SAMA5_SDMMC_SIZE + 0x000fffff) >> 20)
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/

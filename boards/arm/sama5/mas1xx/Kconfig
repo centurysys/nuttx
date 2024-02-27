@@ -146,4 +146,34 @@ config SAMA5_EMACB_SIZE
 	default 0x00100000
 	depends on SAMA5_EMACB
 
+config SAMA5_EHCI_PBASE
+	hex "EHCI PBASE"
+	default 0x3fe00000
+	depends on SAMA5_EHCI
+
+config SAMA5_EHCI_VBASE
+	hex "EHCI VBASE"
+	default 0x3fe00000
+	depends on SAMA5_EHCI
+
+config SAMA5_EHCI_SIZE
+	hex "UHP EHCI SIZE"
+	default 0x00100000
+	depends on SAMA5_EHCI
+
+config SAMA5_SDMMC_PBASE
+	hex "SDMMC PBASE"
+	default 0x3fd00000
+	depends on SAMA5_SDMMC
+
+config SAMA5_SDMMC_VBASE
+	hex "SDMMC VBASE"
+	default 0x3fd00000
+	depends on SAMA5_SDMMC
+
+config SAMA5_SDMMC_SIZE
+	hex "UHP SDMMC SIZE"
+	default 0x00100000
+	depends on SAMA5_SDMMC
+
 endif # ARCH_BOARD_MAS1XX

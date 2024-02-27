@@ -29,6 +29,8 @@
 #include "hardware/sam_memorymap.h"
 #include "sam_ethernet.h"
 #include "sam_lcd.h"
+#include "sam_usbhost.h"
+#include "sam_sdmmc.h"
 #include "sam_memorymap.h"
 
 /****************************************************************************
@@ -257,6 +259,18 @@ const struct section_mapping_s g_section_mapping[] =
     MMU_IOFLAGS, SAMA5_EMACB_NSECTIONS
   },
 #endif
+
+#if defined(CONFIG_SAMA5_EHCI) && !defined(NEED_SDRAM_REMAPPING)
+  { CONFIG_SAMA5_EHCI_PBASE, CONFIG_SAMA5_EHCI_VBASE,
+    MMU_IOFLAGS, SAMA5_EHCI_NSECTIONS
+  },
+#endif
+
+#if defined(CONFIG_SAMA5_SDMMC)
+  { CONFIG_SAMA5_SDMMC_PBASE, CONFIG_SAMA5_SDMMC_VBASE,
+    MMU_IOFLAGS, SAMA5_SDMMC_NSECTIONS
+  },
+#endif
 };
 
 /* The number of entries in the mapping table */
@@ -301,6 +315,18 @@ const struct section_mapping_s g_operational_mapping[] =
 #ifdef CONFIG_SAMA5_EMACB
   { CONFIG_SAMA5_EMACB_PBASE, CONFIG_SAMA5_EMACB_VBASE,
     MMU_IOFLAGS, SAMA5_EMACB_NSECTIONS
+  },
+#endif
+
+#if defined(CONFIG_SAMA5_EHCI)
+  { CONFIG_SAMA5_EHCI_PBASE, CONFIG_SAMA5_EHCI_VBASE,
+    MMU_IOFLAGS, SAMA5_EHCI_NSECTIONS
+  },
+#endif
+
+#if defined(CONFIG_SAMA5_SDMMC)
+  { CONFIG_SAMA5_SDMMC_PBASE, CONFIG_SAMA5_SDMMC_VBASE,
+    MMU_IOFLAGS, SAMA5_SDMMC_NSECTIONS
   },
 #endif
 };

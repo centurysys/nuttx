@@ -185,6 +185,13 @@ struct sam_dev_s
 
   volatile uint8_t xfrflags;     /* Used to synchronize SDIO and DMA completion */
   uint32_t *bufferend;           /* Far end of R/W buffer for cache invalidation */
+
+  /* DMA bounce buffer */
+  uint8_t *dmabuf;
+  size_t dmalen;
+  volatile bool dir_send;
+  volatile bool dma_started;
+  volatile bool dma_completed;
 #endif
 
   /* Card interrupt support for SDIO */
@@ -377,6 +384,9 @@ struct sam_dev_s g_sdmmcdev[SAM_MAX_SDMMC_DEV_SLOTS] =
 #ifdef CONFIG_SAMA5_SDMMC0
   {
     .addr               = SAM_SDMMC0_VBASE,
+#ifdef CONFIG_SAMA5_SDMMC_DMA
+    .dmabuf             = (uint8_t *)CONFIG_SAMA5_SDMMC_VBASE,
+#endif
     .slot               = 0,
 #if defined(PIN_SDMMC0_CD_GPIO)
     .sw_cd_gpio         = PIN_SDMMC0_CD_GPIO,
@@ -437,6 +447,9 @@ struct sam_dev_s g_sdmmcdev[SAM_MAX_SDMMC_DEV_SLOTS] =
 #ifdef CONFIG_SAMA5_SDMMC1
   {
     .addr               = SAM_SDMMC1_VBASE,
+#ifdef CONFIG_SAMA5_SDMMC_DMA
+    .dmabuf             = (uint8_t *)(CONFIG_SAMA5_SDMMC_VBASE + (CONFIG_SAMA5_SDMMC_SIZE >> 1)),
+#endif
     .slot               = 1,
 #if defined(PIN_SDMMC1_CD_GPIO)
     .sw_cd_gpio         = PIN_SDMMC1_CD_GPIO,
@@ -1248,8 +1261,19 @@ static void sam_endtransfer(struct sam_dev_s *priv,
 #ifdef CONFIG_SAMA5_SDMMC_DMA
   /* DMA modified the buffer, so we need to flush its cache lines. */
 
+#if 0
   up_invalidate_dcache((uintptr_t) priv->buffer,
                        (uintptr_t) priv->bufferend);
+#endif
+
+  if (priv->dma_started && priv->dma_completed && !priv->dir_send)
+    {
+      memcpy(priv->buffer, priv->dmabuf, priv->dmalen);
+      priv->dma_started = false;
+    }
+
+  priv->dma_started = false;
+  priv->dma_completed = false;
 #endif
 
   /* Debug instrumentation */
@@ -1362,6 +1386,7 @@ static int sam_interrupt(int irq, void *context, void *arg)
         {
           /* Terminate the transfer */
 
+          priv->dma_completed = true;
           sam_endtransfer(priv, SDIOWAIT_TRANSFERDONE);
         }
 
@@ -3101,13 +3126,16 @@ static int sam_dmarecvsetup(struct sdio_dev_s *dev,
 
   priv->buffer = (uint32_t *)buffer;
   priv->remaining = buflen;
-  priv->bufferend = (uint32_t *)(buffer + buflen);
+  priv->bufferend = (uint32_t *)(priv->dmabuf + buflen);
+
+  priv->dmalen = buflen;
+  priv->dir_send = false;
 
   /* DMA modified the buffer, so we need to flush its cache lines. */
-
+#if 0
   up_invalidate_dcache((uintptr_t) priv->buffer,
                        (uintptr_t) priv->bufferend);
-
+#endif
   /* Then set up the SDIO data path */
 
   sam_dataconfig(priv, false, buflen, SDMMC_DTOCV_MAXTIMEOUT);
@@ -3126,11 +3154,13 @@ static int sam_dmarecvsetup(struct sdio_dev_s *dev,
   irqsigen = sam_getreg(priv, SAMA5_SDMMC_IRQSIGEN_OFFSET);
   sam_putreg(priv, irqsigen | SDMMC_INT_DINT, SAMA5_SDMMC_IRQSIGEN_OFFSET);
 
-  sam_putreg(priv, (uint32_t) buffer, SAMA5_SDMMC_DSADDR_OFFSET);
+  sam_putreg(priv, (uint32_t) priv->dmabuf, SAMA5_SDMMC_DSADDR_OFFSET);
 
   /* Sample the register state */
 
   sam_sample(priv, SAMPLENDX_AFTER_SETUP);
+  priv->dma_completed = false;
+  priv->dma_started = true;
   return OK;
 }
 #endif
@@ -3169,15 +3199,21 @@ static int sam_dmasendsetup(struct sdio_dev_s *dev,
 
   /* Save the source buffer information for use by the interrupt handler */
 
-  priv->buffer    = (uint32_t *)buffer;
+  memcpy(priv->dmabuf, buffer, buflen);
+  priv->dmalen = buflen;
+  priv->dir_send = true;
+
+  priv->buffer    = priv->dmabuf;
   priv->remaining = buflen;
-  priv->bufferend = (uint32_t *)(buffer + buflen);
+  priv->bufferend = (uint32_t *)(priv->dmabuf + buflen);
 
   /* DMA will read from the buffer, so we need to flush the data cache to
    * main memory.
    */
 
+#if 0
   up_flush_dcache((uintptr_t) priv->buffer, (uintptr_t) priv->bufferend);
+#endif
 
   /* Then set up the SDIO data path */
 
@@ -3193,11 +3229,13 @@ static int sam_dmasendsetup(struct sdio_dev_s *dev,
   /* Configure the TX DMA */
 
   sam_configxfrints(priv, SDMMC_DMADONE_INTS | SDMMC_INT_DINT);
-  sam_putreg(priv, (uint32_t) buffer,  SAMA5_SDMMC_DSADDR_OFFSET);
+  sam_putreg(priv, (uint32_t) priv->dmabuf,  SAMA5_SDMMC_DSADDR_OFFSET);
 
   /* Sample the register state */
 
   sam_sample(priv, SAMPLENDX_AFTER_SETUP);
+  priv->dma_started = true;
+  priv->dma_completed = false;
   return OK;
 }
 #endif
@@ -3647,7 +3685,6 @@ struct sdio_dev_s *sam_sdmmc_sdio_initialize(int slotno)
        * bus is multiplexed then there is a custom bus configuration utility
        * in the scope of the board support package.
        */
-
 #ifndef CONFIG_SDIO_MUXBUS
 
 #  if defined(CONFIG_SAMA5_SDMMC0)
