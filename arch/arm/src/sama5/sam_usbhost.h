@@ -49,6 +49,29 @@
 #define SAM_RHPORT2    1
 #define SAM_RHPORT3    2
 
+#ifndef CONFIG_SAMA5_EHCI_VBASE
+#  define CONFIG_SAMA5_EHCI_VBASE 0x3fe00000
+#endif
+
+#ifndef CONFIG_SAMA5_EHCI_PBASE
+#  define CONFIG_SAMA5_EHCI_PBASE 0x3fe00000
+#endif
+
+#ifndef CONFIG_SAMA5_EHCI_SIZE
+#  define CONFIG_SAMA5_EHCI_SIZE 0x00100000
+#endif
+
+#if (CONFIG_SAMA5_EHCI_VBASE & 0x000fffff) != 0
+#  error CONFIG_SAMA5_EHCI_FB_VBASE not aligned to 1MB boundary
+#endif
+
+#if (CONFIG_SAMA5_EHCI_PBASE & 0x000fffff) != 0
+#  error CONFIG_SAMA5_EHCI_PBASE not aligned to 1MB boundary
+#endif
+
+#define SAMA5_EHCI_NSECTIONS \
+  ((CONFIG_SAMA5_EHCI_SIZE + 0x000fffff) >> 20)
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/

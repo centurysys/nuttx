@@ -254,13 +254,13 @@ const struct section_mapping_s g_section_mapping[] =
   },
 #endif
 
-#if defined(CONFIG_SAMA5_EMACB) && !defined(NEED_SDRAM_REMAPPING)
+#if defined(CONFIG_SAMA5_EMACB)
   { CONFIG_SAMA5_EMACB_PBASE, CONFIG_SAMA5_EMACB_VBASE,
     MMU_IOFLAGS, SAMA5_EMACB_NSECTIONS
   },
 #endif
 
-#if defined(CONFIG_SAMA5_EHCI) && !defined(NEED_SDRAM_REMAPPING)
+#if defined(CONFIG_SAMA5_EHCI)
   { CONFIG_SAMA5_EHCI_PBASE, CONFIG_SAMA5_EHCI_VBASE,
     MMU_IOFLAGS, SAMA5_EHCI_NSECTIONS
   },
