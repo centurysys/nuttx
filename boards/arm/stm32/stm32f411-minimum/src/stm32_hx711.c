@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/x86_64/intel64/qemu-intel64/src/qemu_intel64.h
+ * boards/arm/stm32/stm32f411-minimum/src/stm32_hx711.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,37 +18,85 @@
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_X86_64_INTEL64_QEMU_INTEL64_SRC_QEMU_INTEL64_H
-#define __BOARDS_X86_64_INTEL64_QEMU_INTEL64_SRC_QEMU_INTEL64_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/analog/hx711.h>
 #include <nuttx/compiler.h>
+#include <arch/board/board.h>
+#include <arch/stm32/chip.h>
+#include <debug.h>
+
+#include "stm32_gpio.h"
+#include "stm32f411-minimum.h"
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Private Function Prototypes
  ****************************************************************************/
 
-/* GPIO Pin Definitions *****************************************************/
+static int stm32_hx711_clock_set(unsigned char minor, int value);
+static int stm32_hx711_data_read(unsigned char minor);
+static int stm32_hx711_data_irq(unsigned char minor,
+                                xcpt_t handler, void *arg);
 
 /****************************************************************************
- * Public Types
+ * Private Data
  ****************************************************************************/
+
+struct hx711_lower_s g_lower =
+{
+  .data_read = stm32_hx711_data_read,
+  .clock_set = stm32_hx711_clock_set,
+  .data_irq  = stm32_hx711_data_irq,
+  .cleanup = NULL
+};
 
 /****************************************************************************
- * Public Data
+ * Private Functions
  ****************************************************************************/
 
-#ifndef __ASSEMBLY__
+static int stm32_hx711_clock_set(unsigned char minor, int value)
+{
+  UNUSED(minor);
+
+  stm32_gpiowrite(HX711_CLK_PIN, value);
+  return OK;
+}
+
+static int stm32_hx711_data_read(unsigned char minor)
+{
+  UNUSED(minor);
+
+  return stm32_gpioread(HX711_DATA_PIN);
+}
+
+static int stm32_hx711_data_irq(unsigned char minor,
+                                xcpt_t handler, void *arg)
+{
+  UNUSED(minor);
+
+  return stm32_gpiosetevent(HX711_DATA_PIN, false, true, true, handler, arg);
+};
 
 /****************************************************************************
- * Public Function Prototypes
+ * Public Functions
  ****************************************************************************/
 
-int qemu_bringup(void);
+int stm32_hx711_initialize(void)
+{
+  int ret;
 
-#endif /* __ASSEMBLY__ */
-#endif /* __BOARDS_X86_64_INTEL64_QEMU_INTEL64_SRC_QEMU_INTEL64_H */
+  stm32_configgpio(HX711_DATA_PIN);
+  stm32_configgpio(HX711_CLK_PIN);
+
+  ret = hx711_register(0, &g_lower);
+  if (ret != 0)
+    {
+      aerr("ERROR: Failed to register hx711 device: %d\n", ret);
+      return -1;
+    }
+
+  return OK;
+}

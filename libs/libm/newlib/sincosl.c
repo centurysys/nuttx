@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/x86_64/intel64/qemu-intel64/src/qemu_bringup.c
+ * libs/libm/newlib/sincosl.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -22,40 +22,14 @@
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#include <stdbool.h>
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
-
-#include <nuttx/board.h>
-#include <nuttx/fs/fs.h>
-#include <nuttx/input/buttons.h>
-
-#include "qemu_intel64.h"
+#include <math.h>
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: qemu_bringup
- ****************************************************************************/
-
-int qemu_bringup(void)
+void sincosl(long double x, long double *s, long double *c)
 {
-  int ret = OK;
-
-#ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
-
-  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
-  if (ret < 0)
-    {
-      serr("ERROR: Failed to mount procfs at %s: %d\n", "/proc", ret);
-    }
-#endif
-
-  return ret;
+  *s = sinl(x);
+  *c = cosl(x);
 }

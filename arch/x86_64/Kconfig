@@ -21,6 +21,7 @@ config ARCH_INTEL64
 	select ARCH_HAVE_TICKLESS
 	select ARCH_HAVE_STACKCHECK
 	select ARCH_HAVE_RNG
+	select ARCH_HAVE_RESET
 	---help---
 		Intel x86_64 architecture
 
@@ -29,17 +30,6 @@ config ARCH_CHIP_X86_64_CUSTOM
 	select ARCH_CHIP_CUSTOM
 	---help---
 		Select this option if there is no directory for the chip under arch/x86_64/src/.
-
-endchoice
-
-choice
-	prompt "x86_64 system selection"
-	default ARCH_BOARD_QEMU
-
-config ARCH_BOARD_QEMU
-	bool "Qemu environment"
-	---help---
-		Targeting virtualized qemu environment
 
 endchoice
 
@@ -53,15 +43,6 @@ config ARCH_CHIP
 	default "intel64"
 
 endif # ARCH_INTEL64
-
-if ARCH_BOARD_QEMU
-source "arch/x86_64/src/qemu/Kconfig"
-
-config ARCH_BOARD
-	string
-	default "qemu-intel64"
-
-endif # ARCH_CHIP_QEMU
 
 config ARCH_MULTIBOOT2
 	bool "Append multiboot2 header"

@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/x86_64/intel64/qemu-intel64/src/qemu_bringup.c
+ *  arch/x86/src/intel64/intel64_testset.S
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -23,39 +23,49 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <arch/spinlock.h>
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
-
-#include <nuttx/board.h>
-#include <nuttx/fs/fs.h>
-#include <nuttx/input/buttons.h>
-
-#include "qemu_intel64.h"
+	.file    "intel64_head.S"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
+/**************************************************************************
+ * .text
+ **************************************************************************/
+
+	.text
+	.code64
+
 /****************************************************************************
- * Name: qemu_bringup
+ * Name: up_testset
+ *
+ * Description:
+ *   Perform an atomic test and set operation on the provided spinlock.
+ *
+ *   This function must be provided via the architecture-specific logic.
+ *
+ * Input Parameters:
+ *   lock  - A reference to the spinlock object.
+ *
+ * Returned Value:
+ *   The spinlock is always locked upon return.  The previous value of the
+ *   spinlock variable is returned, either SP_LOCKED if the spinlock was
+ *   previously locked (meaning that the test-and-set operation failed to
+ *   obtain the lock) or SP_UNLOCKED if the spinlock was previously unlocked
+ *   (meaning that we successfully obtained the lock).
+ *
  ****************************************************************************/
 
-int qemu_bringup(void)
-{
-  int ret = OK;
+	.globl   up_testset
+	.type    up_testset, @function
+up_testset:
+	/* Set the value to be written (SP_LOCKED for test-and-set) */
 
-#ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
+	movq     $SP_LOCKED, %rax
 
-  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
-  if (ret < 0)
-    {
-      serr("ERROR: Failed to mount procfs at %s: %d\n", "/proc", ret);
-    }
-#endif
+	/* Atomic exchange, the old value is returned in rax */
 
-  return ret;
-}
+	xchg    %rax, (%rdi)
+	ret

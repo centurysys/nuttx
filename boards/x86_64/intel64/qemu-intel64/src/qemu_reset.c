@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/x86_64/intel64/qemu-intel64/src/qemu_bringup.c
+ * boards/x86_64/intel64/qemu-intel64/src/qemu_reset.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -23,39 +23,35 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
-#include <stdbool.h>
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
-
 #include <nuttx/board.h>
-#include <nuttx/fs/fs.h>
-#include <nuttx/input/buttons.h>
-
-#include "qemu_intel64.h"
+#include <nuttx/arch.h>
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: qemu_bringup
+ * Name: board_reset
+ *
+ * Description:
+ *   Reset board.  Support for this function is required by board-level
+ *   logic if CONFIG_BOARDCTL_RESET is selected.
+ *
+ * Input Parameters:
+ *   status - Status information provided with the reset event.  This
+ *            meaning of this status information is board-specific.  If not
+ *            used by a board, the value zero may be provided in calls to
+ *            board_reset().
+ *
+ * Returned Value:
+ *   If this function returns, then it was not possible to power-off the
+ *   board due to some constraints.  The return value int this case is a
+ *   board-specific reason for the failure to shutdown.
+ *
  ****************************************************************************/
 
-int qemu_bringup(void)
+int board_reset(int status)
 {
-  int ret = OK;
-
-#ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
-
-  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
-  if (ret < 0)
-    {
-      serr("ERROR: Failed to mount procfs at %s: %d\n", "/proc", ret);
-    }
-#endif
-
-  return ret;
+  up_systemreset();
+  return 0;
 }

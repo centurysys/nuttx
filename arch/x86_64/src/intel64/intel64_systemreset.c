@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/x86_64/intel64/qemu-intel64/src/qemu_bringup.c
+ * arch/x86_64/src/intel64/intel64_systemreset.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,38 +24,39 @@
 
 #include <nuttx/config.h>
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
+#include <nuttx/arch.h>
+#include <arch/io.h>
 
-#include <nuttx/board.h>
-#include <nuttx/fs/fs.h>
-#include <nuttx/input/buttons.h>
+#include <stdint.h>
 
-#include "qemu_intel64.h"
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: qemu_bringup
+ * Name: up_systemreset
+ *
+ * Description:
+ *   Internal, intel64 reset logic.
+ *
  ****************************************************************************/
 
-int qemu_bringup(void)
+void up_systemreset(void)
 {
-  int ret = OK;
+  uint8_t regval = (X86_RST_CNT_CPU_RST |
+                    X86_RST_CNT_SYS_RST |
+                    X86_RST_CNT_FULL_RST);
 
-#ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
+  /* Write to Reset Control Register */
 
-  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
-  if (ret < 0)
+  outb(regval, X86_RST_CNT_REG);
+
+  while (1)
     {
-      serr("ERROR: Failed to mount procfs at %s: %d\n", "/proc", ret);
+      asm volatile("hlt");
     }
-#endif
-
-  return ret;
 }

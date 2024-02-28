@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/x86_64/intel64/qemu-intel64/src/qemu_bringup.c
+ * arch/x86_64/src/intel64/intel64_fpucmp.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,38 +24,53 @@
 
 #include <nuttx/config.h>
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
+#include <stdint.h>
+#include <string.h>
+#include <nuttx/irq.h>
 
-#include <nuttx/board.h>
-#include <nuttx/fs/fs.h>
-#include <nuttx/input/buttons.h>
+#include "x86_64_internal.h"
 
-#include "qemu_intel64.h"
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#ifdef CONFIG_ARCH_FPU
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: qemu_bringup
+ * Name: up_fpucmp
+ *
+ * Description:
+ *   Compare FPU areas from thread context.
+ *
+ * Input Parameters:
+ *   saveregs1 - Pointer to the saved FPU registers.
+ *   saveregs2 - Pointer to the saved FPU registers.
+ *
+ * Returned Value:
+ *   True if FPU areas compare equal, False otherwise.
+ *
  ****************************************************************************/
 
-int qemu_bringup(void)
+bool up_fpucmp(const void *saveregs1, const void *saveregs2)
 {
-  int ret = OK;
+  const uint32_t *regs1 = saveregs1;
+  const uint32_t *regs2 = saveregs2;
 
-#ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
+  /* IMPORTANT:
+   *
+   *   With aggresive optimization enabled (-O2/-O3), ostest FPU test will
+   *   fail. This is because the compiler will generate additional vector
+   *   instructions between subsequent up_fpucmp() calls (loop vectorization
+   *   somewhere in usleep() call), which will consequently overwrite
+   *   the expected FPU context (XMM registers).
+   */
 
-  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
-  if (ret < 0)
-    {
-      serr("ERROR: Failed to mount procfs at %s: %d\n", "/proc", ret);
-    }
-#endif
+  /* XMM area starts from offset 0 */
 
-  return ret;
+  return memcmp(&regs1[0], &regs2[0], XCPTCONTEXT_XMM_AREA_SIZE) == 0;
 }
+#endif /* CONFIG_ARCH_FPU */
