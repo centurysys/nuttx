@@ -25,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <inttypes.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -35,6 +36,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/kmalloc.h>
+#include <nuttx/mm/mm.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/signal.h>
 #include <nuttx/mutex.h>
@@ -59,6 +61,8 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+#define ALIGN(v, a) (((v) + (a - 1)) & (~(a - 1)))
 
 /* Configuration ************************************************************/
 
@@ -467,12 +471,20 @@ static const uint8_t g_ehci_speed[4] =
 
 /* The head of the asynchronous queue */
 
+#if 0
 static struct sam_qh_s g_asynchead aligned_data(32);
+#else
+static struct sam_qh_s *g_asynchead;
+#endif
 
 #ifndef CONFIG_USBHOST_INT_DISABLE
 /* The head of the periodic queue */
 
+#if 0
 static struct sam_qh_s g_intrhead   aligned_data(32);
+#else
+static struct sam_qh_s *g_intrhead;
+#endif
 
 /* The frame list */
 
@@ -482,6 +494,8 @@ static uint32_t g_framelist[FRAME_LIST_SIZE] aligned_data(4096);
 static uint32_t *g_framelist;
 #endif
 #endif /* CONFIG_USBHOST_INT_DISABLE */
+
+static struct mm_heap_s *dma_allocator;
 
 #ifdef CONFIG_SAMA5_EHCI_PREALLOCATE
 /* Pools of pre-allocated data structures.  These will all be linked into the
@@ -516,6 +530,18 @@ static struct sam_qtd_s *g_qtdpool;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+static inline void sam_flush_dcache(uintptr_t start, uintptr_t end)
+{
+  up_flush_dcache(start, end);
+  up_invalidate_dcache(start, end);
+}
+
+static inline void sam_invalidate_dcache(uintptr_t start, uintptr_t end)
+{
+  up_invalidate_dcache(start, end);
+  up_clean_dcache(start, end);
+}
 
 /****************************************************************************
  * Name: sam_read16
@@ -943,7 +969,7 @@ static int sam_qh_foreach(struct sam_qh_s *qh, uint32_t **bp,
        */
 
       else if (sam_virtramaddr(physaddr & QH_HLP_MASK) ==
-                 (uintptr_t)&g_asynchead)
+                 (uintptr_t)g_asynchead)
         {
           /* That will also terminate the loop */
 
@@ -1405,9 +1431,39 @@ static int sam_ioc_setup(struct sam_rhport_s *rhport,
  *
  ****************************************************************************/
 
+static int set_expiretime(int expire_time, FAR struct timespec *set_time)
+{
+  struct timespec curr_time;
+
+  /* Get current time. */
+
+  if (clock_gettime(CLOCK_REALTIME, &curr_time) != OK)
+    {
+      return ERROR;
+    }
+
+  set_time->tv_sec = expire_time / 1000;
+  set_time->tv_nsec =
+    (expire_time - (set_time->tv_sec * 1000)) * 1000 * 1000;
+
+  set_time->tv_sec += curr_time.tv_sec;
+  set_time->tv_nsec += curr_time.tv_nsec;
+
+  /* Check more than 1 sec. */
+
+  if (set_time->tv_nsec >= (1000 * 1000 * 1000))
+    {
+      set_time->tv_sec += 1;
+      set_time->tv_nsec -= (1000 * 1000 * 1000);
+    }
+
+  return OK;
+}
+
 static int sam_ioc_wait(struct sam_epinfo_s *epinfo)
 {
   int ret = OK;
+  char buf[64];
 
   /* Wait for the IOC event.  Loop to handle any false alarm semaphore
    * counts.  Return an error if the task is canceled.
@@ -1419,6 +1475,12 @@ static int sam_ioc_wait(struct sam_epinfo_s *epinfo)
       if (ret < 0)
         {
           break;
+        }
+
+      if (epinfo->iocwait)
+        {
+          sprintf(buf, "epinfo->iocwait = %d\n", (int)epinfo->iocwait);
+          _info("%s", buf);
         }
     }
 
@@ -1462,8 +1524,10 @@ static void sam_qh_enqueue(struct sam_qh_s *qhead, struct sam_qh_s *qh)
 
   physaddr = (uintptr_t)sam_physramaddr((uintptr_t)qh);
   qhead->hw.hlp = sam_swap32(physaddr | QH_HLP_TYP_QH);
-  up_clean_dcache((uintptr_t)&qhead->hw,
-                  (uintptr_t)&qhead->hw + sizeof(struct ehci_qh_s));
+#if 0
+  sam_flush_dcache((uintptr_t)&qhead->hw,
+                   (uintptr_t)&qhead->hw + sizeof(struct ehci_qh_s));
+#endif
 }
 
 /****************************************************************************
@@ -2101,7 +2165,7 @@ static int sam_async_setup(struct sam_rhport_s *rhport,
 
   /* Add the new QH to the head of the asynchronous queue list */
 
-  sam_qh_enqueue(&g_asynchead, qh);
+  sam_qh_enqueue(g_asynchead, qh);
   return OK;
 
   /* Clean-up after an error */
@@ -2234,7 +2298,11 @@ static int sam_intr_setup(struct sam_rhport_s *rhport,
 
   /* Add the new QH to the head of the interrupt transfer list */
 
+#if 0
   sam_qh_enqueue(&g_intrhead, qh);
+#else
+  sam_qh_enqueue(g_intrhead, qh);
+#endif
 
   /* Re-enable the periodic schedule */
 
@@ -2315,7 +2383,8 @@ static ssize_t sam_transfer_wait(struct sam_epinfo_s *epinfo)
        * invalid in this memory region.
        */
 
-      up_invalidate_dcache((uintptr_t)buffer, (uintptr_t)buffer + buflen);
+      //up_invalidate_dcache((uintptr_t)buffer, (uintptr_t)buffer + buflen);
+      sam_invalidate_dcache((uintptr_t)buffer, (uintptr_t)buffer + buflen);
     }
 #endif
 
@@ -2461,8 +2530,13 @@ static int sam_qtd_ioccheck(struct sam_qtd_s *qtd, uint32_t **bp, void *arg)
 
   /* Make sure we reload the QH from memory */
 
+#if 0
   up_invalidate_dcache((uintptr_t)&qtd->hw,
                        (uintptr_t)&qtd->hw + sizeof(struct ehci_qtd_s));
+//#else
+  sam_invalidate_dcache((uintptr_t)&qtd->hw,
+                        (uintptr_t)&qtd->hw + sizeof(struct ehci_qtd_s));
+#endif
   sam_qtd_print(qtd);
 
   /* Remove the qTD from the list
@@ -2512,8 +2586,13 @@ static int sam_qh_ioccheck(struct sam_qh_s *qh, uint32_t **bp, void *arg)
 
   /* Make sure we reload the QH from memory */
 
+#if 0
   up_invalidate_dcache((uintptr_t)&qh->hw,
                        (uintptr_t)&qh->hw + sizeof(struct ehci_qh_s));
+//#else
+  sam_invalidate_dcache((uintptr_t)&qh->hw,
+                        (uintptr_t)&qh->hw + sizeof(struct ehci_qh_s));
+#endif
   sam_qh_print(qh);
 
   /* Get the endpoint info pointer from the extended QH data.  Only the
@@ -2624,8 +2703,8 @@ static int sam_qh_ioccheck(struct sam_qh_s *qh, uint32_t **bp, void *arg)
         {
           /* Yes... wake it up */
 
-          nxsem_post(&epinfo->iocsem);
           epinfo->iocwait = 0;
+          nxsem_post(&epinfo->iocsem);
         }
 
 #ifdef CONFIG_USBHOST_ASYNCH
@@ -2670,8 +2749,13 @@ static int sam_qtd_cancel(struct sam_qtd_s *qtd, uint32_t **bp, void *arg)
 
   /* Make sure we reload the QH from memory */
 
+#if 0
   up_invalidate_dcache((uintptr_t)&qtd->hw,
                        (uintptr_t)&qtd->hw + sizeof(struct ehci_qtd_s));
+//#else
+  sam_invalidate_dcache((uintptr_t)&qtd->hw,
+                        (uintptr_t)&qtd->hw + sizeof(struct ehci_qtd_s));
+#endif
   sam_qtd_print(qtd);
 
   /* Remove the qTD from the list
@@ -2713,8 +2797,13 @@ static int sam_qh_cancel(struct sam_qh_s *qh, uint32_t **bp, void *arg)
 
   /* Make sure we reload the QH from memory */
 
+#if 0
   up_invalidate_dcache((uintptr_t)&qh->hw,
                        (uintptr_t)&qh->hw + sizeof(struct ehci_qh_s));
+//#else
+  sam_invalidate_dcache((uintptr_t)&qh->hw,
+                        (uintptr_t)&qh->hw + sizeof(struct ehci_qh_s));
+#endif
   sam_qh_print(qh);
 
   /* Check if this is the QH that we are looking for */
@@ -2743,7 +2832,8 @@ static int sam_qh_cancel(struct sam_qh_s *qh, uint32_t **bp, void *arg)
    */
 
   **bp = qh->hw.hlp;
-  up_flush_dcache((uintptr_t)*bp, (uintptr_t)*bp + sizeof(uint32_t));
+  //up_flush_dcache((uintptr_t)*bp, (uintptr_t)*bp + sizeof(uint32_t));
+  sam_flush_dcache((uintptr_t)*bp, (uintptr_t)*bp + sizeof(uint32_t));
 
   /* Re-enable the schedules (if they were enabled before. */
 
@@ -2793,22 +2883,25 @@ static inline void sam_ioc_bottomhalf(void)
 
   /* Make sure that the head of the asynchronous queue is invalidated */
 
+#if 0
   up_invalidate_dcache((uintptr_t)&g_asynchead.hw,
                        (uintptr_t)&g_asynchead.hw +
                        sizeof(struct ehci_qh_s));
+#endif
 
   /* Set the back pointer to the forward QH pointer of the asynchronous
    * queue head.
    */
 
-  bp = (uint32_t *)&g_asynchead.hw.hlp;
+  bp = (uint32_t *)&(g_asynchead->hw.hlp);
   qh = (struct sam_qh_s *)sam_virtramaddr(sam_swap32(*bp) & QH_HLP_MASK);
 
   /* If the asynchronous queue is empty, then the forward point in the
    * asynchronous queue head will point back to the queue head.
    */
 
-  if (qh && qh != &g_asynchead)
+  //if (qh && qh != &g_asynchead)
+  if (qh && qh != g_asynchead)
     {
       /* Then traverse and operate on every QH and qTD in the asynchronous
        * queue
@@ -2826,14 +2919,16 @@ static inline void sam_ioc_bottomhalf(void)
 
   /* Make sure that the head of the interrupt queue is invalidated */
 
+#if 0
   up_invalidate_dcache((uintptr_t)&g_intrhead.hw,
                        (uintptr_t)&g_intrhead.hw + sizeof(struct ehci_qh_s));
+#endif
 
   /* Set the back pointer to the forward qTD pointer of the asynchronous
    * queue head.
    */
 
-  bp = (uint32_t *)&g_intrhead.hw.hlp;
+  bp = (uint32_t *)&(g_intrhead->hw.hlp);
   qh = (struct sam_qh_s *)sam_virtramaddr(sam_swap32(*bp) & QH_HLP_MASK);
   if (qh)
     {
@@ -2934,6 +3029,8 @@ static inline void sam_portsc_bottomhalf(void)
                                   rhpndx + 1, g_ehci.pscwait);
 
                   rhport->connected = false;
+
+                  _info("device disconnected.\n");
 
                   /* Are we bound to a class instance? */
 
@@ -3739,7 +3836,11 @@ static int sam_epalloc(struct usbhost_driver_s *drvr,
 
   /* Allocate a endpoint information structure */
 
+#if 1
   epinfo = kmm_zalloc(sizeof(struct sam_epinfo_s));
+#else
+  epinfo = mm_zalloc(dma_allocator, sizeof(struct sam_epinfo_s));
+#endif
   if (!epinfo)
     {
       usbhost_trace1(EHCI_TRACE1_EPALLOC_FAILED, 0);
@@ -3828,6 +3929,7 @@ static int sam_epfree(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
   /* Free the container */
 
   kmm_free(epinfo);
+
   return OK;
 }
 
@@ -3877,6 +3979,7 @@ static int sam_alloc(struct usbhost_driver_s *drvr,
 
   *buffer = (uint8_t *)
     kmm_memalign(ARMV7A_DCACHE_LINESIZE, SAMA5_EHCI_BUFSIZE);
+
   if (*buffer)
     {
       *maxlen = SAMA5_EHCI_BUFSIZE;
@@ -3919,6 +4022,7 @@ static int sam_free(struct usbhost_driver_s *drvr, uint8_t *buffer)
    */
 
   kmm_free(buffer);
+
   return OK;
 }
 
@@ -3963,7 +4067,7 @@ static int sam_ioalloc(struct usbhost_driver_s *drvr,
    */
 
   buflen  = (buflen + DCACHE_LINEMASK) & ~DCACHE_LINEMASK;
-  *buffer = kumm_memalign(ARMV7A_DCACHE_LINESIZE, buflen);
+  *buffer = mm_memalign(dma_allocator, ARMV7A_DCACHE_LINESIZE, buflen);
   return *buffer ? OK : -ENOMEM;
 }
 
@@ -3996,7 +4100,7 @@ static int sam_iofree(struct usbhost_driver_s *drvr, uint8_t *buffer)
 
   /* No special action is require to free the I/O buffer memory */
 
-  kumm_free(buffer);
+  mm_free(dma_allocator, buffer);
   return OK;
 }
 
@@ -4432,7 +4536,8 @@ static int sam_cancel(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
            * queue.
            */
 
-          bp = (uint32_t *)&g_asynchead.hw.hlp;
+          //bp = (uint32_t *)&g_asynchead.hw.hlp;
+          bp = (uint32_t *)&(g_asynchead->hw.hlp);
           qh = (struct sam_qh_s *)
                sam_virtramaddr(sam_swap32(*bp) & QH_HLP_MASK);
 
@@ -4441,7 +4546,7 @@ static int sam_cancel(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
            * head.
            */
 
-          if (qh && qh == &g_asynchead)
+          if (qh && qh == g_asynchead)
             {
               /* Claim that we successfully cancelled the transfer */
 
@@ -4458,7 +4563,7 @@ static int sam_cancel(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
            * queue.
            */
 
-          bp = (uint32_t *)&g_intrhead.hw.hlp;
+          bp = (uint32_t *)&(g_intrhead->hw.hlp);
           qh = (struct sam_qh_s *)
                sam_virtramaddr(sam_swap32(*bp) & QH_HLP_MASK);
           if (qh)
@@ -4778,11 +4883,12 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
   uintptr_t physaddr;
   int ret;
   int i;
+  uint32_t addr, size;
 
   /* Sanity checks */
 
   DEBUGASSERT(controller == 0);
-  DEBUGASSERT(((uintptr_t)&g_asynchead & 0x1f) == 0);
+//  DEBUGASSERT(((uintptr_t)&g_asynchead & 0x1f) == 0);
   DEBUGASSERT((sizeof(struct sam_qh_s) & 0x1f) == 0);
   DEBUGASSERT((sizeof(struct sam_qtd_s) & 0x1f) == 0);
 
@@ -4792,7 +4898,7 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
 #endif
 
 #ifndef CONFIG_USBHOST_INT_DISABLE
-  DEBUGASSERT(((uintptr_t)&g_intrhead & 0x1f) == 0);
+//  DEBUGASSERT(((uintptr_t)&g_intrhead & 0x1f) == 0);
 #ifdef CONFIG_SAMA5_EHCI_PREALLOCATE
   DEBUGASSERT(((uintptr_t)g_framelist & 0xfff) == 0);
 #endif
@@ -4914,8 +5020,15 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
 #ifndef CONFIG_SAMA5_EHCI_PREALLOCATE
   /* Allocate a pool of free Queue Head (QH) structures */
 
+#  if 0
   g_qhpool = (struct sam_qh_s *)
     kmm_memalign(32, CONFIG_SAMA5_EHCI_NQHS * sizeof(struct sam_qh_s));
+#  else
+  addr = CONFIG_SAMA5_EHCI_VBASE;
+  size = CONFIG_SAMA5_EHCI_NQHS * sizeof(struct sam_qh_s);
+  g_qhpool = (struct sam_qh_s *)addr;
+  _info("g_qhpool: addr: %p, size: 0x%08x\n", g_qhpool, size);
+#  endif
   if (!g_qhpool)
     {
       usbhost_trace1(EHCI_TRACE1_QHPOOLALLOC_FAILED, 0);
@@ -4935,8 +5048,15 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
 #ifndef CONFIG_SAMA5_EHCI_PREALLOCATE
   /* Allocate a pool of free  Transfer Descriptor (qTD) structures */
 
+#  if 0
   g_qtdpool = (struct sam_qtd_s *)
     kmm_memalign(32, CONFIG_SAMA5_EHCI_NQTDS * sizeof(struct sam_qtd_s));
+#  else
+  addr = ALIGN(addr + size, 32);
+  g_qtdpool = (struct sam_qtd_s *)addr;
+  size = CONFIG_SAMA5_EHCI_NQTDS * sizeof(struct sam_qtd_s);
+  _info("g_qtdpool: addr: %p, size: 0x%08x\n", g_qtdpool, size);
+#  endif
   if (!g_qtdpool)
     {
       usbhost_trace1(EHCI_TRACE1_QTDPOOLALLOC_FAILED, 0);
@@ -4948,8 +5068,15 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
 #if !defined(CONFIG_SAMA5_EHCI_PREALLOCATE) && !defined(CONFIG_USBHOST_INT_DISABLE)
   /* Allocate the periodic framelist  */
 
+#if 0
   g_framelist = (uint32_t *)
     kmm_memalign(4096, FRAME_LIST_SIZE * sizeof(uint32_t));
+#  else
+  addr = ALIGN(addr + size, 4096);
+  g_framelist = (uint32_t *)addr;
+  size = FRAME_LIST_SIZE * sizeof(uint32_t);
+  _info("g_framelist: addr: %p, size: 0x%08x\n", g_framelist, size);
+#  endif
   if (!g_framelist)
     {
       usbhost_trace1(EHCI_TRACE1_PERFLALLOC_FAILED, 0);
@@ -4958,6 +5085,11 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
       return NULL;
     }
 #endif
+
+  addr = ALIGN(addr + size, ARMV7A_DCACHE_LINESIZE);
+  size = 0x80000;
+  dma_allocator = mm_initialize("ehci", (void *)addr, size);
+  _info("DMA allocator: %p\n", dma_allocator);
 
   /* Initialize the list of free Transfer Descriptor (qTD) structures */
 
@@ -5052,18 +5184,24 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
    *  first port is reset (and enabled)."
    */
 
-  memset(&g_asynchead, 0, sizeof(struct sam_qh_s));
-  physaddr                     = sam_physramaddr((uintptr_t)&g_asynchead);
-  g_asynchead.hw.hlp           = sam_swap32(physaddr | QH_HLP_TYP_QH);
-  g_asynchead.hw.epchar        = sam_swap32(QH_EPCHAR_H |
-                                            QH_EPCHAR_EPS_FULL);
-  g_asynchead.hw.overlay.nqp   = sam_swap32(QH_NQP_T);
-  g_asynchead.hw.overlay.alt   = sam_swap32(QH_NQP_T);
-  g_asynchead.hw.overlay.token = sam_swap32(QH_TOKEN_HALTED);
-  g_asynchead.fqp              = sam_swap32(QTD_NQP_T);
+  addr = ALIGN(addr + size, sizeof(struct sam_qh_s));
+  g_asynchead = (struct sam_qh_s *)addr;
+  size = sizeof(struct sam_qh_s);
 
+  memset(g_asynchead, 0, sizeof(struct sam_qh_s));
+  physaddr                     = sam_physramaddr((uintptr_t)g_asynchead);
+  g_asynchead->hw.hlp           = sam_swap32(physaddr | QH_HLP_TYP_QH);
+  g_asynchead->hw.epchar        = sam_swap32(QH_EPCHAR_H |
+                                            QH_EPCHAR_EPS_FULL);
+  g_asynchead->hw.overlay.nqp   = sam_swap32(QH_NQP_T);
+  g_asynchead->hw.overlay.alt   = sam_swap32(QH_NQP_T);
+  g_asynchead->hw.overlay.token = sam_swap32(QH_TOKEN_HALTED);
+  g_asynchead->fqp              = sam_swap32(QTD_NQP_T);
+
+#if 0
   up_clean_dcache((uintptr_t)&g_asynchead.hw,
                   (uintptr_t)&g_asynchead.hw + sizeof(struct ehci_qh_s));
+#endif
 
   /* Set the Current Asynchronous List Address. */
 
@@ -5076,16 +5214,20 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
    * Head (g_intrhead).
    */
 
-  memset(&g_intrhead, 0, sizeof(struct sam_qh_s));
-  g_intrhead.hw.hlp           = sam_swap32(QH_HLP_T);
-  g_intrhead.hw.overlay.nqp   = sam_swap32(QH_NQP_T);
-  g_intrhead.hw.overlay.alt   = sam_swap32(QH_NQP_T);
-  g_intrhead.hw.overlay.token = sam_swap32(QH_TOKEN_HALTED);
-  g_intrhead.hw.epcaps        = sam_swap32(QH_EPCAPS_SSMASK(1));
+  addr = ALIGN(addr + size, sizeof(struct sam_qh_s));
+  g_intrhead = (struct sam_qh_s *)addr;
+
+  memset(g_intrhead, 0, sizeof(struct sam_qh_s));
+  g_intrhead->hw.hlp           = sam_swap32(QH_HLP_T);
+  g_intrhead->hw.overlay.nqp   = sam_swap32(QH_NQP_T);
+  g_intrhead->hw.overlay.alt   = sam_swap32(QH_NQP_T);
+  g_intrhead->hw.overlay.token = sam_swap32(QH_TOKEN_HALTED);
+  g_intrhead->hw.epcaps        = sam_swap32(QH_EPCAPS_SSMASK(1));
 
   /* Attach the periodic QH to Period Frame List */
 
-  physaddr = sam_physramaddr((uintptr_t)&g_intrhead);
+  //physaddr = sam_physramaddr((uintptr_t)&g_intrhead);
+  physaddr = sam_physramaddr((uintptr_t)g_intrhead);
   for (i = 0; i < FRAME_LIST_SIZE; i++)
     {
       g_framelist[i] = sam_swap32(physaddr) | PFL_TYP_QH;
@@ -5093,12 +5235,14 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
 
   /* Set the Periodic Frame List Base Address. */
 
+#if 0
   up_clean_dcache((uintptr_t)&g_intrhead.hw,
                   (uintptr_t)&g_intrhead.hw +
                   sizeof(struct ehci_qh_s));
   up_clean_dcache((uintptr_t)g_framelist,
                   (uintptr_t)g_framelist +
                   FRAME_LIST_SIZE * sizeof(uint32_t));
+#endif
 
   physaddr = sam_physramaddr((uintptr_t)g_framelist);
   sam_putreg(sam_swap32(physaddr), &HCOR->periodiclistbase);
