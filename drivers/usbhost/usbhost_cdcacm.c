@@ -995,7 +995,7 @@ static int usbhost_txdata(FAR void *arg)
        */
 
       txndx = 0;
-      while (txtail != txbuf->head && txndx < priv->pktsize)
+      while (txtail != txbuf->head && txndx < (priv->pktsize - 1))
         {
           /* Copy the next byte */
 
@@ -1050,6 +1050,7 @@ static int usbhost_txdata(FAR void *arg)
    * we need to send a zero length packet (ZLP).
    */
 
+#if 0
   if (txndx == priv->pktsize && !priv->disconnected)
     {
       /* Send the ZLP to the CDC/ACM device */
@@ -1066,7 +1067,7 @@ static int usbhost_txdata(FAR void *arg)
           ret = ERROR;
         }
     }
-
+#endif
   return ret;
 }
 
@@ -1892,7 +1893,7 @@ static int usbhost_alloc_buffers(FAR struct usbhost_cdcacm_s *priv)
       goto errout;
     }
 
-  /* Allocate a TX buffer for Bulk IN transfers */
+  /* Allocate a TX buffer for Bulk OUT transfers */
 
   ret = DRVR_IOALLOC(hport->drvr, &priv->outbuf, priv->pktsize);
   if (ret < 0)
