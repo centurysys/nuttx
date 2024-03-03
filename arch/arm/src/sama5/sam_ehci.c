@@ -413,6 +413,8 @@ static int sam_alloc(struct usbhost_driver_s *drvr,
 static int sam_free(struct usbhost_driver_s *drvr, uint8_t *buffer);
 static int sam_ioalloc(struct usbhost_driver_s *drvr,
          uint8_t **buffer, size_t buflen);
+static int sam_ioalign(struct usbhost_driver_s *drvr,
+         uint8_t **buffer, size_t buflen, size_t align);
 static int sam_iofree(struct usbhost_driver_s *drvr,
          uint8_t *buffer);
 static int sam_ctrlin(struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
@@ -4072,6 +4074,52 @@ static int sam_ioalloc(struct usbhost_driver_s *drvr,
 }
 
 /****************************************************************************
+ * Name: sam_ioalign
+ *
+ * Description:
+ *   Some hardware supports special memory in which larger IO buffers can
+ *   be accessed more efficiently.  This method provides a mechanism to
+ *   allocate the request/descriptor memory.  If the underlying hardware
+ *   does not support such "special" memory, this functions may simply map
+ *   to kumm_malloc.
+ *
+ *   This interface differs from DRVR_ALLOC in that the buffers are variable-
+ *   sized.
+ *
+ * Input Parameters:
+ *   drvr   - The USB host driver instance obtained as a parameter from the
+ *            call to the class create() method.
+ *   buffer - The address of a memory location provided by the caller in
+ *            which to return the allocated buffer memory address.
+ *   buflen - The size of the buffer required.
+ *   align  - Alignment size.
+ *
+ * Returned Value:
+ *   On success, zero (OK) is returned. On a failure, a negated errno value
+ *   is returned indicating the nature of the failure
+ *
+ * Assumptions:
+ *   This function will *not* be called from an interrupt handler.
+ *
+ ****************************************************************************/
+
+static int sam_ioalign(struct usbhost_driver_s *drvr,
+                       uint8_t **buffer, size_t buflen, size_t align)
+{
+  DEBUGASSERT(drvr && buffer && buflen > 0);
+
+  /* The only special requirements for I/O buffers are that (1) they be
+   * aligned to a cache line boundary, (2) they are a multiple of the cache
+   * line size in length, and (3) they might need to be user accessible
+   * (depending on how the class driver implements its buffering).
+   */
+
+  buflen  = (buflen + DCACHE_LINEMASK) & ~DCACHE_LINEMASK;
+  *buffer = mm_memalign(dma_allocator, align, buflen);
+  return *buffer ? OK : -ENOMEM;
+}
+
+/****************************************************************************
  * Name: sam_iofree
  *
  * Description:
@@ -4984,6 +5032,7 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
       rhport->drvr.alloc          = sam_alloc;
       rhport->drvr.free           = sam_free;
       rhport->drvr.ioalloc        = sam_ioalloc;
+      rhport->drvr.ioalign        = sam_ioalign;
       rhport->drvr.iofree         = sam_iofree;
       rhport->drvr.ctrlin         = sam_ctrlin;
       rhport->drvr.ctrlout        = sam_ctrlout;
