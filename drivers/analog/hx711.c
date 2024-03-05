@@ -137,6 +137,7 @@ static int hx711_tare(FAR struct hx711_dev_s *dev, float precision)
   long tare;
   int prec;
   long taresave;
+  signed char signsave;
 
   /* If value per unit is defined, we assume precision is specified
    * in units, calculate raw value for precision
@@ -144,13 +145,17 @@ static int hx711_tare(FAR struct hx711_dev_s *dev, float precision)
 
   prec = dev->val_per_unit > 0 ? precision * dev->val_per_unit : precision;
 
-  /* Save old tare value, which we will restore when we have an error */
+  /* Save old tare value and sign, which we will restore when we
+   * have an error
+   */
 
   taresave = dev->tare;
+  signsave = dev->sign;
 
-  /* Reset tare value during taring */
+  /* Reset tare value and sign during taring */
 
   dev->tare = 0;
+  dev->sign = 1;
 
   for (i = 0; i != HX711_TARE_NSAMPLES; i++)
     {
@@ -158,6 +163,7 @@ static int hx711_tare(FAR struct hx711_dev_s *dev, float precision)
       if (samples[i] == INT32_MIN)
         {
           dev->tare = taresave;
+          dev->sign = signsave;
           return -EIO;
         }
     }
@@ -187,6 +193,7 @@ static int hx711_tare(FAR struct hx711_dev_s *dev, float precision)
 
           tare /= HX711_TARE_NSAMPLES;
           dev->tare = tare;
+          dev->sign = signsave;
           return OK;
         }
 
@@ -198,6 +205,7 @@ static int hx711_tare(FAR struct hx711_dev_s *dev, float precision)
       if (samples[i % HX711_TARE_NSAMPLES] == INT32_MIN)
         {
           dev->tare = taresave;
+          dev->sign = signsave;
           return -EIO;
         }
     }
@@ -207,6 +215,7 @@ static int hx711_tare(FAR struct hx711_dev_s *dev, float precision)
    */
 
   dev->tare = taresave;
+  dev->sign = signsave;
   return -ETIME;
 }
 
@@ -618,7 +627,7 @@ static int32_t hx711_single_read(FAR struct hx711_dev_s *dev)
 
   /* Apply tare value and sign at the end */
 
-  return dev->sign * (value + dev->tare);
+  return dev->sign * (value - dev->tare);
 }
 
 /****************************************************************************
@@ -648,7 +657,7 @@ static ssize_t hx711_read(FAR struct file *filep,
   int ret;
   int32_t value; /* 24bit value from hx711 will be stored here */
   int32_t average;
-  unsigned i;
+  int i;
 
   value = 0;
   dev = filep->f_inode->i_private;
@@ -671,7 +680,7 @@ static ssize_t hx711_read(FAR struct file *filep,
       return ret;
     }
 
-  for (i = 1; i <= dev->average; i++)
+  for (i = 1; i <= (int)dev->average; i++)
     {
       value = hx711_single_read(dev);
       if (value == INT32_MIN)

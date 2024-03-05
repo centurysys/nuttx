@@ -103,6 +103,7 @@
 #define TCB_FLAG_HEAP_DUMP         (1 << 11)                     /* Bit 11: Heap dump */
 #define TCB_FLAG_DETACHED          (1 << 12)                     /* Bit 12: Pthread detached */
 #define TCB_FLAG_FORCED_CANCEL     (1 << 13)                     /* Bit 13: Pthread cancel is forced */
+#define TCB_FLAG_FREE_TCB          (1 << 14)                     /* Bit 14: Free tcb after exit */
 
 /* Values for struct task_group tg_flags */
 
@@ -224,7 +225,7 @@ enum tstate_e
   TSTATE_WAIT_MQNOTEMPTY,     /* BLOCKED      - Waiting for a MQ to become not empty. */
   TSTATE_WAIT_MQNOTFULL,      /* BLOCKED      - Waiting for a MQ to become not full. */
 #endif
-#ifdef CONFIG_PAGING
+#ifdef CONFIG_LEGACY_PAGING
   TSTATE_WAIT_PAGEFILL,       /* BLOCKED      - Waiting for page fill */
 #endif
 #ifdef CONFIG_SIG_SIGSTOP_ACTION
@@ -621,7 +622,7 @@ struct tcb_s
   /* CPU load monitoring support ********************************************/
 
 #ifndef CONFIG_SCHED_CPULOAD_NONE
-  uint32_t ticks;                        /* Number of ticks on this thread */
+  clock_t ticks;                         /* Number of ticks on this thread */
 #endif
 
   /* Pre-emption monitor support ********************************************/
