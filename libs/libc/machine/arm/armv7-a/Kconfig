@@ -8,11 +8,11 @@ config ARMV7A_STRING_FUNCTION
 	default n
 	depends on ARCH_TOOLCHAIN_GNU
 	select ARMV7A_MEMCHR
-	select ARMV7A_MEMCPY
+	select ARMV7A_MEMCPY if !ARCH_CORTEXA5
 	select ARMV7A_MEMMOVE
-	select ARMV7A_MEMSET
+	select ARMV7A_MEMSET if !ARCH_CORTEXA5
 	select ARMV7A_STRCMP
-	select ARMV7A_STRLEN
+	select ARMV7A_STRLEN if !ARCH_CORTEXA5
 
 config ARMV7A_MEMCHR
 	bool "Enable optimized memchr() for ARMv7-A"
@@ -26,6 +26,7 @@ config ARMV7A_MEMCPY
 	bool "Enable optimized memcpy() for ARMv7-A"
 	select LIBC_ARCH_MEMCPY
 	depends on ARCH_TOOLCHAIN_GNU
+	depends on !ARCH_CORTEXA5
 	---help---
 		Enable optimized ARMv7-A specific memcpy() library function
 
@@ -43,6 +44,7 @@ config ARMV7A_MEMSET
 	select LIBC_ARCH_MEMSET
 	depends on ARCH_TOOLCHAIN_GNU
 	depends on ARM_NEON
+	depends on !ARCH_CORTEXA5
 	---help---
 		Enable optimized ARMv7-A specific memset() library function
 
@@ -59,5 +61,6 @@ config ARMV7A_STRLEN
 	default n
 	select LIBC_ARCH_STRLEN
 	depends on ARCH_TOOLCHAIN_GNU
+	depends on !ARCH_CORTEXA5
 	---help---
 		Enable optimized ARMv7-A specific strlen() library function
