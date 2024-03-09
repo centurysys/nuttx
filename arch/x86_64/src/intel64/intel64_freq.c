@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/x86_64/intel64/qemu-intel64/src/qemu_freq.c
+ * arch/x86_64/src/intel64/intel64_freq.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -38,7 +38,7 @@
  * Public Data
  ****************************************************************************/
 
-extern unsigned long x86_64_timer_freq;
+extern unsigned long g_x86_64_timer_freq;
 
 /****************************************************************************
  * Public Functions
@@ -71,7 +71,7 @@ extern unsigned long x86_64_timer_freq;
 
 void x86_64_timer_calibrate_freq(void)
 {
-#ifdef CONFIG_ARCH_INTEL64_HAVE_TSC_DEADLINE
+#ifdef CONFIG_ARCH_INTEL64_TSC_DEADLINE
 
   unsigned long crystal_freq;
   unsigned long numerator;
@@ -84,14 +84,14 @@ void x86_64_timer_calibrate_freq(void)
 
   if (numerator == 0 || denominator == 0 || crystal_freq == 0)
     {
-      x86_64_timer_freq = CONFIG_ARCH_INTEL64_CORE_FREQ_KHZ * 1000L;
+      g_x86_64_timer_freq = CONFIG_ARCH_INTEL64_CORE_FREQ_KHZ * 1000L;
     }
   else
     {
-      x86_64_timer_freq = crystal_freq / denominator * numerator;
+      g_x86_64_timer_freq = crystal_freq / denominator * numerator;
     }
 
-#else
-  x86_64_timer_freq = CONFIG_ARCH_INTEL64_APIC_FREQ_KHZ * 1000L;
+#elif defined(CONFIG_ARCH_INTEL64_TSC)
+  g_x86_64_timer_freq = CONFIG_ARCH_INTEL64_APIC_FREQ_KHZ * 1000L;
 #endif
 }
