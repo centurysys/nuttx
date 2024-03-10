@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/group/group_foreachchild.c
+ * boards/arm/stm32h7/openh743i/src/stm32_usbmsc.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,63 +24,47 @@
 
 #include <nuttx/config.h>
 
-#include <assert.h>
-#include <nuttx/nuttx.h>
-#include <nuttx/sched.h>
-#include <nuttx/queue.h>
+#include <stdio.h>
+#include <syslog.h>
+#include <errno.h>
 
-#include "group/group.h"
+#include <nuttx/board.h>
 
-#ifdef HAVE_GROUP_MEMBERS
+#include "openh743i.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#if !defined(CONFIG_USBDEV_CUSTOM_TXFIFO_SIZE) && \
+  defined(CONFIG_USBDEV_DUALSPEED)
+#  error USBMSC high-speed require custom TXFIFO configuratin that set EPIN FIFO to >=512
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: group_foreachchild
+ * Name: board_usbmsc_initialize
  *
  * Description:
- *   Execute a function for each child of a group.
- *
- * Input Parameters:
- *   group - The group containing the children
- *   handler - The function to be called
- *   arg - An additional argument to provide to the handler
- *
- * Returned Value:
- *   Success (OK) is always returned unless the handler returns a non-zero
- *   value (a negated errno on errors).  In that case, the traversal
- *   terminates and that non-zero value is returned.
- *
- * Assumptions:
+ *   Perform architecture specific initialization as needed to establish
+ *   the mass storage device that will be exported by the USB MSC device.
  *
  ****************************************************************************/
 
-int group_foreachchild(FAR struct task_group_s *group,
-                       foreachchild_t handler, FAR void *arg)
+int board_usbmsc_initialize(int port)
 {
-  FAR sq_entry_t *curr;
-  FAR sq_entry_t *next;
-  int ret = OK;
+  /* If system/usbmsc is built as an NSH command, then SD slot should
+   * already have been initialized in board_app_initialize()
+   * (see stm32_appinit.c).
+   * In this case, there is nothing further to be done here.
+   */
 
-  DEBUGASSERT(group);
-
-  /* Visit the main thread last (if present) */
-
-  sq_for_every_safe(&group->tg_members, curr, next)
-    {
-      FAR struct tcb_s *mtcb =
-        container_of(curr, struct tcb_s, member);
-
-      ret = handler(mtcb->pid, arg);
-      if (ret != OK)
-        {
-          break;
-        }
-    }
-
-  return ret;
+#ifndef CONFIG_NSH_BUILTIN_APPS
+  stm32_sdio_initialize();
+#else
+  return OK;
+#endif
 }
-
-#endif /* HAVE_GROUP_MEMBERS */
