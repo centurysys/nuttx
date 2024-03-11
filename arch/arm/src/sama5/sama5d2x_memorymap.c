@@ -102,7 +102,7 @@ const struct section_mapping_s g_section_mapping[] =
 
 #ifndef CONFIG_LEGACY_PAGING /* Internal SRAM is already fully mapped */
   { SAM_ISRAM_PSECTION,     SAM_ISRAM_VSECTION,
-    SAM_ISRAM_MMUFLAGS,     SAM_ISRAM_NSECTIONS
+    MMU_NOCACHE,            SAM_ISRAM_NSECTIONS
   },
 #endif
 
