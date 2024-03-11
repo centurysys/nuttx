@@ -166,7 +166,8 @@ struct sam_qh_s
 
   struct sam_epinfo_s *epinfo; /* Endpoint used for the transfer */
   uint32_t fqp;                /* First qTD in the list (physical address) */
-  uint8_t pad[8];              /* Padding to assure 32-byte alignment */
+  uint8_t pad[4];              /* Padding to assure 32-byte alignment */
+  struct sam_qh_s *flink;      /* Link for async await and free list */
 };
 
 /* Internal representation of the EHCI Queue Element Transfer Descriptor
@@ -257,10 +258,11 @@ struct sam_ehci_s
   rmutex_t lock;               /* Support mutually exclusive access */
   sem_t pscsem;                /* Semaphore to wait for port status change events */
 
-  struct sam_epinfo_s ep0;     /* Endpoint 0 */
-  struct sam_list_s *qhfree;   /* List of free Queue Head (QH) structures */
-  struct sam_list_s *qtdfree;  /* List of free Queue Element Transfer Descriptor (qTD) */
-  struct work_s work;          /* Supports interrupt bottom half */
+  struct sam_epinfo_s ep0;        /* Endpoint 0 */
+  struct sam_qh_s *qhaawait;      /* List of waiting Queue Head (QH) structures */
+  struct sam_list_s *qhfree;      /* List of free Queue Head (QH) structures */
+  struct sam_list_s *qtdfree;     /* List of free Queue Element Transfer Descriptor (qTD) */
+  struct work_s work;             /* Supports interrupt bottom half */
 
 #ifdef CONFIG_USBHOST_HUB
   /* Used to pass external hub port events */
@@ -861,6 +863,31 @@ static struct sam_qh_s *sam_qh_alloc(void)
     }
 
   return qh;
+}
+
+/****************************************************************************
+ * Name: sam_qh_aawait
+ *
+ * Description:
+ *   Let a Queue Head (QH) structure wait for free by adding it to the
+ *   aawait list
+ *
+ * Assumption:  Caller holds the lock
+ *
+ ****************************************************************************/
+
+static void sam_qh_aawait(struct sam_qh_s *qh)
+{
+  uint32_t regval;
+
+  /* Put the QH structure to the aawait list */
+
+  qh->flink  = g_ehci.qhaawait;
+  g_ehci.qhaawait = qh;
+
+  regval = sam_getreg(&HCOR->usbcmd);
+  regval |= EHCI_USBCMD_IAADB;
+  sam_putreg(regval, &HCOR->usbcmd);
 }
 
 /****************************************************************************
@@ -2718,9 +2745,9 @@ static int sam_qh_ioccheck(struct sam_qh_s *qh, uint32_t **bp, void *arg)
         }
 #endif
 
-      /* Then release this QH by returning it to the free list */
+      /* Then start async advance doorbell process */
 
-      sam_qh_free(qh);
+      sam_qh_aawait(qh);
     }
   else
     {
@@ -2847,11 +2874,12 @@ static int sam_qh_cancel(struct sam_qh_s *qh, uint32_t **bp, void *arg)
       usbhost_trace1(EHCI_TRACE1_QTDFOREACH_FAILED, -ret);
     }
 
-  /* Then release this QH by returning it to the free list.  Return 1
-   * to stop the traverse without an error.
-   */
+  /* Then start async advance doorbell process */
 
-  sam_qh_free(qh);
+  sam_qh_aawait(qh);
+
+  /* Return 1 to stop the traverse without an error. */
+
   return 1;
 }
 
@@ -3104,9 +3132,15 @@ static inline void sam_syserr_bottomhalf(void)
 
 static inline void sam_async_advance_bottomhalf(void)
 {
+  struct sam_qh_s *qh;
   usbhost_vtrace1(EHCI_VTRACE1_AAINTR, 0);
 
-  /* REVISIT: Could remove all tagged QH entries here */
+  while (g_ehci.qhaawait != NULL)
+    {
+      qh = g_ehci.qhaawait;
+      g_ehci.qhaawait = qh->flink;
+      sam_qh_free(qh);
+    }
 }
 
 /****************************************************************************
