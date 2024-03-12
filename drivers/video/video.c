@@ -53,8 +53,6 @@
 
 #define VIDEO_REMAINING_CAPNUM_INFINITY (-1)
 
-#define VIDEO_ID(x, y) (((x) << 16) | (y))
-
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -841,6 +839,7 @@ static int initialize_scene_parameter(FAR video_mng_t *vmng,
       return -ENOMEM;
     }
 
+  sp->mode            = mode;
   sp->brightness      = get_default_value(vmng, IMGSENSOR_ID_BRIGHTNESS);
   sp->contrast        = get_default_value(vmng, IMGSENSOR_ID_CONTRAST);
   sp->saturation      = get_default_value(vmng, IMGSENSOR_ID_SATURATION);
@@ -900,51 +899,51 @@ static void initialize_scenes_parameter(FAR video_mng_t *vmng)
            &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_BACKLIGHT */
 #ifdef CONFIG_VIDEO_SCENE_BEACHSNOW
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_BEACHSNOW,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_BEACH_SNOW,
               &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_BEACHSNOW */
 #ifdef CONFIG_VIDEO_SCENE_CANDLELIGHT
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_CANDLELIGHT,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_CANDLE_LIGHT,
                 &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_CANDLELIGHT */
 #ifdef CONFIG_VIDEO_SCENE_DAWNDUSK
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_DAWNDUSK,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_DAWN_DUSK,
              &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_DAWNDUSK */
 #ifdef CONFIG_VIDEO_SCENE_FALLCOLORS
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_FALLCOLORS,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_FALL_COLORS,
                &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_FALLCOLORS */
 #ifdef CONFIG_VIDEO_SCENE_FIREWORKS
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_FIREWORKS,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_FIREWORKS,
               &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_FIREWORKS */
 #ifdef CONFIG_VIDEO_SCENE_LANDSCAPE
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_LANDSCAPE,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_LANDSCAPE,
               &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_LANDSCAPE */
 #ifdef CONFIG_VIDEO_SCENE_NIGHT
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_NIGHT,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_NIGHT,
           &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_NIGHT */
 #ifdef CONFIG_VIDEO_SCENE_PARTYINDOOR
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_PARTYINDOOR,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_PARTY_INDOOR,
                 &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_PARTYINDOOR */
 #ifdef CONFIG_VIDEO_SCENE_PORTRAIT
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_PORTRAIT,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_PORTRAIT,
              &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_PORTRAIT */
 #ifdef CONFIG_VIDEO_SCENE_SPORTS
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_SPORTS,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_SPORTS,
            &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_SPORTS */
 #ifdef CONFIG_VIDEO_SCENE_SUNSET
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_SUNSET,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_SUNSET,
            &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_SUNSET */
 #ifdef CONFIG_VIDEO_SCENE_TEXT
-  initialize_scene_parameter(vmng, CONFIG_VIDEO_SCENE_TEXT,
+  initialize_scene_parameter(vmng, V4L2_SCENE_MODE_TEXT,
          &vmng->video_scene_param[vmng->video_scence_num++]);
 #endif /* CONFIG_VIDEO_SCENE_TEXT */
 }
@@ -2154,11 +2153,11 @@ static int video_query_ext_ctrl(FAR struct video_mng_s *vmng,
 
   attr->flags      = 0;
   attr->elem_size  = 0;
+  attr->elems      = 1;
   attr->nr_of_dims = 0;
   memset(attr->dims, 0, sizeof(attr->dims));
 
-  if (attr->ctrl_class == V4L2_CTRL_CLASS_CAMERA &&
-      attr->id == V4L2_CID_SCENE_MODE)
+  if (attr->id == V4L2_CID_SCENE_MODE)
     {
       /* Scene mode is processed in only video driver. */
 
@@ -2172,9 +2171,7 @@ static int video_query_ext_ctrl(FAR struct video_mng_s *vmng,
     }
   else
     {
-      ret = IMGSENSOR_GET_SUPPORTED_VALUE(vmng->imgsensor,
-              VIDEO_ID(attr->ctrl_class, attr->id),
-              &value);
+      ret = IMGSENSOR_GET_SUPPORTED_VALUE(vmng->imgsensor, attr->id, &value);
       if (ret < 0)
         {
           return ret;
@@ -2209,8 +2206,7 @@ static int video_query_ext_ctrl(FAR struct video_mng_s *vmng,
             break;
         }
 
-      set_parameter_name(VIDEO_ID(attr->ctrl_class, attr->id),
-                         attr->name);
+      set_parameter_name(attr->id, attr->name);
     }
 
   return OK;
@@ -2229,8 +2225,7 @@ static int video_querymenu(FAR video_mng_t *vmng,
       return -EINVAL;
     }
 
-  if (menu->ctrl_class == V4L2_CTRL_CLASS_CAMERA &&
-      menu->id == V4L2_CID_SCENE_MODE)
+  if (menu->id == V4L2_CID_SCENE_MODE)
     {
       /* Scene mode is processed in only video driver. */
 
@@ -2244,8 +2239,8 @@ static int video_querymenu(FAR video_mng_t *vmng,
   else
     {
       ret = IMGSENSOR_GET_SUPPORTED_VALUE(vmng->imgsensor,
-              VIDEO_ID(menu->ctrl_class, menu->id),
-              &value);
+                                          menu->id,
+                                          &value);
       if (ret < 0)
         {
           return ret;
@@ -2350,16 +2345,23 @@ static int video_g_ext_ctrls(FAR struct video_mng_s *priv,
        cnt < ctrls->count;
        cnt++, control++)
     {
-      ret = IMGSENSOR_GET_VALUE(priv->imgsensor,
-              VIDEO_ID(ctrls->ctrl_class, control->id),
-              control->size,
-              (imgsensor_value_t *)&control->value64);
-      if (ret < 0)
+      if (control->id == V4L2_CID_SCENE_MODE)
         {
-          /* Set cnt in that error occurred */
+          control->value = priv->video_scene_mode;
+        }
+      else
+        {
+          ret = IMGSENSOR_GET_VALUE(priv->imgsensor,
+                  control->id,
+                  control->size,
+                  (imgsensor_value_t *)&control->value64);
+          if (ret < 0)
+            {
+              /* Set cnt in that error occurred */
 
-          ctrls->error_idx = cnt;
-          return ret;
+              ctrls->error_idx = cnt;
+              return ret;
+            }
         }
     }
 
@@ -2488,15 +2490,14 @@ static int video_s_ext_ctrls(FAR struct video_mng_s *priv,
        cnt < ctrls->count;
        cnt++, control++)
     {
-      if (ctrls->ctrl_class == V4L2_CTRL_CLASS_CAMERA &&
-          control->id == V4L2_CID_SCENE_MODE)
+      if (control->id == V4L2_CID_SCENE_MODE)
         {
           ret = reflect_scene_parameter(priv, control->value);
         }
       else
         {
           ret = IMGSENSOR_SET_VALUE(priv->imgsensor,
-                  VIDEO_ID(ctrls->ctrl_class, control->id),
+                  control->id,
                   control->size,
                   (imgsensor_value_t)control->value64);
           if (ret == 0)
@@ -2504,7 +2505,7 @@ static int video_s_ext_ctrls(FAR struct video_mng_s *priv,
               if (priv->video_scene_mode == V4L2_SCENE_MODE_NONE)
                 {
                   save_scene_param(priv, V4L2_SCENE_MODE_NONE,
-                    VIDEO_ID(ctrls->ctrl_class, control->id),
+                    control->id,
                     control);
                 }
             }
@@ -2745,7 +2746,7 @@ static int video_g_ext_ctrls_scene(FAR video_mng_t *vmng,
        cnt++, control++)
     {
       ret = read_scene_param(vmng, ctrls->mode,
-               VIDEO_ID(ctrls->control.ctrl_class, control->id),
+               control->id,
                control);
       if (ret != OK)
         {
@@ -3060,9 +3061,7 @@ static int video_s_ext_ctrls_scene(FAR struct video_mng_s *vmng,
        cnt < ctrls->control.count;
        cnt++, control++)
     {
-      ret = save_scene_param(vmng, ctrls->mode,
-               VIDEO_ID(ctrls->control.ctrl_class, control->id),
-               control);
+      ret = save_scene_param(vmng, ctrls->mode, control->id, control);
       if (ret != OK)
         {
           ctrls->control.error_idx = cnt;

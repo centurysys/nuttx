@@ -1,5 +1,5 @@
 /****************************************************************************
- * libs/libc/string/lib_memmem.c
+ * arch/arm/src/xmc4/xmc4_ccu4.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,60 +18,47 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_ARM_SRC_XMC4_XMC4_CCU4_H
+#define __ARCH_ARM_SRC_XMC4_XMC4_CCU4_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <string.h>
+#include <nuttx/config.h>
+
+#include <stdint.h>
+#include <stdbool.h>
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name: memmem
+ * Name: xmc4_ccu4_divisor
  *
  * Description:
- *   The memmem() function finds the start of the first occurrence of the
- *   substring needle of length needlelen in the memory area haystack of
- *   length haystacklen.
+ *   Finds the best MCK divisor given the timer frequency and MCK.  The
+ *   result is guaranteed to satisfy the following equation:
+ *
+ *     (Ftcin / (div * 65536)) <= freq <= (Ftcin / dev)
+ *
+ *   where:
+ *     freq  - the desired frequency
+ *     Ftcin - The timer/counter input frequency
+ *     div   - With DIV being the highest possible value.
+ *
+ * Input Parameters:
+ *   frequency  Desired timer frequency.
+ *   div        Divisor value.
+ *   pssiv      PSSIV field value for divisor.
  *
  * Returned Value:
- *   The memmem() function returns a pointer to the beginning of the
- *   substring, or NULL if the substring is not found.
+ *   Zero (OK) if a proper divisor has been found, otherwise a negated errno
+ *   value indicating the nature of the failure.
  *
  ****************************************************************************/
 
-#undef memmem /* See mm/README.txt */
-FAR void *memmem(FAR const void *haystack, size_t haystacklen,
-                 FAR const void *needle, size_t needlelen)
-{
-  FAR const unsigned char *h = haystack;
-  FAR const unsigned char *n = needle;
-  size_t i;
-  size_t y;
+int xmc4_ccu4_divisor(uint32_t frequency, uint32_t *div, uint32_t *pssiv);
 
-  if (needlelen == 0)
-    {
-      return (void *)haystack;
-    }
-
-  if (needlelen > haystacklen)
-    {
-      return NULL;
-    }
-
-  for (i = 0; i <= haystacklen - needlelen; i++)
-    {
-      y = 0;
-      while (h[i + y] == n[y])
-        {
-          if (++y == needlelen)
-            {
-              return (void *)(h + i);
-            }
-        }
-    }
-
-  return NULL;
-}
+#endif
