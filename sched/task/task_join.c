@@ -1,5 +1,5 @@
 /****************************************************************************
- * fs/driver/fs_unregisterdriver.c
+ * sched/task/task_join.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,42 +24,41 @@
 
 #include <nuttx/config.h>
 
-#include <nuttx/fs/fs.h>
+#include <nuttx/nuttx.h>
+#include <sys/types.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <assert.h>
+#include <errno.h>
+#include <debug.h>
 
-#include "inode/inode.h"
+#include "sched/sched.h"
+#include "group/group.h"
+#include "pthread/pthread.h"
+
+#ifndef CONFIG_DISABLE_PTHREAD
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: unregister_driver
- *
- * Description:
- *   Remove the character driver inode at 'path' from the pseudo-file system
- *
+ * Name: nxtask_joindestroy
  ****************************************************************************/
 
-int unregister_driver(FAR const char *path)
+void nxtask_joindestroy(FAR struct tcb_s *tcb)
 {
-  int ret;
-
-  /* Call unlink to release driver resource and inode. */
-
-  ret = nx_unlink(path);
-  if (ret >= 0)
-    {
-      return ret;
-    }
-
-  /* If unlink failed, only remove inode. */
-
-  ret = inode_lock();
-  if (ret >= 0)
-    {
-      ret = inode_remove(path);
-      inode_unlock();
-    }
-
-  return ret;
+  nxsem_destroy(&tcb->join_sem);
 }
+
+/****************************************************************************
+ * Name: nxtask_joininit
+ ****************************************************************************/
+
+void nxtask_joininit(FAR struct tcb_s *tcb)
+{
+  sq_init(&tcb->join_queue);
+  nxsem_init(&tcb->join_sem, 0, 0);
+}
+
+#endif /* !CONFIG_DISABLE_PTHREAD */
