@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/sched/sched_getcpu.c
+ * arch/tricore/src/common/tricore_testset.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,42 +24,38 @@
 
 #include <nuttx/config.h>
 
-#include <sched.h>
 #include <nuttx/arch.h>
+#include <nuttx/spinlock.h>
 
-#include "sched/sched.h"
+#include "tricore_internal.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: sched_getcpu
+ * Name: up_testset
  *
  * Description:
- *    sched_getcpu() returns the number of the CPU on which the calling
- *    thread is currently executing.
- *
- *    The return CPU number is guaranteed to be valid only at the time of
- *    the call.  Unless the CPU affinity has been fixed using
- *    sched_setaffinity(), the OS might change the CPU at any time.  The
- *    caller must allow for the possibility that the information returned is
- *    no longer current by the time the call returns.
- *
- *    Non-Standard.  Functionally equivalent to the GLIBC __GNU_SOURCE
- *    interface of the same name.
+ *   Perform an atomic test and set operation on the provided spinlock.
+ *   This function must be provided via the architecture-specific logic.
  *
  * Input Parameters:
- *   None
+ *   lock  - A reference to the spinlock object.
  *
  * Returned Value:
- *   A non-negative CPU number is returned on success.  -1 (ERROR) is
- *   returned on failure with the errno value set to indicate the cause of
- *   the failure.
+ *   The spinlock is always locked upon return.  The previous value of the
+ *   spinlock variable is returned, either SP_LOCKED if the spinlock was
+ *   previously locked (meaning that the test-and-set operation failed to
+ *   obtain the lock) or SP_UNLOCKED if the spinlock was previously unlocked
+ *   (meaning that we successfully obtained the lock).
  *
  ****************************************************************************/
 
-int sched_getcpu(void)
+spinlock_t up_testset(volatile spinlock_t *lock)
 {
-  return this_cpu();  /* Does not fail */
+  /* Perform the compare and set operation */
+
+  return __cmpswapw((volatile void *)lock, SP_LOCKED, SP_UNLOCKED);
 }
+
