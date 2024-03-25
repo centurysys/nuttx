@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/sched/sched_idletask.c
+ * arch/arm64/src/imx9/imx9_ccm.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,68 +18,71 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_ARM64_SRC_IMX9_IMX9_CCM_H
+#define __ARCH_ARM64_SRC_IMX9_IMX9_CCM_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <stdbool.h>
-#include <assert.h>
-
-#include <nuttx/init.h>
-#include <nuttx/sched.h>
-
-#include "sched/sched.h"
+#include <stdint.h>
 
 /****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: sched_idletask
+ * Name: imx9_ccm_configure_root_clock
  *
  * Description:
- *   Check if the caller is an IDLE thread.  For most implementations of
- *   the SYSLOG output semaphore locking is required for mutual exclusion.
- *   The idle threads are unable to lock semaphores because they cannot
- *   wait.  So IDLE thread output is a special case and is treated much as
- *   we treat debug output from an interrupt handler.
+ *   Change root clock source and divider. Leaves the clock running state
+ *   unaltered.
  *
  * Input Parameters:
- *   None
+ *   root - The root clock index.
+ *   src  - The root clock MUX source.
+ *   div  - The root clock divider.
  *
  * Returned Value:
- *   true if the calling task is an IDLE thread.
+ *   Zero (OK) is returned on success. A negated errno value is returned on
+ *   failure.
  *
  ****************************************************************************/
 
-bool sched_idletask(void)
-{
-  FAR struct tcb_s *rtcb = this_task();
+int imx9_ccm_configure_root_clock(int root, int src, uint32_t div);
 
-  /* If called early in the initialization sequence, the tasks lists may not
-   * have been initialized and, in that case, rtcb may be NULL.
-   */
+/****************************************************************************
+ * Name: imx9_ccm_root_clock_on
+ *
+ * Description:
+ *   Enable / disable root clock.
+ *
+ * Input Parameters:
+ *   root    - The root clock index.
+ *   enabled - True enables the clock; false disables it.
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success. A negated errno value is returned on
+ *   failure.
+ *
+ ****************************************************************************/
 
-  DEBUGASSERT(rtcb != NULL || nxsched_get_initstate() < OSINIT_TASKLISTS);
-  if (rtcb != NULL)
-    {
-      /* The IDLE task TCB is distinguishable by a few things:
-       *
-       * (1) It always lies at the end of the task list,
-       * (2) It always has priority zero, and
-       * (3) It should have the TCB_FLAG_CPU_LOCKED flag set.
-       *
-       * In the non-SMP case, the IDLE task will also have PID=0, but that
-       * is not a portable test because there are multiple IDLE tasks with
-       * different PIDs in the SMP configuration.
-       */
+int imx9_ccm_root_clock_on(int root, bool enabled);
 
-      return is_idle_task(rtcb);
-    }
+/****************************************************************************
+ * Name: imx9_ccm_gate_on
+ *
+ * Description:
+ *   Enable / disable clock.
+ *
+ * Input Parameters:
+ *   gate    - The clock gate index.
+ *   enabled - True enables the clock; false disables it.
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success. A negated errno value is returned on
+ *   failure.
+ *
+ ****************************************************************************/
 
-  /* We must be on the IDLE thread if we are early in initialization */
+int imx9_ccm_gate_on(int gate, bool enabled);
 
-  return true;
-}
+#endif /* __ARCH_ARM64_SRC_IMX9_IMX9_CCM_H */

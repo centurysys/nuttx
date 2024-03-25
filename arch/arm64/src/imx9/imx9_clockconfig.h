@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/rp2040/raspberrypi-pico/src/rp2040_pico.h
+ * arch/arm64/src/imx9/imx9_clockconfig.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_SRC_RP2040_PICO_H
-#define __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_SRC_RP2040_PICO_H
+#ifndef __ARCH_ARM64_SRC_IMX9_IMX9_CLOCKCONFIG_H
+#define __ARCH_ARM64_SRC_IMX9_IMX9_CLOCKCONFIG_H
 
 /****************************************************************************
  * Included Files
@@ -27,27 +27,20 @@
 
 #include <nuttx/config.h>
 
-/* LEDs */
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
 
-#define GPIO_LED1       25 /* The board's LED is connected to this pin */
+/****************************************************************************
+ * Name: imx9_clockconfig
+ *
+ * Description:
+ *   Called to initialize the i.IMX9.  This does whatever setup is needed to
+ *   put the SoC in a usable state.  This includes the initialization of
+ *   clocking using the settings in board.h.
+ *
+ ****************************************************************************/
 
-/* Buttons */
+void imx9_clockconfig(void);
 
-/* Buttons GPIO pins definition */
-
-#define GPIO_BTN_USER1     16
-#define GPIO_BTN_USER2     17
-
-/* Buttons IRQ definitions */
-
-#define MIN_IRQBUTTON     BUTTON_USER1
-#define MAX_IRQBUTTON     BUTTON_USER2
-#define NUM_IRQBUTTONS    (BUTTON_USER1 - BUTTON_USER2 + 1)
-
-int rp2040_bringup(void);
-
-#ifdef CONFIG_DEV_GPIO
-int rp2040_dev_gpio_init(void);
-#endif
-
-#endif /* __BOARDS_ARM_RP2040_RASPBERRYPI_PICO_SRC_RP2040_PICO_H */
+#endif /* __ARCH_ARM64_SRC_IMX9_IMX9_CLOCKCONFIG_H */
