@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/xtensa/src/esp32/esp32_dac.h
+ * arch/arm/src/qemu/qemu_boot.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,46 +18,66 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_XTENSA_SRC_ESP32_ESP32_DAC_H
-#define __ARCH_XTENSA_SRC_ESP32_ESP32_DAC_H
+#ifndef __ARCH_ARM_SRC_QEMU_QEMU_BOOT_H
+#define __ARCH_ARM_SRC_QEMU_QEMU_BOOT_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/analog/dac.h>
+#include <nuttx/compiler.h>
+#include <sys/types.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <arch/chip/chip.h>
 
 /****************************************************************************
- * Pre-processor definitions
+ * Pre-processor Definitions
  ****************************************************************************/
-
-/****************************************************************************
- * Public Types
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Name: esp32_dac_initialize
- *
- * Description:
- *   Initialize the DAC.
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   Valid dac device structure reference on success; a NULL on failure.
- *
- ****************************************************************************/
-
-struct dac_dev_s *esp32_dac_initialize(void);
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-#endif /* __ARCH_XTENSA_SRC_ESP32_ESP32_DAC_H */
+#ifndef __ASSEMBLY__
+
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+/****************************************************************************
+ * Name: qemu_cpu_enable
+ *
+ * Description:
+ *   Called from CPU0 to enable all other CPUs.  The enabled CPUs will start
+ *   execution at __cpuN_start and, after very low-level CPU initialization
+ *   has been performed, will branch to arm_cpu_boot()
+ *   (see arch/arm/src/armv7-a/smp.h)
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SMP
+void qemu_cpu_enable(void);
+#else
+#  define qemu_cpu_enable()
+#endif
+
+#undef EXTERN
+#if defined(__cplusplus)
+}
+#endif
+
+#endif /* __ASSEMBLY__ */
+#endif /* __ARCH_ARM_SRC_QEMU_QEMU_BOOT_H */
