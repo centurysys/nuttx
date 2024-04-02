@@ -255,7 +255,7 @@ struct usbhost_cdcacm_s
 #endif
   uint8_t        nbits;          /* Number of bits (for line encoding) */
   uint8_t        parity;         /* Parity (for line encoding) */
-  uint16_t       pktsize;        /* Allocated size of transfer buffers */
+  uint16_t       pktsize;        /* USB endpoint size */
   uint16_t       nrxbytes;       /* Number of bytes in the RX packet buffer */
   uint16_t       rxndx;          /* Index to the next byte in the RX packet buffer */
   int16_t        crefs;          /* Reference count on the driver instance */
@@ -267,6 +267,7 @@ struct usbhost_cdcacm_s
   FAR uint8_t   *ctrlreq;        /* Allocated ctrl request structure */
   FAR uint8_t   *linecode;       /* The allocated buffer for line encoding */
   FAR uint8_t   *notification;   /* The allocated buffer for async notifications */
+  uint16_t       bufsize;        /* Allocated size of transfer buffers */
   FAR uint8_t   *inbuf;          /* Allocated RX buffer for the Bulk IN endpoint */
   FAR uint8_t   *outbuf;         /* Allocated TX buffer for the Bulk OUT endpoint */
   uint32_t       baud;           /* Current baud for line coding */
@@ -485,6 +486,22 @@ static uint32_t g_devinuse;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: memcpy_safe
+ ****************************************************************************/
+
+void __attribute__((used)) *memcpy_safe(void *dest, const void *src, size_t n)
+{
+  unsigned char *pout = (unsigned char *)dest;
+  unsigned char *pin  = (unsigned char *)src;
+  while (n-- > 0)
+    {
+      *pout++ = *pin++;
+    }
+
+  return dest;
+}
 
 /****************************************************************************
  * Name: usbhost_allocclass
@@ -985,34 +1002,42 @@ static int usbhost_txdata(FAR void *arg)
 
   /* Loop until The UART TX buffer is empty (or we become disconnected) */
 
-  txtail = txbuf->tail;
-  txndx  = 0;
-
-  while (txtail != txbuf->head && priv->txena && !priv->disconnected)
+  while (txbuf->tail != txbuf->head && priv->txena && !priv->disconnected)
     {
+      int16_t datalen;
+
       /* Copy data from the UART TX buffer until either 1) the UART TX
        * buffer has been emptied, or 2) the Bulk OUT buffer is full.
        */
 
       txndx = 0;
-      while (txtail != txbuf->head && txndx < (priv->pktsize - 1))
+
+      datalen = txbuf->head - txbuf->tail;
+
+      if (datalen < 0)
         {
-          /* Copy the next byte */
-
-          priv->outbuf[txndx] = txbuf->buffer[txtail];
-
-          /* Increment counters and indices */
-
-          txndx++;
-          if (++txtail >= txbuf->size)
-            {
-             txtail = 0;
-            }
+          datalen += txbuf->size;
         }
 
-      /* Save the updated tail pointer so that it cannot be sent again */
+      /* workaround */
+      if ((datalen & (priv->pktsize - 1)) == 0)
+        {
+          datalen--;
+        }
 
-      txbuf->tail = txtail;
+      if (txbuf->tail > txbuf->head)
+        {
+          txndx = txbuf->size - txbuf->tail;
+          memcpy(&priv->outbuf[0], &txbuf->buffer[txbuf->tail], txndx);
+          memcpy(&priv->outbuf[txndx], &txbuf->buffer[0], datalen - txndx);
+        }
+      else
+        {
+          memcpy(&priv->outbuf[0], &txbuf->buffer[txbuf->tail], datalen);
+        }
+
+      txndx = datalen;
+      txbuf->tail = txbuf->head;
 
       /* Send the filled TX buffer to the CDC/ACM device */
 
@@ -1130,17 +1155,7 @@ static int usbhost_rxdata(FAR void *arg)
 
   while (priv->rxena && !priv->disconnected)
     {
-      /* Stop now if there is no room for another
-       * character in the RX buffer.
-       */
-
-      if (nexthead == rxbuf->tail)
-        {
-          /* Break out of the loop, rescheduling the work */
-
-          priv->rxena = false;
-          break;
-        }
+      int16_t buflen, copylen;
 
       /* Do we have any buffer RX data to transfer? */
 
@@ -1149,7 +1164,7 @@ static int usbhost_rxdata(FAR void *arg)
           /* No.. Read more data from the CDC/ACM device */
 
           nread = DRVR_TRANSFER(hport->drvr, priv->bulkin,
-                                priv->inbuf, priv->pktsize);
+                                priv->inbuf, priv->bufsize);
           if (nread < 0)
             {
               /* The most likely reason for a failure is that the has no
@@ -1173,7 +1188,7 @@ static int usbhost_rxdata(FAR void *arg)
            */
 
           priv->nrxbytes = (uint16_t)nread;
-          rxndx          = 0;
+          priv->rxndx    = 0;
 
           /* Ignore ZLPs */
 
@@ -1183,44 +1198,70 @@ static int usbhost_rxdata(FAR void *arg)
             }
         }
 
-      /* Transfer one byte from the RX packet buffer into UART RX buffer */
+      buflen = rxbuf->tail - rxbuf->head - 1; /* UART RX buffer 残りサイズ */
 
-      rxbuf->buffer[rxbuf->head] = priv->inbuf[rxndx];
-      nxfrd++;
-
-      /* Save the updated indices */
-
-      rxbuf->head = nexthead;
-      priv->rxndx = rxndx;
-
-      /* Update the head point for for the next pass through the loop
-       * handling. If nexthead incremented to rxbuf->tail, then the
-       * RX buffer will and we will exit the loop at the top.
-       */
-
-      if (++nexthead >= rxbuf->size)
+      if (buflen == 0)
         {
-           nexthead = 0;
+          priv->rxena = false;
+          break;
         }
 
-      /* Increment the index in the USB IN packet buffer.  If the
-       * index becomes equal to the number of bytes in the buffer, then
-       * we have consumed all of the RX data.
-       */
-
-      if (++rxndx >= priv->nrxbytes)
+      if (buflen < 0)
         {
-          /* In that case set the number of bytes in the buffer to zero.
-           * This will force re-reading on the next time through the loop.
-           */
+          buflen += rxbuf->size;
+        }
 
-          priv->nrxbytes = 0;
-          priv->rxndx    = 0;
+      copylen = priv->nrxbytes - priv->rxndx;
 
-          /* Inform any waiters there there is new incoming data available. */
+      if (copylen > buflen)
+        {
+          copylen = buflen;
+        }
 
+      if (rxbuf->head >= rxbuf->tail)
+        {
+          int tmplen = rxbuf->size - rxbuf->head; /* 後半部分残りサイズ */
+
+          if (tmplen > copylen)
+            {
+              tmplen = copylen;
+            }
+
+          memcpy(&rxbuf->buffer[rxbuf->head], &priv->inbuf[priv->rxndx], tmplen);
+
+          if (copylen > tmplen)
+            {
+              memcpy(&rxbuf->buffer[0], &priv->inbuf[priv->rxndx + tmplen],
+                     copylen - tmplen);
+              rxbuf->head = copylen - tmplen;
+            }
+          else
+            {
+              rxbuf->head += tmplen;
+
+              if (rxbuf->head >= rxbuf->size)
+                {
+                  rxbuf->head -= rxbuf->size;
+                }
+            }
+        }
+      else
+        {
+          memcpy(&rxbuf->buffer[rxbuf->head], &priv->inbuf[priv->rxndx], copylen);
+          rxbuf->head += copylen;
+        }
+
+      priv->rxndx += copylen;
+
+      if (copylen > 0)
+        {
           uart_datareceived(uartdev);
-          nxfrd = 0;
+        }
+
+      if (priv->rxndx >= priv->nrxbytes)
+        {
+          priv->nrxbytes = 0;
+          priv->rxndx = 0;
         }
     }
 
@@ -1882,27 +1923,31 @@ static int usbhost_alloc_buffers(FAR struct usbhost_cdcacm_s *priv)
   /* Set the size of Bulk IN and OUT buffers to the max packet size */
 
   priv->pktsize = (hport->speed == USB_SPEED_HIGH) ? 512 : 64;
+  priv->bufsize = (hport->speed == USB_SPEED_HIGH) ? 4096: 64;
 
   /* Allocate a RX buffer for Bulk IN transfers */
 
-  ret = DRVR_IOALLOC(hport->drvr, &priv->inbuf, priv->pktsize);
+  //ret = DRVR_IOALLOC(hport->drvr, &priv->inbuf, priv->bufsize);
+  ret = DRVR_IOALIGN(hport->drvr, &priv->inbuf, priv->bufsize, 4096);
   if (ret < 0)
     {
       uerr("ERROR: DRVR_IOALLOC of Bulk IN buffer failed: %d (%d bytes)\n",
-           ret, priv->pktsize);
+           ret, priv->bufsize);
       goto errout;
     }
 
   /* Allocate a TX buffer for Bulk OUT transfers */
 
-  ret = DRVR_IOALLOC(hport->drvr, &priv->outbuf, priv->pktsize);
+  //ret = DRVR_IOALLOC(hport->drvr, &priv->outbuf, priv->bufsize);
+  ret = DRVR_IOALIGN(hport->drvr, &priv->outbuf, priv->bufsize, 4096);
   if (ret < 0)
     {
       uerr("ERROR: DRVR_IOALLOC of Bulk OUT buffer failed: %d (%d bytes)\n",
-           ret, priv->pktsize);
+           ret, priv->bufsize);
       goto errout;
     }
 
+  _info("inbuf: %08p, outbuf: %08p\n", priv->inbuf, priv->outbuf);
   return OK;
 
 errout:
@@ -2184,7 +2229,7 @@ static int usbhost_connect(FAR struct usbhost_class_s *usbclass,
   pthread_attr_init(&attr);
 
   struct sched_param param;
-  param.sched_priority = 150;
+  param.sched_priority = 100;
   pthread_attr_setschedparam(&attr, &param);
 
   if (pthread_create(&thread, &attr, usbhost_tx_thread, (void *)priv) == OK)
@@ -2193,7 +2238,7 @@ static int usbhost_connect(FAR struct usbhost_class_s *usbclass,
       pthread_setname_np(thread, threadname);
     }
 
-  param.sched_priority = 192;
+  param.sched_priority = 120;
   pthread_attr_setschedparam(&attr, &param);
 
   if (pthread_create(&thread, &attr, usbhost_rx_thread, (void *)priv) == OK)
@@ -2284,6 +2329,7 @@ static int usbhost_disconnected(FAR struct usbhost_class_s *usbclass)
     (FAR struct usbhost_cdcacm_s *)usbclass;
   FAR struct usbhost_hubport_s *hport;
   irqstate_t flags;
+  int sval;
   int ret;
 
   DEBUGASSERT(priv != NULL && priv->usbclass.hport != NULL);
@@ -2305,6 +2351,10 @@ static int usbhost_disconnected(FAR struct usbhost_class_s *usbclass)
   /* Cancel any ongoing Bulk transfers */
 
   priv->rxena = false;
+
+  if ((sem_getvalue(&priv->rx_sem, &sval) == 0) &&
+      sval < 1)
+    sem_post(&priv->rx_sem);
 
   ret = DRVR_CANCEL(hport->drvr, priv->bulkin);
   if (ret < 0)
@@ -2774,15 +2824,15 @@ static void usbhost_rxint(FAR struct uart_dev_s *uartdev, bool enable)
       if (!priv->rxena)
         {
           priv->rxena = true;
-
-          if ((sem_getvalue(&priv->rx_sem, &sval) == 0) &&
-              sval < 1)
-            sem_post(&priv->rx_sem);
         }
+
+      if ((sem_getvalue(&priv->rx_sem, &sval) == 0) &&
+          sval < 1)
+        sem_post(&priv->rx_sem);
     }
   else
     {
-      priv->rxena = false;
+      //priv->rxena = false;
     }
 
   leave_critical_section(flags);
