@@ -305,6 +305,7 @@
 #define PMD_SECT_AP0         (1 << PMD_SECT_AP_SHIFT) /* AP[0]:  Access permission bit 0 */
 #define PMD_SECT_AP1         (2 << PMD_SECT_AP_SHIFT) /* AP[1]:  Access permission bit 1 */
 #define PMD_SECT_TEX_SHIFT   (12)                     /* Bits 12-14: Memory region attribute bits */
+#define PMD_SECT_TEX(n)      ((n) << PMD_SECT_TEX_SHIFT)
 #define PMD_SECT_TEX_MASK    (7 << PMD_SECT_TEX_SHIFT)
 
 #define PMD_SECT_AP2         (1 << 15)    /* Bit 15: AP[2]:  Access permission bit 2 */
@@ -565,6 +566,7 @@
 #define PMD_STRONGLY_ORDERED (0)
 #define PMD_DEVICE           (PMD_SECT_B)
 #define PMD_CACHEABLE        (PMD_SECT_B | PMD_SECT_C)
+#define PMD_INOUT_ALLOCATE   (PMD_SECT_B | PMD_SECT_TEX(5))
 
 #define PTE_STRONGLY_ORDER   (0)
 #define PTE_DEVICE           (PTE_B)
@@ -583,12 +585,14 @@
 #define MMU_MEMFLAGS         (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | PMD_CACHEABLE | \
                               PMD_SECT_S | PMD_SECT_DOM(0))
 #else
-#define MMU_MEMFLAGS         (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | PMD_CACHEABLE | \
+#define MMU_MEMFLAGS         (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | PMD_INOUT_ALLOCATE | \
                               PMD_SECT_DOM(0))
 #endif
 
 #define MMU_IOFLAGS          (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | PMD_DEVICE | \
                               PMD_SECT_DOM(0) | PMD_SECT_XN)
+#define MMU_NOCACHE          (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | \
+                              PMD_SECT_DOM(0) | PMD_SECT_XN | PMD_SECT_TEX(1))
 #define MMU_STRONGLY_ORDERED (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | \
                               PMD_STRONGLY_ORDERED | PMD_SECT_DOM(0) | \
                               PMD_SECT_XN)

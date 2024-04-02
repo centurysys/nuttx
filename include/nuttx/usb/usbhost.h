@@ -408,6 +408,8 @@
 
 #define DRVR_IOALLOC(drvr,buffer,buflen) ((drvr)->ioalloc(drvr,buffer,buflen))
 
+#define DRVR_IOALIGN(drvr,buffer,buflen,align) ((drvr)->ioalign(drvr,buffer,buflen,align))
+
 /****************************************************************************
  * Name: DRVR_IOFREE
  *
@@ -867,6 +869,8 @@ struct usbhost_driver_s
 
   CODE int (*ioalloc)(FAR struct usbhost_driver_s *drvr,
                       FAR uint8_t **buffer, size_t buflen);
+  CODE int (*ioalign)(FAR struct usbhost_driver_s *drvr,
+                      FAR uint8_t **buffer, size_t buflen, size_t align);
   CODE int (*iofree)(FAR struct usbhost_driver_s *drvr,
                      FAR uint8_t *buffer);
 
