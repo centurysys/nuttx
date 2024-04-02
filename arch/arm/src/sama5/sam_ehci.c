@@ -340,12 +340,13 @@ static int sam_qh_flush(struct sam_qh_s *qh);
 
 /* Endpoint Transfer Handling ***********************************************/
 
-#ifdef CONFIG_SAMA5_EHCI_REGDEBUG
+//#ifdef CONFIG_SAMA5_EHCI_REGDEBUG
+#if 1
 static void sam_qtd_print(struct sam_qtd_s *qtd);
 static void sam_qh_print(struct sam_qh_s *qh);
+#else
 static int sam_qtd_dump(struct sam_qtd_s *qtd, uint32_t **bp, void *arg);
 static int sam_qh_dump(struct sam_qh_s *qh, uint32_t **bp, void *arg);
-#else
 #  define sam_qtd_print(qtd)
 #  define sam_qh_print(qh)
 #  define sam_qtd_dump(qtd, bp, arg)
@@ -1124,6 +1125,38 @@ static int sam_qtd_foreach(struct sam_qh_s *qh, foreach_qtd_t handler,
   return OK;
 }
 
+static int sam_qtd_show(struct sam_qtd_s *qtd, uint32_t **bp, void *arg)
+{
+  _info("* qTD: 0x%08x\n", qtd);
+  sam_qtd_print(qtd);
+  return OK;
+}
+
+static int sam_qh_show(struct sam_qh_s *qh, uint32_t **bp, void *arg)
+{
+  _info("----------------------------------\n");
+  _info("# QH: 0x%08x\n", qh);
+  sam_qh_print(qh);
+  _info("----------------------------------\n");
+  return sam_qtd_foreach(qh, sam_qtd_show, NULL);
+}
+
+void sam_queue_show(void)
+{
+  struct sam_qh_s *qh;
+  uint32_t *bp;
+
+  _info("* Async Queue AsyncHead: %p\n", g_asynchead);
+
+  bp = (uint32_t *)&(g_asynchead->hw.hlp);
+  qh = (struct sam_qh_s *)sam_virtramaddr(sam_swap32(*bp) & QH_HLP_MASK);
+
+  if (qh && qh != g_asynchead)
+    {
+      sam_qh_foreach(qh, &bp, sam_qh_show, NULL);
+    }
+}
+
 /****************************************************************************
  * Name: sam_qtd_discard
  *
@@ -1295,14 +1328,15 @@ static int sam_qh_flush(struct sam_qh_s *qh)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_SAMA5_EHCI_REGDEBUG
+//#ifdef CONFIG_SAMA5_EHCI_REGDEBUG
+#if 1
 static void sam_qtd_print(struct sam_qtd_s *qtd)
 {
-  uinfo("  QTD[%p]:\n", qtd);
-  uinfo("    hw:\n");
-  uinfo("      nqp: %08x alt: %08x token: %08x\n",
+  _info("  QTD[%p]:\n", qtd);
+  _info("    hw:\n");
+  _info("      nqp: %08x alt: %08x token: %08x\n",
         qtd->hw.nqp, qtd->hw.alt, qtd->hw.token);
-  uinfo("      bpl: %08x %08x %08x %08x %08x\n",
+  _info("      bpl: %08x %08x %08x %08x %08x\n",
         qtd->hw.bpl[0], qtd->hw.bpl[1], qtd->hw.bpl[2],
         qtd->hw.bpl[3], qtd->hw.bpl[4]);
 }
@@ -1316,35 +1350,36 @@ static void sam_qtd_print(struct sam_qtd_s *qtd)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_SAMA5_EHCI_REGDEBUG
+//#ifdef CONFIG_SAMA5_EHCI_REGDEBUG
+#if 1
 static void sam_qh_print(struct sam_qh_s *qh)
 {
   struct sam_epinfo_s *epinfo;
   struct ehci_overlay_s *overlay;
 
-  uinfo("QH[%p]:\n", qh);
-  uinfo("  hw:\n");
-  uinfo("    hlp: %08x epchar: %08x epcaps: %08x cqp: %08x\n",
+  _info("QH[%p]:\n", qh);
+  _info("  hw:\n");
+  _info("    hlp: %08x epchar: %08x epcaps: %08x cqp: %08x\n",
         qh->hw.hlp, qh->hw.epchar, qh->hw.epcaps, qh->hw.cqp);
 
   overlay = &qh->hw.overlay;
-  uinfo("  overlay:\n");
-  uinfo("    nqp: %08x alt: %08x token: %08x\n",
+  _info("  overlay:\n");
+  _info("    nqp: %08x alt: %08x token: %08x\n",
         overlay->nqp, overlay->alt, overlay->token);
-  uinfo("    bpl: %08x %08x %08x %08x %08x\n",
+  _info("    bpl: %08x %08x %08x %08x %08x\n",
         overlay->bpl[0], overlay->bpl[1], overlay->bpl[2],
         overlay->bpl[3], overlay->bpl[4]);
 
-  uinfo("  fqp:\n", qh->fqp);
+  _info("  fqp:\n", qh->fqp);
 
   epinfo = qh->epinfo;
-  uinfo("  epinfo[%p]:\n", epinfo);
+  _info("  epinfo[%p]:\n", epinfo);
   if (epinfo)
     {
-      uinfo("    EP%d DIR=%s FA=%08x TYPE=%d MaxPacket=%d\n",
+      _info("    EP%d DIR=%s FA=%08x TYPE=%d MaxPacket=%d\n",
             epinfo->epno, epinfo->dirin ? "IN" : "OUT", epinfo->devaddr,
             epinfo->xfrtype, epinfo->maxpacket);
-      uinfo("    Toggle=%d iocwait=%d speed=%d result=%d\n",
+      _info("    Toggle=%d iocwait=%d speed=%d result=%d\n",
             epinfo->toggle, epinfo->iocwait, epinfo->speed, epinfo->result);
     }
 }
@@ -1362,7 +1397,7 @@ static void sam_qh_print(struct sam_qh_s *qh)
 #ifdef CONFIG_SAMA5_EHCI_REGDEBUG
 static int sam_qtd_dump(struct sam_qtd_s *qtd, uint32_t **bp, void *arg)
 {
-  sam_qtd_print(qtd);
+  //sam_qtd_print(qtd);
   return OK;
 }
 #endif
@@ -1536,7 +1571,7 @@ static void sam_qh_enqueue(struct sam_qh_s *qhead, struct sam_qh_s *qh)
    */
 
   qh->fqp = qh->hw.overlay.nqp;
-  sam_qh_dump(qh, NULL, NULL);
+  //sam_qh_dump(qh, NULL, NULL);
 
   /* Add the new QH to the head of the asynchronous queue list.
    *
@@ -2566,7 +2601,7 @@ static int sam_qtd_ioccheck(struct sam_qtd_s *qtd, uint32_t **bp, void *arg)
   sam_invalidate_dcache((uintptr_t)&qtd->hw,
                         (uintptr_t)&qtd->hw + sizeof(struct ehci_qtd_s));
 #endif
-  sam_qtd_print(qtd);
+  //sam_qtd_print(qtd);
 
   /* Remove the qTD from the list
    *
@@ -2622,7 +2657,7 @@ static int sam_qh_ioccheck(struct sam_qh_s *qh, uint32_t **bp, void *arg)
   sam_invalidate_dcache((uintptr_t)&qh->hw,
                         (uintptr_t)&qh->hw + sizeof(struct ehci_qh_s));
 #endif
-  sam_qh_print(qh);
+  //sam_qh_print(qh);
 
   /* Get the endpoint info pointer from the extended QH data.  Only the
    * g_asynchead QH can have a NULL epinfo field.
@@ -2676,7 +2711,7 @@ static int sam_qh_ioccheck(struct sam_qh_s *qh, uint32_t **bp, void *arg)
        */
 
       **bp = qh->hw.hlp;
-      up_clean_dcache((uintptr_t)*bp, (uintptr_t)*bp + sizeof(uint32_t));
+      //up_clean_dcache((uintptr_t)*bp, (uintptr_t)*bp + sizeof(uint32_t));
 
       /* Check for errors, update the data toggle */
 
@@ -2785,7 +2820,7 @@ static int sam_qtd_cancel(struct sam_qtd_s *qtd, uint32_t **bp, void *arg)
   sam_invalidate_dcache((uintptr_t)&qtd->hw,
                         (uintptr_t)&qtd->hw + sizeof(struct ehci_qtd_s));
 #endif
-  sam_qtd_print(qtd);
+  //sam_qtd_print(qtd);
 
   /* Remove the qTD from the list
    *
@@ -2833,7 +2868,7 @@ static int sam_qh_cancel(struct sam_qh_s *qh, uint32_t **bp, void *arg)
   sam_invalidate_dcache((uintptr_t)&qh->hw,
                         (uintptr_t)&qh->hw + sizeof(struct ehci_qh_s));
 #endif
-  sam_qh_print(qh);
+  //sam_qh_print(qh);
 
   /* Check if this is the QH that we are looking for */
 
@@ -2862,7 +2897,7 @@ static int sam_qh_cancel(struct sam_qh_s *qh, uint32_t **bp, void *arg)
 
   **bp = qh->hw.hlp;
   //up_flush_dcache((uintptr_t)*bp, (uintptr_t)*bp + sizeof(uint32_t));
-  sam_flush_dcache((uintptr_t)*bp, (uintptr_t)*bp + sizeof(uint32_t));
+  //sam_flush_dcache((uintptr_t)*bp, (uintptr_t)*bp + sizeof(uint32_t));
 
   /* Re-enable the schedules (if they were enabled before. */
 
@@ -3253,6 +3288,7 @@ static void sam_ehci_bottomhalf(void *arg)
 
   if ((pending & EHCI_INT_SYSERROR) != 0)
     {
+      sam_queue_show();
       sam_syserr_bottomhalf();
     }
 
@@ -5107,7 +5143,8 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
   g_qhpool = (struct sam_qh_s *)
     kmm_memalign(32, CONFIG_SAMA5_EHCI_NQHS * sizeof(struct sam_qh_s));
 #  else
-  addr = CONFIG_SAMA5_EHCI_VBASE;
+  //addr = CONFIG_SAMA5_EHCI_VBASE;
+  addr = 0x00204000;
   size = CONFIG_SAMA5_EHCI_NQHS * sizeof(struct sam_qh_s);
   g_qhpool = (struct sam_qh_s *)addr;
   _info("g_qhpool: addr: %p, size: 0x%08x\n", g_qhpool, size);
@@ -5170,7 +5207,7 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
 #endif
 
   addr = ALIGN(addr + size, ARMV7A_DCACHE_LINESIZE);
-  size = 0x80000;
+  size = 0x00220000 - addr;
   dma_allocator = mm_initialize("ehci", (void *)addr, size);
   _info("DMA allocator: %p\n", dma_allocator);
 
@@ -5267,7 +5304,8 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
    *  first port is reset (and enabled)."
    */
 
-  addr = ALIGN(addr + size, sizeof(struct sam_qh_s));
+  //addr = ALIGN(addr + size, sizeof(struct sam_qh_s));
+  addr = mm_memalign(dma_allocator, ARMV7A_DCACHE_LINESIZE, sizeof(struct sam_qh_s));
   g_asynchead = (struct sam_qh_s *)addr;
   size = sizeof(struct sam_qh_s);
 
@@ -5297,7 +5335,8 @@ struct usbhost_connection_s *sam_ehci_initialize(int controller)
    * Head (g_intrhead).
    */
 
-  addr = ALIGN(addr + size, sizeof(struct sam_qh_s));
+  //addr = ALIGN(addr + size, sizeof(struct sam_qh_s));
+  addr = mm_memalign(dma_allocator, ARMV7A_DCACHE_LINESIZE, sizeof(struct sam_qh_s));
   g_intrhead = (struct sam_qh_s *)addr;
 
   memset(g_intrhead, 0, sizeof(struct sam_qh_s));
