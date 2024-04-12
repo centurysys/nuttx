@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/sparc/src/common/sparc_getintstack.c
+ * net/utils/net_ipv6_payload.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,21 +24,51 @@
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
+#include <nuttx/net/ip.h>
+#include <nuttx/net/ipv6ext.h>
 
-#include "sparc_internal.h"
+#ifdef CONFIG_NET_IPv6
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_get_intstackbase
+ * Name: net_ipv6_payload
+ *
+ * Description:
+ *   Given a pointer to the IPv6 header, this function will return a pointer
+ *   to the beginning of the L4 payload.
+ *
+ * Input Parameters:
+ *   ipv6  - A pointer to the IPv6 header.
+ *   proto - The location to return the protocol number in the IPv6 header.
+ *
+ * Returned Value:
+ *   A pointer to the beginning of the payload.
+ *
  ****************************************************************************/
 
-#if CONFIG_ARCH_INTERRUPTSTACK > 3
-uintptr_t up_get_intstackbase(void)
+FAR void *net_ipv6_payload(FAR struct ipv6_hdr_s *ipv6, FAR uint8_t *proto)
 {
-  return (uintptr_t)sparc_intstack_alloc();
+  FAR struct ipv6_extension_s *exthdr;
+  FAR uint8_t *payload = (FAR uint8_t *)ipv6 + IPv6_HDRLEN;
+  uint8_t nxthdr = ipv6->proto;
+  uint16_t extlen;
+
+  while (ipv6_exthdr(nxthdr))
+    {
+      /* Just skip over the extension header */
+
+      exthdr = (FAR struct ipv6_extension_s *)payload;
+      extlen = EXTHDR_LEN(exthdr->len);
+
+      payload += extlen;
+      nxthdr   = exthdr->nxthdr;
+    }
+
+  *proto = nxthdr;
+  return payload;
 }
-#endif
+
+#endif /* CONFIG_NET_IPv6 */

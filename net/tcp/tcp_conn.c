@@ -585,12 +585,10 @@ int tcp_selectport(uint8_t domain,
     {
       net_getrandom(&g_last_tcp_port, sizeof(uint16_t));
 
-      g_last_tcp_port = g_last_tcp_port % 32000;
-
-      if (g_last_tcp_port < 4096)
-        {
-          g_last_tcp_port += 4096;
-        }
+      g_last_tcp_port = g_last_tcp_port %
+                        (CONFIG_NET_DEFAULT_MAX_PORT -
+                         CONFIG_NET_DEFAULT_MIN_PORT + 1);
+      g_last_tcp_port += CONFIG_NET_DEFAULT_MIN_PORT;
     }
 
   if (portno == 0)
@@ -608,17 +606,19 @@ int tcp_selectport(uint8_t domain,
            * is within range.
            */
 
-          if (++g_last_tcp_port >= 32000)
+          ++g_last_tcp_port;
+
+          if (g_last_tcp_port > CONFIG_NET_DEFAULT_MAX_PORT ||
+              g_last_tcp_port < CONFIG_NET_DEFAULT_MIN_PORT)
             {
-              g_last_tcp_port = 4096;
+              g_last_tcp_port = CONFIG_NET_DEFAULT_MIN_PORT;
             }
 
           portno = HTONS(g_last_tcp_port);
         }
       while (tcp_listener(domain, ipaddr, portno)
-#if defined(CONFIG_NET_NAT) && defined(CONFIG_NET_IPv4)
-             || (domain == PF_INET &&
-                 ipv4_nat_port_inuse(IP_PROTO_TCP, ipaddr->ipv4, portno))
+#ifdef CONFIG_NET_NAT
+             || nat_port_inuse(domain, IP_PROTO_TCP, ipaddr, portno)
 #endif
       );
     }
@@ -629,9 +629,8 @@ int tcp_selectport(uint8_t domain,
        */
 
       if (tcp_listener(domain, ipaddr, portno)
-#if defined(CONFIG_NET_NAT) && defined(CONFIG_NET_IPv4)
-          || (domain == PF_INET &&
-              ipv4_nat_port_inuse(IP_PROTO_TCP, ipaddr->ipv4, portno))
+#ifdef CONFIG_NET_NAT
+          || nat_port_inuse(domain, IP_PROTO_TCP, ipaddr, portno)
 #endif
       )
         {
