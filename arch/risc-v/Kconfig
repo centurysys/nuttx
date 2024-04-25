@@ -357,6 +357,23 @@ config ARCH_RV_ISA_V
 	default n
 	depends on ARCH_FPU
 
+if ARCH_RV_ISA_V
+
+config ARCH_RV_VECTOR_BYTE_LENGTH
+	int "Vector Register Length in bytes"
+	default 32
+	---help---
+		Predefined vector register length. If CSR vlenb is greater than the
+		current reserved value, appropriate memory will be allocated to
+		save/restore the vector registers.
+		The XLEN-bit-wide read-only CSR vlenb holds the value VLEN/8, i.e.,
+		the vector register length in bytes.  The value in vlenb is a
+		design-time constant in any implementation.  Without this CSR, several
+		instructions are needed to calculate VLEN in bytes. The code has to
+		disturb current vl and vtype settings which require them to be saved and restored.
+
+endif
+
 config ARCH_RV_ISA_ZICSR_ZIFENCEI
 	bool
 	default y
@@ -370,6 +387,18 @@ config ARCH_RV_ISA_ZICSR_ZIFENCEI
 		toolchains that default to a newer ISA spec to version 2.2. For
 		clang < 17 or GCC < 11.3.0, for which this is not possible or need
 		special treatment.
+
+config ARCH_RV_EXPERIMENTAL_EXTENSIONS
+	string "LLVM RISC-V Experimental Extensions"
+	default ""
+	depends on RISCV_TOOLCHAIN_CLANG
+	---help---
+		This option allows the platform to enable experimental extensions,
+		LLVM supports (to various degrees) a number of experimental extensions.
+		All experimental extensions have experimental- as a prefix. There is
+		explicitly no compatibility promised between versions of the toolchain,
+		and regular users are strongly advised not to make use of experimental
+		extensions before they reach ratification.
 
 config ARCH_RV_ISA_VENDOR_EXTENSIONS
 	string "Vendor Custom RISC-V Instruction Set Architecture Extensions"
@@ -460,6 +489,16 @@ config RISCV_MISALIGNED_HANDLER
 	depends on ARCH_HAVE_MISALIGN_EXCEPTION
 	default y
 
+config RISCV_PERCPU_SCRATCH
+	bool "Enable Scratch-based Per-CPU storage"
+	default n
+	---help---
+		In some special chipsets, multiple CPUs may be bundled in one hardware
+		thread cluster, which results in hartid and cpuindex not being exactly
+		the same.
+		This option will enable Scratch-based Per-CPU storage to distinguish
+		the real cpu index.
+
 # Option to run NuttX in supervisor mode. This is obviously not usable in
 # flat mode, is questionable in protected mode, but is mandatory in kernel
 # mode.
@@ -475,6 +514,7 @@ config ARCH_USE_S_MODE
 	bool "Run the NuttX kernel in S-mode"
 	default n
 	depends on ARCH_HAVE_S_MODE && BUILD_KERNEL && ARCH_USE_MMU
+	select RISCV_PERCPU_SCRATCH
 	---help---
 		Most of the RISC-V implementations run in M-mode (flat addressing)
 		and/or U-mode (in case of separate kernel-/userspaces). This provides
@@ -497,6 +537,10 @@ config RISCV_TOOLCHAIN_GNU_RV32
 	---help---
 		This option should work for any modern GNU toolchain (GCC 5.2 or newer)
 		configured for riscv32-unknown-elf.
+
+config RISCV_TOOLCHAIN_CLANG
+	bool "LLVM Clang toolchain"
+	select ARCH_TOOLCHAIN_CLANG
 
 endchoice # Toolchain Selection
 

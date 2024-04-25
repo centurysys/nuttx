@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm64/src/imx9/imx93_lowputs.S
+ * boards/arm/rp2040/w5500-evb-pico/include/rp2040_spisd.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,70 +16,68 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  *
- ****************************************************************************
- *
- *    DESCRIPTION
- *       Wrapper for early printk
- *
- ***************************************************************************/
+ ****************************************************************************/
+
+#ifndef __BOARDS_ARM_RP2040_W5500_EVB_PICO_INCLUDE_RP2040_SPISD_H
+#define __BOARDS_ARM_RP2040_W5500_EVB_PICO_INCLUDE_RP2040_SPISD_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include "arm64_macro.inc"
-
-#include "hardware/imx9_lpuart.h"
-#include "hardware/imx93/imx93_memorymap.h"
-
 /****************************************************************************
- * Public Symbols
+ * Public Types
  ****************************************************************************/
 
-    .file    "imx93_lowputc.S"
+#ifndef __ASSEMBLY__
 
 /****************************************************************************
- * Assembly Macros
+ * Public Data
+ ****************************************************************************/
+
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+/****************************************************************************
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Private Functions
+ * Name: board_spisd_initialize
+ *
+ * Description:
+ *   Initialize the SPI-based SD card.
+ *
  ****************************************************************************/
+
+#ifdef CONFIG_RP2040_SPISD
+int board_spisd_initialize(int minor, int bus);
+#endif
 
 /****************************************************************************
- * Public Functions
+ * Name: board_spisd_status
+ *
+ * Description:
+ *   Get the status whether SD Card is present or not.
+ *
  ****************************************************************************/
 
-/* PL011 UART initialization */
+#ifdef CONFIG_RP2040_SPISD
+uint8_t board_spisd_status(struct spi_dev_s *dev, uint32_t devid);
+#endif
 
-GTEXT(arm64_earlyprintinit)
-SECTION_FUNC(text, arm64_earlyprintinit)
-    /* TODO: Assumes u-boot has set us up, assumption is fine for now */
-    ret
+#undef EXTERN
+#if defined(__cplusplus)
+}
+#endif
 
-/* i.MX93 wait LPUART to be ready to transmit
- * rb: register which contains the UART base address
- * rc: scratch register
- */
-.macro early_uart_ready rb, rc
-1:
-    ldr   \rc, [\rb, #UARTSTAT]   /* <- Flag register */
-    tst   \rc, #UARTSTAT_TDRE     /* Check FIFO EMPTY bit */
-    beq   1b                      /* Wait for the UART to be ready */
-.endm
-
-/* i.MX93 LPUART transmit character
- * rb: register which contains the UART base address
- * rt: register which contains the character to transmit */
-.macro early_uart_transmit rb, rt
-    str   \rt, [\rb, #UARTDATA]  /* -> Data Register */
-.endm
-
-/*
- * Print a character on the UART - this function is called by C
- * w0: character to print
- */
-GTEXT(arm64_lowputc)
-SECTION_FUNC(text, arm64_lowputc)
-    ldr   x15, =IMX9_LPUART1_BASE
-    early_uart_ready x15, w2
-    early_uart_transmit x15, w0
-    ret
+#endif /* __ASSEMBLY__ */
+#endif /* __BOARDS_ARM_RP2040_W5500_EVB_PICO_INCLUDE_RP2040_SPISD_H */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/misc/dump.c
+ * arch/arm64/src/imx9/imx9_lowputc.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,80 +18,67 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_ARM_SRC_IMX9_IMX9_LOWPUTC_H
+#define __ARCH_ARM_SRC_IMX9_IMX9_LOWPUTC_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/compiler.h>
 
-#include <nuttx/arch.h>
-#include <nuttx/fs/fs.h>
+#include <sys/types.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-#include <debug.h>
+#include "arm64_internal.h"
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Types
  ****************************************************************************/
 
-#ifdef CONFIG_DUMP_ON_EXIT
+/* This structure describes the configuration of an UART */
+
+struct uart_config_s
+{
+  uint32_t baud;          /* Configured baud */
+  uint8_t  parity;        /* 0=none, 1=odd, 2=even */
+  uint8_t  bits;          /* Number of bits (5-9) */
+  bool     stopbits2;     /* true: Configure with 2 stop bits instead of 1 */
+  bool     userts;        /* True: Assert RTS when there are data to be sent */
+  bool     invrts;        /* True: Invert sense of RTS pin (true=active high) */
+  bool     usects;        /* True: Condition transmission on CTS asserted */
+  bool     users485;      /* True: Assert RTS while transmission progresses */
+};
 
 /****************************************************************************
- * Private Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name: dumphandler
+ * Name: imx9_lowsetup
  *
  * Description:
- *   Dump the state of all tasks whenever on task exits.  This is debug
- *   instrumentation that was added to check file-related reference counting
- *   but could be useful again sometime in the future.
+ *   Called at the very beginning of _start.  Performs low level
+ *   initialization including setup of the console UART.  This UART done
+ *   early so that the serial console is available for debugging very early
+ *   in the boot sequence.
  *
  ****************************************************************************/
 
-static void dumphandler(FAR struct tcb_s *tcb, FAR void *arg)
-{
-  FAR struct filelist *filelist;
-  int i;
-  int j;
-
-  sinfo("  TCB=%p name=%s\n", tcb, tcb->name);
-  sinfo("    priority=%d state=%d\n", tcb->sched_priority, tcb->task_state);
-
-  filelist = &tcb->group->tg_filelist;
-  for (i = 0; i < filelist->fl_rows; i++)
-    {
-      for (j = 0; j < CONFIG_NFILE_DESCRIPTORS_PER_BLOCK; j++)
-        {
-          struct inode *inode = filelist->fl_files[i][j].f_inode;
-          if (inode)
-            {
-              sinfo("      fd=%d refcount=%d\n",
-                    i * CONFIG_NFILE_DESCRIPTORS_PER_BLOCK + j,
-                    inode->i_crefs);
-            }
-        }
-    }
-}
+void imx9_lowsetup(void);
 
 /****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: nxsched_dumponexit
+ * Name: imx9_lpuart_configure
  *
  * Description:
- *   Dump the state of all tasks whenever on task exits.  This is debug
- *   instrumentation that was added to check file-related reference counting
- *   but could be useful again sometime in the future.
+ *   Configure a UART for non-interrupt driven operation
  *
  ****************************************************************************/
 
-void nxsched_dumponexit(void)
-{
-  sinfo("Other tasks:\n");
-  nxsched_foreach(dumphandler, NULL);
-}
+int imx9_lpuart_configure(uint32_t base,
+                          int uartnum,
+                          const struct uart_config_s *config);
 
-#endif /* CONFIG_DUMP_ON_EXIT */
+#endif /* __ARCH_ARM_SRC_IMX9_IMX9_LOWPUTC_H */

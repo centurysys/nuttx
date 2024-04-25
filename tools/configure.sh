@@ -37,7 +37,8 @@ Where:
   -B selects the *BSD (B) host environment.
   Default: Use host setup in the defconfig file
   Default Windows: Cygwin
-  -L  Lists all available configurations.
+  -L lists available configurations for given boards, or all boards if no
+     board is given. board name can be partial here.
   -a <app-dir> is the path to the apps/ directory, relative to the nuttx
      directory
   <board-selection> is either:
@@ -276,6 +277,10 @@ if [ -z "${appdir}" ]; then
 
   if [ -d "${TOPDIR}/../apps" ]; then
     appdir="../apps"
+  elif [ -d "${TOPDIR}/../nuttx-apps" ]; then
+    appdir="../nuttx-apps"
+  elif [ -d "${TOPDIR}/../nuttx-apps.git" ]; then
+    appdir="../nuttx-apps.git"
   else
     # Check for a versioned apps/ directory
 
