@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/risc-v/src/qemu-rv/qemu_rv_exception_m.S
+ * boards/arm/mps/mps3-an547/include/board.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,88 +18,44 @@
  *
  ****************************************************************************/
 
+#ifndef __BOARDS_ARM_MPS_MPS3_AN547_INCLUDE_BOARD_H
+#define __BOARDS_ARM_MPS_MPS3_AN547_INCLUDE_BOARD_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <arch/arch.h>
-#include <arch/irq.h>
-#include <arch/mode.h>
-
-#include <sys/types.h>
-
-#include "chip.h"
-
-#include "riscv_macros.S"
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Provide a default section for the exeception handler. */
+#define MPS_SYSTICK_CLOCK   (32 * 1000 * 1000)
 
-#ifndef EXCEPTION_SECTION
-#  define EXCEPTION_SECTION .text
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+#ifndef __ASSEMBLY__
+
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
 #endif
 
 /****************************************************************************
- * Public Symbols
+ * Public Function Prototypes
  ****************************************************************************/
 
-.section .text
-.balign  8
-.global  __trap_vec_m
+#undef EXTERN
+#if defined(__cplusplus)
+}
+#endif
 
-/****************************************************************************
- * Name: __trap_vec_m
- *
- * Description:
- *   All M-mode exceptions and interrupts will be handled from here. If
- *   kernel is in S-mode delegated exceptions and interrupts are handled.
- *
- ****************************************************************************/
-
-__trap_vec_m:
-  j    exception_m
-
-/****************************************************************************
- * Name: exception_m
- *
- * Description:
- *   Handles interrupts for m-mode
- *
- ****************************************************************************/
-
-.section EXCEPTION_SECTION
-.global exception_m
-.align  8
-
-exception_m:
-
-  /* Swap mscratch with sp */
-  /* NOTE: mscratch has been set in up_mtimer_initialize() */
-
-  csrrw     sp, CSR_MSCRATCH, sp
-
-  /* Save the context */
-
-  save_ctx  sp
-
-  /* Handle the mtimer interrupt */
-  /* NOTE: we assume exception/interrupt only happens for mtimer */
-
-  jal       ra, qemu_rv_mtimer_interrupt
-
-  /* Restore the context */
-
-  load_ctx  sp
-
-  /* Swap mscratch with sp */
-
-  csrrw     sp, CSR_MSCRATCH, sp
-
-  /* Return from exception */
-
-  mret
+#endif /* __ASSEMBLY__ */
+#endif /* __BOARDS_ARM_MPS_MPS3_AN547_INCLUDE_BOARD_H */

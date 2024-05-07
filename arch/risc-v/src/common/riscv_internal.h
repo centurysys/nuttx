@@ -81,6 +81,9 @@
 #define STACK_ALIGN_DOWN(a) ((a) & ~STACK_ALIGN_MASK)
 #define STACK_ALIGN_UP(a)   (((a) + STACK_ALIGN_MASK) & ~STACK_ALIGN_MASK)
 
+/* Interrupt Stack macros */
+#define INT_STACK_SIZE  (STACK_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK))
+
 /* Format output with register width and hex */
 
 #ifdef CONFIG_ARCH_RV32
@@ -164,6 +167,24 @@
   riscv_config_pmp_region(riscv_next_free_pmp_region(), a, b, s)
 
 #endif
+
+/* SBI Extension IDs */
+
+#define SBI_EXT_HSM             0x48534D
+#define SBI_EXT_IPI             0x735049
+#define SBI_EXT_TIME            0x54494D45
+
+/* SBI function IDs for TIME extension */
+
+#define SBI_EXT_TIME_SET_TIMER  0x0
+
+/* SBI function IDs for HSM extension */
+
+#define SBI_EXT_HSM_HART_START  0x0
+
+/* SBI function IDs for IPI extension */
+
+#define SBI_EXT_IPI_SEND_IPI  0x0
 
 /****************************************************************************
  * Public Types
@@ -294,11 +315,26 @@ int riscv_check_pmp_access(uintptr_t attr, uintptr_t base, uintptr_t size);
 int riscv_configured_pmp_regions(void);
 int riscv_next_free_pmp_region(void);
 
+/* RISC-V Memorymap Config **************************************************/
+
+static inline void riscv_set_basestack(uintptr_t base, uintptr_t size)
+{
+  unsigned int i;
+
+  for (i = 0; i < CONFIG_SMP_NCPUS; i++)
+    {
+      g_cpux_idlestack[i] = (const uint8_t *)(base + size * i);
+    }
+}
+
 /* RISC-V SBI wrappers ******************************************************/
 
 #ifdef CONFIG_ARCH_USE_S_MODE
+uintptr_t riscv_sbi_send_ipi(uint32_t hmask, uintptr_t hbase);
 void riscv_sbi_set_timer(uint64_t stime_value);
 uint64_t riscv_sbi_get_time(void);
+uintptr_t riscv_sbi_boot_secondary(uint32_t hartid, uintptr_t addr,
+                                   uintptr_t a1);
 #endif
 
 /* Power management *********************************************************/
